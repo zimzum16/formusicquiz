@@ -1,22 +1,24 @@
 import { useState } from 'react';
-import { User, Mail, CreditCard, Music, Lock, LogOut, ChevronRight } from 'lucide-react';
+import { User as UserIcon, Mail, CreditCard, Music, Lock, LogOut, ChevronRight } from 'lucide-react';
 import { Page } from '../App';
+import { User } from '../lib/api';
 
 interface ProfileProps {
   navigate: (page: Page) => void;
+  user: User | null;
   onLogout: () => void;
 }
 
-export default function Profile({ navigate, onLogout }: ProfileProps) {
+export default function Profile({ navigate, user: authUser, onLogout }: ProfileProps) {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [currentPwd, setCurrentPwd] = useState('');
   const [newPwd, setNewPwd] = useState('');
 
   const user = {
-    name: 'Алексей Смирнов',
-    email: 'alex@example.com',
+    name: authUser?.email?.split('@')[0] ?? 'Пользователь',
+    email: authUser?.email ?? '—',
     plan: 'Бесплатный',
-    songsUsed: 8,
+    songsUsed: 0,
     songsTotal: 150,
   };
 
@@ -44,7 +46,7 @@ export default function Profile({ navigate, onLogout }: ProfileProps) {
 
           <div className="space-y-3">
             <div className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
-              <User size={16} className="text-gray-400 flex-shrink-0" />
+              <UserIcon size={16} className="text-gray-400 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-gray-400">Имя</p>
                 <p className="text-sm font-medium text-gray-900">{user.name}</p>
