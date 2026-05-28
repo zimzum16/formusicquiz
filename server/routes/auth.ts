@@ -1,12 +1,12 @@
-import { Hono } from 'hono';
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import db from '../db.js';
 import { requireAuth } from '../middleware/session.js';
 
-const router = new Hono<{ Variables: { userId: number } }>();
+const router = new OpenAPIHono<{ Variables: { userId: number } }>();
 
-const SESSION_TTL = 7 * 24 * 60 * 60; // 7 дней в секундах
+const SESSION_TTL = 7 * 24 * 60 * 60;
 
 const getSecret = () =>
   new TextEncoder().encode(process.env.JWT_SECRET || 'dev-secret-change-in-prod');
@@ -28,16 +28,92 @@ async function createSession(userId: number): Promise<string> {
   return token;
 }
 
-router.post('/register', async (c) => {
-  const body = await c.req.json().catch(() => null);
-  const { email, password } = body ?? {};
+// Схемы
+const UserSchema = z.object({
+  id: z.number(),
+  email: z.string().email(),
+});
 
-  if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
-    return c.json({ error: 'Email и пароль обязательны' }, 400);
-  }
-  if (password.length < 8) {
-    return c.json({ error: 'Пароль минимум 8 символов' }, 400);
-  }
+const AuthBodySchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+
+const AuthResponseSchema = z.object({
+  token: z.string(),
+  user: UserSchema,
+});
+
+const ErrorSchema = z.object({ error: z.string() });
+
+// Роуты
+const registerRoute = createRoute({
+  method: 'post',
+  path: '/register',
+  request: {
+    body: { content: { 'application/json': { schema: AuthBodySchema } } },
+  },
+  responses: {
+    201: {
+      content: { 'application/json': { schema: AuthResponseSchema } },
+      description: 'Пользователь создан',
+    },
+    400: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Ошибка валидации',
+    },
+    409: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Email уже зарегистрирован',
+    },
+  },
+});
+
+const loginRoute = createRoute({
+  method: 'post',
+  path: '/login',
+  request: {
+    body: { content: { 'application/json': { schema: AuthBodySchema } } },
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: AuthResponseSchema } },
+      description: 'Успешный вход',
+    },
+    401: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Неверные данные',
+    },
+  },
+});
+
+const logoutRoute = createRoute({
+  method: 'post',
+  path: '/logout',
+  responses: {
+    200: {
+      content: { 'application/json': { schema: z.object({ ok: z.boolean() }) } },
+      description: 'Выход выполнен',
+    },
+  },
+});
+
+const meRoute = createRoute({
+  method: 'get',
+  path: '/me',
+  responses: {
+    200: {
+      content: {
+        'application/json': { schema: z.object({ user: UserSchema.nullable() }) },
+      },
+      description: 'Текущий пользователь',
+    },
+  },
+});
+
+// Хендлеры
+router.openapi(registerRoute, async (c) => {
+  const { email, password } = c.req.valid('json');
 
   const passwordHash = await bcrypt.hash(password, 10);
 
@@ -59,13 +135,8 @@ router.post('/register', async (c) => {
   return c.json({ token, user: { id: userId, email } }, 201);
 });
 
-router.post('/login', async (c) => {
-  const body = await c.req.json().catch(() => null);
-  const { email, password } = body ?? {};
-
-  if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
-    return c.json({ error: 'Email и пароль обязательны' }, 400);
-  }
+router.openapi(loginRoute, async (c) => {
+  const { email, password } = c.req.valid('json');
 
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as
     | { id: number; email: string; password_hash: string }
@@ -77,23 +148,25 @@ router.post('/login', async (c) => {
 
   const token = await createSession(user.id);
 
-  return c.json({ token, user: { id: user.id, email: user.email } });
+  return c.json({ token, user: { id: user.id, email: user.email } }, 200);
 });
 
-router.post('/logout', requireAuth, (c) => {
+router.use('/logout', requireAuth);
+router.openapi(logoutRoute, (c) => {
   const token = c.req.header('Authorization')!.replace('Bearer ', '');
   db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
-  return c.json({ ok: true });
+  return c.json({ ok: true }, 200);
 });
 
-router.get('/me', requireAuth, (c) => {
+router.use('/me', requireAuth);
+router.openapi(meRoute, (c) => {
   const userId = c.get('userId');
   const user = db.prepare('SELECT id, email FROM users WHERE id = ?').get(userId) as
     | { id: number; email: string }
     | undefined;
 
-  if (!user) return c.json({ user: null });
-  return c.json({ user });
+  if (!user) return c.json({ user: null }, 200);
+  return c.json({ user }, 200);
 });
 
 export default router;

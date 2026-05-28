@@ -1,10 +1,11 @@
 import { serve } from '@hono/node-server';
-import { Hono } from 'hono';
+import { OpenAPIHono } from '@hono/zod-openapi';
+import { swaggerUI } from '@hono/swagger-ui';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import authRouter from './routes/auth.js';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 
 app.use('*', logger());
 app.use(
@@ -19,7 +20,15 @@ app.route('/api/auth', authRouter);
 
 app.get('/api/health', (c) => c.json({ ok: true }));
 
+app.doc('/api/spec', {
+  openapi: '3.0.0',
+  info: { title: 'SoundLens API', version: '1.0.0' },
+});
+
+app.get('/docs', swaggerUI({ url: '/api/spec' }));
+
 const port = Number(process.env.PORT) || 3001;
 console.log(`Server: http://localhost:${port}`);
+console.log(`Docs:   http://localhost:${port}/docs`);
 
 serve({ fetch: app.fetch, port });

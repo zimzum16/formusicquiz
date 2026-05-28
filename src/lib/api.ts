@@ -1,14 +1,13 @@
+import type { paths } from './api-types';
+
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-export interface User {
-  id: number;
-  email: string;
-}
-
-export interface AuthResponse {
-  token: string;
-  user: User;
-}
+// Типы из автогенерированного spec — не редактировать вручную, запустить npm run gen:types
+export type User = NonNullable<
+  paths['/api/auth/me']['get']['responses']['200']['content']['application/json']['user']
+>;
+export type AuthResponse =
+  paths['/api/auth/login']['post']['responses']['200']['content']['application/json'];
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('token');
