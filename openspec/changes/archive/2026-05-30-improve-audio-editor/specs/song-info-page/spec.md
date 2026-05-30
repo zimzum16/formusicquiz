@@ -27,7 +27,7 @@
 - **WHEN** API возвращает ошибку при поиске
 - **THEN** отображается сообщение об ошибке, форма поиска остаётся доступной
 
----
+## ADDED Requirements
 
 ### Requirement: Блок поиска обложек использует ImageSearchBlock
 Секция поиска обложек на странице SongInfo SHALL использовать компонент `ImageSearchBlock` из `src/components/editor/ImageSearchBlock.tsx`.

@@ -122,8 +122,8 @@ router.openapi(registerRoute, async (c) => {
     result = db
       .prepare('INSERT INTO users (email, password_hash) VALUES (?, ?)')
       .run(email, passwordHash);
-  } catch (err: any) {
-    if (err?.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+  } catch (err) {
+    if (err instanceof Error && 'code' in err && err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
       return c.json({ error: 'Email уже зарегистрирован' }, 409);
     }
     throw err;

@@ -141,7 +141,12 @@ router.openapi(infoRoute, async (c) => {
   const spotifyTrack = await getTrack(id);
   if (!spotifyTrack) return c.json({ error: 'Track not found' }, 404);
 
-  const { title, artist } = spotifyTrack;
+  const { title: rawTitle, artist } = spotifyTrack;
+  // Убираем суффиксы Spotify перед поиском в Genius/Last.fm/Setlist.fm
+  const title = rawTitle.replace(
+    /\s*[-–(]\s*(single version|remastered.*|radio edit|live.*|acoustic.*|demo.*|instrumental.*|extended.*|deluxe.*|feat\..*)\s*\)?$/i,
+    ''
+  ).trim();
 
   const [geniusResult, lastfmResult, setlistResult, youtubeResult] = await Promise.allSettled([
     searchSong(title, artist),
