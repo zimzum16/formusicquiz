@@ -4,6 +4,7 @@ import { swaggerUI } from '@hono/swagger-ui';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import authRouter from './routes/auth.js';
+import tracksRouter from './routes/tracks.js';
 
 const app = new OpenAPIHono();
 
@@ -17,6 +18,7 @@ app.use(
 );
 
 app.route('/api/auth', authRouter);
+app.route('/api/tracks', tracksRouter);
 
 app.get('/api/health', (c) => c.json({ ok: true }));
 

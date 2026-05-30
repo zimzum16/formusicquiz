@@ -26,6 +26,94 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return data;
 }
 
+// Tracks types
+export interface SpotifyTrack {
+  id: string;
+  title: string;
+  artist: string;
+  album: string;
+  release_date: string;
+  duration_ms: number;
+  preview_url: string | null;
+  cover_url: string | null;
+  spotify_url: string;
+  popularity: number | null;
+}
+
+export interface ArtistRef { name: string; url: string }
+export interface RelatedSong { title: string; artist: string; genius_url: string }
+export interface GeniusMedia { type: string; url: string }
+
+export interface GeniusSong {
+  lyrics_url: string;
+  description: string | null;
+  release_date: string | null;
+  language: string | null;
+  pageviews: number | null;
+  song_art_image_url: string | null;
+  media: GeniusMedia[];
+  writer_artists: ArtistRef[];
+  producer_artists: ArtistRef[];
+  featured_artists: ArtistRef[];
+  samples: RelatedSong[];
+  sampled_in: RelatedSong[];
+  interpolates: RelatedSong[];
+  interpolated_by: RelatedSong[];
+  cover_of: RelatedSong[];
+  covered_by: RelatedSong[];
+  remix_of: RelatedSong[];
+  remixes: RelatedSong[];
+  live_version_of: RelatedSong[];
+}
+
+export interface LastfmTrack {
+  listeners: number;
+  playcount: number;
+  url: string;
+  tags: { name: string; url: string }[];
+  similar: { title: string; artist: string; url: string }[];
+}
+
+export interface Performance {
+  date: string;
+  venue: string;
+  city: string;
+  tour: string | null;
+}
+
+export interface SetlistStats {
+  total_performances: number;
+  encore_count: number;
+  first_performance: Performance | null;
+  last_performance: Performance | null;
+}
+
+export interface YoutubeResult {
+  video_id: string | null;
+  url: string;
+  search_url: string;
+  view_count: number | null;
+  like_count: number | null;
+}
+
+export interface TrackInfo {
+  spotify: SpotifyTrack;
+  genius: GeniusSong | null;
+  lastfm: LastfmTrack | null;
+  setlistfm: SetlistStats | null;
+  youtube: YoutubeResult;
+  yandex: { search_url: string };
+}
+
+export const tracksApi = {
+  search: (q: string, artist?: string) => {
+    const params = new URLSearchParams({ q });
+    if (artist) params.set('artist', artist);
+    return request<SpotifyTrack[]>(`/api/tracks/search?${params}`);
+  },
+  getInfo: (id: string) => request<TrackInfo>(`/api/tracks/${id}/info`),
+};
+
 export const authApi = {
   register: (email: string, password: string) =>
     request<AuthResponse>('/api/auth/register', {
