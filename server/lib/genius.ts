@@ -20,6 +20,7 @@ export interface GeniusSong {
   lyrics_url: string;
   description: string | null;
   release_date: string | null;
+  release_year: number | null;
   language: string | null;
   pageviews: number | null;
   song_art_image_url: string | null;
@@ -66,11 +67,11 @@ export async function searchSong(title: string, artist: string): Promise<GeniusS
 
   const songData = (await songRes.json()) as { response: { song: GeniusApiSong } };
   const s = songData.response.song;
-
   return {
     lyrics_url: s.url,
     description: s.description?.plain ?? null,
     release_date: s.release_date ?? null,
+    release_year: s.release_date_components?.year ?? null,
     language: s.language ?? null,
     pageviews: s.stats?.pageviews ?? null,
     song_art_image_url: s.song_art_image_url ?? null,
@@ -94,6 +95,7 @@ interface GeniusApiSong {
   url: string;
   description?: { plain: string };
   release_date?: string;
+  release_date_components?: { year: number | null; month: number | null; day: number | null };
   language?: string;
   stats?: { pageviews: number };
   song_art_image_url?: string;

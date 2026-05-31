@@ -6,6 +6,7 @@ import { getTrackStats } from '../lib/setlistfm.js';
 import { findVideo } from '../lib/youtube.js';
 import { getTrackInfo as getYandexTrackInfo } from '../lib/yandex.js';
 import { getAppleMusicData } from '../lib/applemusic.js';
+import { hasCyrillic, cyrToLat, latToCyr, looksLikeKeyboardMismatch, keyboardToLatin } from '../lib/translit.js';
 
 const router = new OpenAPIHono();
 
@@ -32,6 +33,7 @@ const GeniusSchema = z.object({
   lyrics_url: z.string(),
   description: z.string().nullable(),
   release_date: z.string().nullable(),
+  release_year: z.number().nullable(),
   language: z.string().nullable(),
   pageviews: z.number().nullable(),
   song_art_image_url: z.string().nullable(),
@@ -67,7 +69,7 @@ const PerformanceSchema = z.object({
 
 const SetlistfmSchema = z.object({
   total_performances: z.number(),
-  encore_count: z.number(),
+  url: z.string(),
   first_performance: PerformanceSchema.nullable(),
   last_performance: PerformanceSchema.nullable(),
 });
@@ -89,18 +91,17 @@ const YandexSchema = z.object({
   chart: ChartEntrySchema.nullable(),
 });
 
-const AppleMusicChartSchema = z.object({ position: z.number(), country: z.literal('ru') });
+const AppleMusicChartSchema = z.object({ position: z.number(), country: z.string() });
 
 const AppleMusicSchema = z.object({
   search_url: z.string(),
-  chart: AppleMusicChartSchema.nullable(),
+  charts: z.array(AppleMusicChartSchema),
 });
 
 const TrackInfoSchema = z.object({
   spotify: TrackSchema,
   genius: GeniusSchema.nullable(),
   lastfm: LastfmSchema.nullable(),
-  setlistfm: SetlistfmSchema.nullable(),
   youtube: YoutubeSchema,
   yandex: YandexSchema,
   apple_music: AppleMusicSchema,
@@ -108,7 +109,23 @@ const TrackInfoSchema = z.object({
 
 const ErrorSchema = z.object({ error: z.string() });
 
+// ── In-memory cache ───────────────────────────────────────────────────────────
+
+const TRACK_CACHE_TTL = 60 * 60 * 1000;
+type TrackInfoPayload = {
+  spotify: z.infer<typeof TrackSchema>;
+  genius: z.infer<typeof GeniusSchema> | null;
+  lastfm: z.infer<typeof LastfmSchema> | null;
+  youtube: z.infer<typeof YoutubeSchema>;
+  yandex: z.infer<typeof YandexSchema>;
+  apple_music: z.infer<typeof AppleMusicSchema>;
+};
+const trackCache = new Map<string, { data: TrackInfoPayload; ts: number }>();
+const setlistCache = new Map<string, { data: z.infer<typeof SetlistfmSchema> | null; ts: number }>();
+
 // ── Routes ────────────────────────────────────────────────────────────────────
+
+const TITLE_RE = /\s*[-–(]\s*(single version|\d{4}\s+remaster.*|remaster(ed)?.*|radio edit|live.*|acoustic.*|demo.*|instrumental.*|extended.*|deluxe.*|feat\..*)\s*\)?$/i;
 
 const searchRoute = createRoute({
   method: 'get',
@@ -123,6 +140,18 @@ const searchRoute = createRoute({
     200: {
       content: { 'application/json': { schema: z.array(TrackSchema) } },
       description: 'Список треков',
+    },
+  },
+});
+
+const setlistfmRoute = createRoute({
+  method: 'get',
+  path: '/:id/setlistfm',
+  request: { params: z.object({ id: z.string() }) },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: SetlistfmSchema.nullable() } },
+      description: 'Данные Setlist.fm',
     },
   },
 });
@@ -149,36 +178,55 @@ const infoRoute = createRoute({
 
 router.openapi(searchRoute, async (c) => {
   const { q, artist } = c.req.valid('query');
-  const tracks = await searchTracks(q, artist);
-  return c.json(tracks);
+  const isCyr = hasCyrillic(q);
+  let altQ: string | null = null;
+
+  if (isCyr) {
+    altQ = looksLikeKeyboardMismatch(q) ? keyboardToLatin(q) : cyrToLat(q);
+  } else {
+    const cyr = latToCyr(q);
+    if (cyr !== q) altQ = cyr;
+  }
+
+  const [a, b] = await Promise.all([
+    searchTracks(q, artist),
+    altQ ? searchTracks(altQ, artist) : Promise.resolve([]),
+  ]);
+
+  // Для кириллицы альтернативный запрос важнее (транслит или раскладка)
+  const [primary, secondary] = isCyr ? [b, a] : [a, b];
+  const seen = new Set(primary.map(t => t.id));
+  const merged = [...primary, ...secondary.filter(t => !seen.has(t.id))];
+  return c.json(merged.slice(0, 20));
 });
 
 router.openapi(infoRoute, async (c) => {
   const { id } = c.req.valid('param');
+
+  const cached = trackCache.get(id);
+  if (cached && Date.now() - cached.ts < TRACK_CACHE_TTL) return c.json(cached.data, 200);
 
   const spotifyTrack = await getTrack(id);
   if (!spotifyTrack) return c.json({ error: 'Track not found' }, 404);
 
   const { title: rawTitle, artist } = spotifyTrack;
   // Убираем суффиксы Spotify перед поиском в Genius/Last.fm/Setlist.fm
-  const title = rawTitle.replace(
-    /\s*[-–(]\s*(single version|remastered.*|radio edit|live.*|acoustic.*|demo.*|instrumental.*|extended.*|deluxe.*|feat\..*)\s*\)?$/i,
-    ''
-  ).trim();
+  const title = rawTitle.replace(TITLE_RE, '').trim();
 
-  const [geniusResult, lastfmResult, setlistResult, youtubeResult, yandexResult, appleResult] =
+  const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T | null> =>
+    Promise.race([p, new Promise<null>(resolve => setTimeout(() => resolve(null), ms))]);
+
+  const [geniusResult, lastfmResult, youtubeResult, yandexResult, appleResult] =
     await Promise.allSettled([
       searchSong(title, artist),
       getTrackInfo(title, artist),
-      getTrackStats(title, artist),
       findVideo(title, artist),
       getYandexTrackInfo(title, artist),
-      getAppleMusicData(title, artist),
+      withTimeout(getAppleMusicData(title, artist), 3000),
     ]);
 
   const genius = geniusResult.status === 'fulfilled' ? geniusResult.value : null;
   const lastfm = lastfmResult.status === 'fulfilled' ? lastfmResult.value : null;
-  const setlistfm = setlistResult.status === 'fulfilled' ? setlistResult.value : null;
   const youtube =
     youtubeResult.status === 'fulfilled'
       ? youtubeResult.value
@@ -188,14 +236,30 @@ router.openapi(infoRoute, async (c) => {
       ? yandexResult.value
       : { url: null, search_url: `https://music.yandex.ru/search?text=${encodeURIComponent(`${artist} ${title}`)}`, likes_count: null, chart: null };
   const apple_music =
-    appleResult.status === 'fulfilled'
+    appleResult.status === 'fulfilled' && appleResult.value
       ? appleResult.value
-      : { search_url: `https://music.apple.com/ru/search?term=${encodeURIComponent(`${artist} ${title}`)}`, chart: null };
+      : { search_url: `https://music.apple.com/ru/search?term=${encodeURIComponent(`${artist} ${title}`)}`, charts: [] };
 
-  return c.json(
-    { spotify: spotifyTrack, genius, lastfm, setlistfm, youtube, yandex, apple_music },
-    200
-  );
+  const payload: TrackInfoPayload = { spotify: spotifyTrack, genius, lastfm, youtube, yandex, apple_music };
+  trackCache.set(id, { data: payload, ts: Date.now() });
+  return c.json(payload, 200);
+});
+
+router.openapi(setlistfmRoute, async (c) => {
+  const { id } = c.req.valid('param');
+
+  const cached = setlistCache.get(id);
+  if (cached && Date.now() - cached.ts < TRACK_CACHE_TTL) return c.json(cached.data, 200);
+
+  const spotifyTrack = await getTrack(id);
+  if (!spotifyTrack) return c.json(null, 200);
+
+  const { title: rawTitle, artist } = spotifyTrack;
+  const title = rawTitle.replace(TITLE_RE, '').trim();
+
+  const data = await getTrackStats(title, artist).catch(() => null);
+  setlistCache.set(id, { data, ts: Date.now() });
+  return c.json(data, 200);
 });
 
 export default router;

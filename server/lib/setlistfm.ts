@@ -1,4 +1,6 @@
 const BASE = 'https://api.setlist.fm/rest/1.0';
+const BATCH_SIZE = 15;
+const MBID_CACHE_TTL = 24 * 60 * 60 * 1000;
 
 interface Performance {
   date: string;
@@ -9,7 +11,7 @@ interface Performance {
 
 export interface SetlistStats {
   total_performances: number;
-  encore_count: number;
+  url: string;
   first_performance: Performance | null;
   last_performance: Performance | null;
 }
@@ -21,14 +23,29 @@ function headers() {
   };
 }
 
+const mbidCache = new Map<string, { mbid: string; ts: number }>();
+
 async function getArtistMbid(artistName: string): Promise<string | null> {
+  const key = artistName.toLowerCase();
+  const cached = mbidCache.get(key);
+  if (cached && Date.now() - cached.ts < MBID_CACHE_TTL) return cached.mbid;
+
   const res = await fetch(
     `${BASE}/search/artists?artistName=${encodeURIComponent(artistName)}&sort=relevance`,
     { headers: headers() }
   );
   if (!res.ok) return null;
   const data = (await res.json()) as { artist?: { mbid: string }[] };
-  return data.artist?.[0]?.mbid ?? null;
+  const mbid = data.artist?.[0]?.mbid ?? null;
+  if (mbid) mbidCache.set(key, { mbid, ts: Date.now() });
+  return mbid;
+}
+
+async function fetchPage(mbid: string, page: number): Promise<SetlistPage | null> {
+  const res = await fetch(`${BASE}/artist/${mbid}/setlists?p=${page}`, { headers: headers() });
+  if (!res.ok) return null;
+  const data = (await res.json()) as SetlistPage;
+  return data.setlist?.length ? data : null;
 }
 
 export async function getTrackStats(title: string, artist: string): Promise<SetlistStats | null> {
@@ -39,27 +56,33 @@ export async function getTrackStats(title: string, artist: string): Promise<Setl
   if (!mbid) return null;
 
   const titleLower = title.toLowerCase();
-  let page = 1;
-  let total_performances = 0;
-  let encore_count = 0;
+
+  // Page 1 to learn total pages
+  const firstData = await fetchPage(mbid, 1);
+  if (!firstData) return null;
+
+  const totalPages = Math.ceil(firstData.total / firstData.itemsPerPage);
+  const allPages: SetlistPage[] = [firstData];
+
+  // Fetch remaining pages in parallel batches (no delay — 429s are skipped gracefully)
+  for (let batchStart = 2; batchStart <= totalPages; batchStart += BATCH_SIZE) {
+    const batchEnd = Math.min(batchStart + BATCH_SIZE - 1, totalPages);
+    const pageNums = Array.from({ length: batchEnd - batchStart + 1 }, (_, i) => batchStart + i);
+    const results = await Promise.allSettled(pageNums.map(p => fetchPage(mbid, p)));
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value) allPages.push(r.value);
+    }
+  }
+
+  // Collect all performances of this song across all pages
+  const toSortable = (d: string) => d.split('-').reverse().join('-');
   const performances: (Performance & { timestamp: string })[] = [];
 
-  // Fetch up to 5 pages (max 100 setlists) to keep response time reasonable
-  while (page <= 5) {
-    const res = await fetch(`${BASE}/artist/${mbid}/setlists?p=${page}`, {
-      headers: headers(),
-    });
-    if (!res.ok) break;
-
-    const data = (await res.json()) as SetlistPage;
-    if (!data.setlist?.length) break;
-
-    for (const setlist of data.setlist) {
+  for (const page of allPages) {
+    for (const setlist of page.setlist) {
       for (const set of setlist.sets?.set ?? []) {
         for (const song of set.song ?? []) {
           if (song.name.toLowerCase() === titleLower) {
-            total_performances++;
-            if (set.encore) encore_count++;
             performances.push({
               date: setlist.eventDate,
               venue: setlist.venue?.name ?? '',
@@ -71,29 +94,19 @@ export async function getTrackStats(title: string, artist: string): Promise<Setl
         }
       }
     }
-
-    const totalPages = Math.ceil(data.total / data.itemsPerPage);
-    if (page >= totalPages) break;
-    page++;
   }
 
-  if (total_performances === 0) return null;
+  if (performances.length === 0) return null;
 
-  // Setlist.fm dates are DD-MM-YYYY — convert to YYYY-MM-DD for correct sorting
-  const toSortable = (d: string) => d.split('-').reverse().join('-');
   performances.sort((a, b) => toSortable(a.timestamp).localeCompare(toSortable(b.timestamp)));
   const first = performances[0];
   const last = performances[performances.length - 1];
 
   return {
-    total_performances,
-    encore_count,
-    first_performance: first
-      ? { date: first.date, venue: first.venue, city: first.city, tour: first.tour }
-      : null,
-    last_performance: last
-      ? { date: last.date, venue: last.venue, city: last.city, tour: last.tour }
-      : null,
+    total_performances: performances.length,
+    url: `https://www.setlist.fm/stats/songs/${mbid}.html?songName=${encodeURIComponent(title)}`,
+    first_performance: { date: first.date, venue: first.venue, city: first.city, tour: first.tour },
+    last_performance: { date: last.date, venue: last.venue, city: last.city, tour: last.tour },
   };
 }
 

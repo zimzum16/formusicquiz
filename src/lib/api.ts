@@ -48,6 +48,7 @@ export interface GeniusSong {
   lyrics_url: string;
   description: string | null;
   release_date: string | null;
+  release_year: number | null;
   language: string | null;
   pageviews: number | null;
   song_art_image_url: string | null;
@@ -83,7 +84,7 @@ export interface Performance {
 
 export interface SetlistStats {
   total_performances: number;
-  encore_count: number;
+  url: string;
   first_performance: Performance | null;
   last_performance: Performance | null;
 }
@@ -105,14 +106,13 @@ export interface YandexResult {
 
 export interface AppleMusicResult {
   search_url: string;
-  chart: { position: number; country: 'ru' } | null;
+  charts: { position: number; country: string }[];
 }
 
 export interface TrackInfo {
   spotify: SpotifyTrack;
   genius: GeniusSong | null;
   lastfm: LastfmTrack | null;
-  setlistfm: SetlistStats | null;
   youtube: YoutubeResult;
   yandex: YandexResult;
   apple_music: AppleMusicResult;
@@ -125,6 +125,7 @@ export const tracksApi = {
     return request<SpotifyTrack[]>(`/api/tracks/search?${params}`);
   },
   getInfo: (id: string) => request<TrackInfo>(`/api/tracks/${id}/info`),
+  getSetlistfm: (id: string) => request<SetlistStats | null>(`/api/tracks/${id}/setlistfm`),
 };
 
 export const authApi = {
