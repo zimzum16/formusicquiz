@@ -3,6 +3,7 @@ import type { AudioFile, TrimSegment, ProcessedAudioFile } from '../types/audio'
 import { processAudioSegment } from '../lib/audioUtils'
 import { extractID3Tags, parseFilename } from '../lib/id3Parser'
 import { tracksApi } from '../lib/api'
+import { analyzeSongStructure, type SongMarker } from '../lib/songStructure'
 
 export function useAudioEditor() {
   const [audioFile, setAudioFile] = useState<AudioFile | null>(null)
@@ -12,6 +13,8 @@ export function useAudioEditor() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [sharedDecodedBuffer, setSharedDecodedBuffer] = useState<AudioBuffer | null>(null)
+  const [songMarkers, setSongMarkers] = useState<SongMarker[]>([])
+  const [isAnalyzingStructure, setIsAnalyzingStructure] = useState(false)
 
   const audioContextRef = useRef<AudioContext | null>(null)
 
@@ -70,6 +73,12 @@ export function useAudioEditor() {
         year: id3Tags.year,
         genre: id3Tags.genre,
       })
+
+      // Анализ структуры — сразу, не ждём Spotify/Genius
+      setIsAnalyzingStructure(true)
+      analyzeSongStructure(title, artist, audioBuffer.duration)
+        .then(setSongMarkers)
+        .finally(() => setIsAnalyzingStructure(false))
 
       // Фоновое обогащение из Spotify + Genius — не блокирует UI
       void (async () => {
@@ -180,6 +189,8 @@ export function useAudioEditor() {
     setProcessedFiles([])
     setUploadProgress(0)
     setError(null)
+    setSongMarkers([])
+    setIsAnalyzingStructure(false)
     if (audioContextRef.current) {
       audioContextRef.current.close()
       audioContextRef.current = null
@@ -194,6 +205,8 @@ export function useAudioEditor() {
     processedFiles,
     uploadProgress,
     error,
+    songMarkers,
+    isAnalyzingStructure,
     handleFileUpload,
     addSegment,
     removeSegment,

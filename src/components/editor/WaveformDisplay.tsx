@@ -4,8 +4,18 @@ import { Play, Pause, Volume2, VolumeX } from 'lucide-react'
 import type { AudioFile } from '../../types/audio'
 import { drawWaveform, fadeEnvelopeMultiplier } from '../../lib/waveform'
 import { formatTimeDetailed, formatTimeDetailedComma } from '../../lib/audioUtils'
+import type { SongMarker, SectionType } from '../../lib/songStructure'
 
 const MIN_TRIM_DURATION = 0.05
+
+const MARKER_LINE_COLORS: Record<SectionType, string> = {
+  intro:   'rgba(96,165,250,0.7)',
+  outro:   'rgba(96,165,250,0.7)',
+  verse:   'rgba(52,211,153,0.7)',
+  chorus:  'rgba(192,132,252,0.7)',
+  bridge:  'rgba(251,146,60,0.7)',
+  unknown: 'rgba(156,163,175,0.5)',
+}
 
 const DEFAULT_PLAYBACK_VOLUME = 0.3
 let sharedPlaybackVolumeUi = DEFAULT_PLAYBACK_VOLUME
@@ -60,6 +70,8 @@ interface WaveformDisplayProps {
     }
   } | null
   playbackFadeEnvelope?: boolean
+  markers?: SongMarker[]
+  bottomSlot?: React.ReactNode
 }
 
 export function WaveformDisplay({
@@ -75,6 +87,8 @@ export function WaveformDisplay({
   playbackEnvelope = null,
   playbackFadeEnvelope = true,
   showPlaybackVolume = true,
+  markers,
+  bottomSlot,
 }: WaveformDisplayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -227,6 +241,7 @@ export function WaveformDisplay({
     canvas.width = rect.width * dpr
     canvas.height = rect.height * dpr
     drawWaveform(canvas, buffer, false, trimRange ?? null, trimFade ?? null)
+
   }, [trimRange, trimFade])
 
   useEffect(() => {
@@ -454,8 +469,17 @@ export function WaveformDisplay({
       )}
 
       <div ref={containerRef} className="relative px-4">
-        <div className="relative box-content h-[380px] w-full overflow-hidden border border-black/25 bg-[#0b1622] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] rounded-2xl">
+        <div className="relative h-[380px] w-full overflow-hidden ring-1 ring-inset ring-black/25 bg-[#0b1622] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] rounded-2xl">
           <canvas ref={canvasRef} className="absolute inset-0 block h-full w-full select-none" aria-hidden />
+
+          {markers && markers.map((marker, i) => (
+            <div
+              key={i}
+              className="pointer-events-none absolute inset-y-0 z-[5] w-px"
+              style={{ left: `${(marker.start / audioFile.duration) * 100}%`, backgroundColor: MARKER_LINE_COLORS[marker.type] }}
+              aria-hidden
+            />
+          ))}
 
           <div
             className="pointer-events-none absolute inset-x-0 bottom-1.5 z-[6] flex justify-between px-2 font-mono text-[11px] tabular-nums text-white/55"
@@ -605,6 +629,12 @@ export function WaveformDisplay({
           </div>
         </div>
       </div>
+
+      {bottomSlot && (
+        <div className="px-4 pt-2">
+          {bottomSlot}
+        </div>
+      )}
 
       {playToolbar ? (
         typeof playToolbar === 'function' ? (

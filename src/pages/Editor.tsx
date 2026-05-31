@@ -8,6 +8,7 @@ import { ProcessButton } from '../components/editor/ProcessButton'
 import { ProcessedResults } from '../components/editor/ProcessedResults'
 import { SongInfo } from '../components/editor/SongInfo'
 import { FileUpload } from '../components/editor/FileUpload'
+import { SongStructurePanel } from '../components/editor/SongStructurePanel'
 
 export default function Editor() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -28,6 +29,8 @@ export default function Editor() {
     updateSegment,
     processAudio,
     reset,
+    songMarkers,
+    isAnalyzingStructure,
   } = useAudioEditor()
 
   useEffect(() => {
@@ -92,6 +95,15 @@ export default function Editor() {
                 trimRange={{ startTime: seg0.startTime, endTime: seg0.endTime }}
                 trimFade={{ fadeIn: seg0.fadeIn, fadeOut: seg0.fadeOut, fadeInDuration: seg0.fadeInDuration, fadeOutDuration: seg0.fadeOutDuration }}
                 onTrimRangeChange={(r) => updateSegment(seg0.id, r)}
+                markers={songMarkers}
+                bottomSlot={
+                  <SongStructurePanel
+                    markers={songMarkers}
+                    isAnalyzing={isAnalyzingStructure}
+                    duration={audioFile.duration}
+                    onApplySegment={(s, e) => updateSegment(seg0.id, { startTime: s, endTime: e })}
+                  />
+                }
                 playToolbar={(playBtn, volumeSlot) => (
                   <TrimControls
                     variant="inline"

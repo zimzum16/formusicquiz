@@ -109,6 +109,122 @@ const TrackInfoSchema = z.object({
 
 const ErrorSchema = z.object({ error: z.string() });
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+type SectionType = 'intro' | 'verse' | 'chorus' | 'bridge' | 'outro' | 'unknown';
+
+interface GeniusLyricsSection {
+  type: SectionType;
+  label: string;
+  lines: string[];
+}
+
+function mapSectionType(name: string): SectionType {
+  const lower = name.toLowerCase();
+  if (/verse|куплет/.test(lower)) return 'verse';
+  if (/chorus|припев|refrain|hook/.test(lower)) return 'chorus';
+  if (/bridge|бридж/.test(lower)) return 'bridge';
+  if (/intro|интро/.test(lower)) return 'intro';
+  if (/outro|аутро|coda/.test(lower)) return 'outro';
+  return 'unknown';
+}
+
+function formatSectionLabel(name: string): string {
+  // Strip artist attribution after colon: "Verse 1: Drake" → "Verse 1"
+  const clean = name.split(':')[0].trim();
+  return clean
+    .replace(/\bverse\b/i, 'Куплет')
+    .replace(/\bchorus\b/i, 'Припев')
+    .replace(/\bpre-chorus\b/i, 'Пред-припев')
+    .replace(/\bbridge\b/i, 'Бридж')
+    .replace(/\bintro\b/i, 'Интро')
+    .replace(/\boutro\b/i, 'Аутро')
+    .replace(/\bhook\b/i, 'Хук')
+    .replace(/\brefrain\b/i, 'Припев');
+}
+
+function extractLyricsText(html: string): string {
+  const parts: string[] = [];
+  let searchFrom = 0;
+
+  while (true) {
+    const markerIdx = html.indexOf('data-lyrics-container="true"', searchFrom);
+    if (markerIdx === -1) break;
+
+    const contentStart = html.indexOf('>', markerIdx) + 1;
+    if (contentStart === 0) break;
+
+    // Count div depth to find matching closing </div>
+    let depth = 1;
+    let pos = contentStart;
+    let found = false;
+
+    while (pos < html.length && depth > 0) {
+      const nextOpen = html.indexOf('<div', pos);
+      const nextClose = html.indexOf('</div>', pos);
+
+      if (nextClose === -1) break;
+      if (nextOpen !== -1 && nextOpen < nextClose) {
+        depth++;
+        pos = nextOpen + 4;
+      } else {
+        depth--;
+        if (depth === 0) {
+          parts.push(html.slice(contentStart, nextClose));
+          found = true;
+          break;
+        }
+        pos = nextClose + 6;
+      }
+    }
+
+    searchFrom = found ? pos : contentStart + 1;
+  }
+
+  return parts.join('\n');
+}
+
+function parseGeniusLyrics(html: string): GeniusLyricsSection[] {
+  let text = extractLyricsText(html);
+  if (!text) return [];
+
+  text = text
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x([0-9a-fA-F]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\xa0/g, ' ');
+
+  // Если маркер секции приклеен к тексту ("Read More [Verse 1]") — выносим на отдельную строку
+  text = text.replace(/[^\n]*(\[[A-Z][^\]\n]{0,40}\])/g, (match, marker) => {
+    const before = match.slice(0, match.length - marker.length).trim();
+    return before ? `${before}\n${marker}` : marker;
+  });
+
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const sections: GeniusLyricsSection[] = [];
+  let current: GeniusLyricsSection | null = null;
+
+  for (const line of lines) {
+    const sectionMatch = line.match(/^\[([^\]]+)\]$/);
+    if (sectionMatch) {
+      if (current && current.lines.length > 0) sections.push(current);
+      const name = sectionMatch[1];
+      current = { type: mapSectionType(name), label: formatSectionLabel(name), lines: [] };
+    } else if (current) {
+      current.lines.push(line);
+    }
+  }
+
+  if (current && current.lines.length > 0) sections.push(current);
+  return sections;
+}
+
 // ── In-memory cache ───────────────────────────────────────────────────────────
 
 const TRACK_CACHE_TTL = 60 * 60 * 1000;
@@ -122,6 +238,7 @@ type TrackInfoPayload = {
 };
 const trackCache = new Map<string, { data: TrackInfoPayload; ts: number }>();
 const setlistCache = new Map<string, { data: z.infer<typeof SetlistfmSchema> | null; ts: number }>();
+const lyricsCache = new Map<string, { data: { sections: GeniusLyricsSection[] }; ts: number }>();
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -156,6 +273,34 @@ const setlistfmRoute = createRoute({
   },
 });
 
+const lyricsRoute = createRoute({
+  method: 'get',
+  path: '/lyrics',
+  request: {
+    query: z.object({
+      url: z.string().optional(),
+      title: z.string().optional(),
+      artist: z.string().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            sections: z.array(z.object({
+              type: z.string(),
+              label: z.string(),
+              lines: z.array(z.string()),
+            })),
+          }),
+        },
+      },
+      description: 'Секции текста песни',
+    },
+  },
+});
+
 const infoRoute = createRoute({
   method: 'get',
   path: '/:id/info',
@@ -175,6 +320,52 @@ const infoRoute = createRoute({
 });
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
+
+router.openapi(lyricsRoute, async (c) => {
+  const query = c.req.valid('query');
+
+  // Получаем URL страницы: либо напрямую, либо через поиск Genius по title+artist
+  let lyricsUrl: string;
+  if (query.url) {
+    lyricsUrl = query.url;
+  } else if (query.title && query.artist) {
+    const cacheKey = `ta:${query.title}|${query.artist}`;
+    const cached = lyricsCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < TRACK_CACHE_TTL) return c.json(cached.data, 200);
+
+    const genius = await searchSong(query.title, query.artist).catch(() => null);
+    if (!genius) return c.json({ sections: [] }, 200);
+    lyricsUrl = genius.lyrics_url;
+  } else {
+    return c.json({ sections: [] }, 200);
+  }
+
+  const cached = lyricsCache.get(lyricsUrl);
+  if (cached && Date.now() - cached.ts < TRACK_CACHE_TTL) return c.json(cached.data, 200);
+
+  try {
+    const res = await fetch(lyricsUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
+    });
+
+    if (!res.ok) return c.json({ sections: [] }, 200);
+
+    const html = await res.text();
+    const sections = parseGeniusLyrics(html);
+    const data = { sections };
+    lyricsCache.set(lyricsUrl, { data, ts: Date.now() });
+    if (!('url' in query)) {
+      lyricsCache.set(`ta:${query.title}|${query.artist}`, { data, ts: Date.now() });
+    }
+    return c.json(data, 200);
+  } catch {
+    return c.json({ sections: [] }, 200);
+  }
+});
 
 router.openapi(searchRoute, async (c) => {
   const { q, artist } = c.req.valid('query');
