@@ -40,9 +40,35 @@
 - **WHEN** ключ не задан или клип не найден
 - **THEN** секция `youtube` содержит только `search_url` (deeplink), `view_count` и `like_count` равны `null`
 
-#### Scenario: Яндекс Музыка секция
+#### Scenario: Яндекс Музыка секция — основные данные
+- **WHEN** трек найден в Яндекс Музыке по названию и исполнителю
+- **THEN** секция `yandex` содержит: `url` (прямая ссылка на трек), `search_url` (deeplink на поиск), `likes_count` (число лайков или `null`)
+- **WHEN** трек не найден в Яндекс Музыке
+- **THEN** секция `yandex` содержит только `search_url`, поля `url` и `likes_count` равны `null`
+
+#### Scenario: Яндекс Музыка секция — чарт
+- **WHEN** трек присутствует в текущем Яндекс Чарте
+- **THEN** поле `yandex.chart` содержит `position` (число) и `progress` (`"up"` | `"down"` | `"same"`)
+- **WHEN** трек не в чарте
+- **THEN** поле `yandex.chart` равно `null`
+
+#### Scenario: Кеш чарта Яндекс Музыки
+- **WHEN** система запрашивает Яндекс Чарт
+- **THEN** результат кешируется in-memory с TTL 1 час; повторные запросы в течение часа не обращаются к внешнему API
+
+#### Scenario: Apple Music секция — deeplink
 - **WHEN** запрос выполняется
-- **THEN** секция `yandex` содержит `search_url` с deeplink на поиск
+- **THEN** секция `apple_music` содержит `search_url` с deeplink на поиск по названию и исполнителю
+
+#### Scenario: Apple Music секция — чарт
+- **WHEN** трек найден в iTunes Top-100 Russia (rss.applemarketingtools.com)
+- **THEN** поле `apple_music.chart` содержит `position` (число) и `country` (`"ru"`)
+- **WHEN** трек не найден в чарте
+- **THEN** поле `apple_music.chart` равно `null`
+
+#### Scenario: Кеш чарта Apple Music
+- **WHEN** система запрашивает iTunes RSS
+- **THEN** результат кешируется in-memory с TTL 1 час
 
 #### Scenario: Параллельные запросы
 - **WHEN** система агрегирует данные

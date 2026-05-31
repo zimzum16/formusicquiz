@@ -4,7 +4,8 @@ import { searchSong } from '../lib/genius.js';
 import { getTrackInfo } from '../lib/lastfm.js';
 import { getTrackStats } from '../lib/setlistfm.js';
 import { findVideo } from '../lib/youtube.js';
-import { getSearchUrl } from '../lib/yandex.js';
+import { getTrackInfo as getYandexTrackInfo } from '../lib/yandex.js';
+import { getAppleMusicData } from '../lib/applemusic.js';
 
 const router = new OpenAPIHono();
 
@@ -79,13 +80,30 @@ const YoutubeSchema = z.object({
   like_count: z.number().nullable(),
 });
 
+const ChartEntrySchema = z.object({ position: z.number(), progress: z.enum(['up', 'down', 'same']) });
+
+const YandexSchema = z.object({
+  url: z.string().nullable(),
+  search_url: z.string(),
+  likes_count: z.number().nullable(),
+  chart: ChartEntrySchema.nullable(),
+});
+
+const AppleMusicChartSchema = z.object({ position: z.number(), country: z.literal('ru') });
+
+const AppleMusicSchema = z.object({
+  search_url: z.string(),
+  chart: AppleMusicChartSchema.nullable(),
+});
+
 const TrackInfoSchema = z.object({
   spotify: TrackSchema,
   genius: GeniusSchema.nullable(),
   lastfm: LastfmSchema.nullable(),
   setlistfm: SetlistfmSchema.nullable(),
   youtube: YoutubeSchema,
-  yandex: z.object({ search_url: z.string() }),
+  yandex: YandexSchema,
+  apple_music: AppleMusicSchema,
 });
 
 const ErrorSchema = z.object({ error: z.string() });
@@ -148,12 +166,15 @@ router.openapi(infoRoute, async (c) => {
     ''
   ).trim();
 
-  const [geniusResult, lastfmResult, setlistResult, youtubeResult] = await Promise.allSettled([
-    searchSong(title, artist),
-    getTrackInfo(title, artist),
-    getTrackStats(title, artist),
-    findVideo(title, artist),
-  ]);
+  const [geniusResult, lastfmResult, setlistResult, youtubeResult, yandexResult, appleResult] =
+    await Promise.allSettled([
+      searchSong(title, artist),
+      getTrackInfo(title, artist),
+      getTrackStats(title, artist),
+      findVideo(title, artist),
+      getYandexTrackInfo(title, artist),
+      getAppleMusicData(title, artist),
+    ]);
 
   const genius = geniusResult.status === 'fulfilled' ? geniusResult.value : null;
   const lastfm = lastfmResult.status === 'fulfilled' ? lastfmResult.value : null;
@@ -162,16 +183,17 @@ router.openapi(infoRoute, async (c) => {
     youtubeResult.status === 'fulfilled'
       ? youtubeResult.value
       : { video_id: null, url: '', search_url: '', view_count: null, like_count: null };
+  const yandex =
+    yandexResult.status === 'fulfilled'
+      ? yandexResult.value
+      : { url: null, search_url: `https://music.yandex.ru/search?text=${encodeURIComponent(`${artist} ${title}`)}`, likes_count: null, chart: null };
+  const apple_music =
+    appleResult.status === 'fulfilled'
+      ? appleResult.value
+      : { search_url: `https://music.apple.com/ru/search?term=${encodeURIComponent(`${artist} ${title}`)}`, chart: null };
 
   return c.json(
-    {
-      spotify: spotifyTrack,
-      genius,
-      lastfm,
-      setlistfm,
-      youtube,
-      yandex: { search_url: getSearchUrl(title, artist) },
-    },
+    { spotify: spotifyTrack, genius, lastfm, setlistfm, youtube, yandex, apple_music },
     200
   );
 });

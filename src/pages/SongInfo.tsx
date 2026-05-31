@@ -370,9 +370,53 @@ export default function SongInfo() {
 
             {/* Yandex */}
             <Section title="Яндекс Музыка">
-              <a href={info.yandex.search_url} target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-2 text-sky-500 hover:text-sky-600 text-sm font-medium transition-colors">
-                <Radio size={14} /> Найти в Яндекс Музыке
+              <div className="space-y-2">
+                {info.yandex.likes_count !== null && (
+                  <Row icon={<ThumbsUp size={15} />} label="Лайков" value={fmtNum(info.yandex.likes_count)} />
+                )}
+                {info.yandex.chart && (
+                  <Row
+                    icon={<Radio size={15} />}
+                    label="Чарт"
+                    value={
+                      <span className="flex items-center gap-1">
+                        #{info.yandex.chart.position}
+                        {info.yandex.chart.progress === 'up' && <span className="text-green-500">↑</span>}
+                        {info.yandex.chart.progress === 'down' && <span className="text-red-500">↓</span>}
+                        {info.yandex.chart.progress === 'same' && <span className="text-gray-400">→</span>}
+                      </span>
+                    }
+                  />
+                )}
+              </div>
+              <a
+                href={info.yandex.url ?? info.yandex.search_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 text-sky-500 hover:text-sky-600 text-sm font-medium transition-colors"
+              >
+                <Radio size={14} /> {info.yandex.url ? 'Открыть в Яндекс Музыке' : 'Найти в Яндекс Музыке'}
+              </a>
+            </Section>
+
+            {/* Apple Music */}
+            <Section title="Apple Music">
+              {info.apple_music.chart && (
+                <div className="space-y-2">
+                  <Row
+                    icon={<Music size={15} />}
+                    label="Чарт RU"
+                    value={`#${info.apple_music.chart.position}`}
+                  />
+                </div>
+              )}
+              <a
+                href={info.apple_music.search_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 text-sky-500 hover:text-sky-600 text-sm font-medium transition-colors"
+              >
+                <Headphones size={14} /> Найти в Apple Music
               </a>
             </Section>
           </div>

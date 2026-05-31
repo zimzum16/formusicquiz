@@ -96,13 +96,26 @@ export interface YoutubeResult {
   like_count: number | null;
 }
 
+export interface YandexResult {
+  url: string | null;
+  search_url: string;
+  likes_count: number | null;
+  chart: { position: number; progress: 'up' | 'down' | 'same' } | null;
+}
+
+export interface AppleMusicResult {
+  search_url: string;
+  chart: { position: number; country: 'ru' } | null;
+}
+
 export interface TrackInfo {
   spotify: SpotifyTrack;
   genius: GeniusSong | null;
   lastfm: LastfmTrack | null;
   setlistfm: SetlistStats | null;
   youtube: YoutubeResult;
-  yandex: { search_url: string };
+  yandex: YandexResult;
+  apple_music: AppleMusicResult;
 }
 
 export const tracksApi = {
