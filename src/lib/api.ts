@@ -31,6 +31,7 @@ export interface SpotifyTrack {
   id: string;
   title: string;
   artist: string;
+  artist_id: string;
   album: string;
   release_date: string;
   duration_ms: number;
@@ -39,6 +40,7 @@ export interface SpotifyTrack {
   spotify_url: string;
   popularity: number | null;
 }
+
 
 export interface ArtistRef { name: string; url: string }
 export interface RelatedSong { title: string; artist: string; genius_url: string }
@@ -101,6 +103,7 @@ export interface YandexResult {
   url: string | null;
   search_url: string;
   likes_count: number | null;
+  play_count: number | null;
   chart: { position: number; progress: 'up' | 'down' | 'same' } | null;
 }
 
@@ -111,6 +114,7 @@ export interface AppleMusicResult {
 
 export interface TrackInfo {
   spotify: SpotifyTrack;
+
   genius: GeniusSong | null;
   lastfm: LastfmTrack | null;
   youtube: YoutubeResult;

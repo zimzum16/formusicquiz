@@ -36,6 +36,7 @@ export interface SpotifyTrack {
   id: string;
   title: string;
   artist: string;
+  artist_id: string;
   album: string;
   release_date: string;
   duration_ms: number;
@@ -43,6 +44,11 @@ export interface SpotifyTrack {
   cover_url: string | null;
   spotify_url: string;
   popularity: number | null;
+}
+
+export interface SpotifyArtist {
+  followers: number;
+  genres: string[];
 }
 
 export async function searchTracks(query: string, artist?: string): Promise<SpotifyTrack[]> {
@@ -70,7 +76,7 @@ export async function getTrack(id: string): Promise<SpotifyTrack | null> {
 interface SpotifyApiTrack {
   id: string;
   name: string;
-  artists: { name: string }[];
+  artists: { name: string; id: string }[];
   album: { name: string; release_date: string; images: { url: string }[] };
   duration_ms: number;
   preview_url: string | null;
@@ -83,6 +89,7 @@ function normalizeTrack(t: SpotifyApiTrack): SpotifyTrack {
     id: t.id,
     title: t.name,
     artist: t.artists.map((a) => a.name).join(', '),
+    artist_id: t.artists[0]?.id ?? '',
     album: t.album.name,
     release_date: t.album.release_date,
     duration_ms: t.duration_ms,
@@ -92,3 +99,4 @@ function normalizeTrack(t: SpotifyApiTrack): SpotifyTrack {
     popularity: t.popularity ?? null,
   };
 }
+

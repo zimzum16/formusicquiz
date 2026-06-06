@@ -16,6 +16,7 @@ const TrackSchema = z.object({
   id: z.string(),
   title: z.string(),
   artist: z.string(),
+  artist_id: z.string(),
   album: z.string(),
   release_date: z.string(),
   duration_ms: z.number(),
@@ -24,6 +25,7 @@ const TrackSchema = z.object({
   spotify_url: z.string(),
   popularity: z.number().nullable(),
 });
+
 
 const ArtistRefSchema = z.object({ name: z.string(), url: z.string() });
 const RelatedSongSchema = z.object({ title: z.string(), artist: z.string(), genius_url: z.string() });
@@ -88,6 +90,7 @@ const YandexSchema = z.object({
   url: z.string().nullable(),
   search_url: z.string(),
   likes_count: z.number().nullable(),
+  play_count: z.number().nullable(),
   chart: ChartEntrySchema.nullable(),
 });
 
@@ -425,12 +428,11 @@ router.openapi(infoRoute, async (c) => {
   const yandex =
     yandexResult.status === 'fulfilled'
       ? yandexResult.value
-      : { url: null, search_url: `https://music.yandex.ru/search?text=${encodeURIComponent(`${artist} ${title}`)}`, likes_count: null, chart: null };
+      : { url: null, search_url: `https://music.yandex.ru/search?text=${encodeURIComponent(`${artist} ${title}`)}`, likes_count: null, play_count: null, chart: null };
   const apple_music =
     appleResult.status === 'fulfilled' && appleResult.value
       ? appleResult.value
       : { search_url: `https://music.apple.com/ru/search?term=${encodeURIComponent(`${artist} ${title}`)}`, charts: [] };
-
   const payload: TrackInfoPayload = { spotify: spotifyTrack, genius, lastfm, youtube, yandex, apple_music };
   trackCache.set(id, { data: payload, ts: Date.now() });
   return c.json(payload, 200);

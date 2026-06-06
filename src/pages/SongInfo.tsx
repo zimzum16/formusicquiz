@@ -369,6 +369,9 @@ export default function SongInfo() {
             {/* Yandex */}
             <Section title="Яндекс Музыка">
               <div className="space-y-2">
+                {info.yandex.play_count !== null && (
+                  <Row icon={<Play size={15} />} label="Прослушиваний" value={fmtNum(info.yandex.play_count)} />
+                )}
                 {info.yandex.likes_count !== null && (
                   <Row icon={<ThumbsUp size={15} />} label="Лайков" value={fmtNum(info.yandex.likes_count)} />
                 )}
