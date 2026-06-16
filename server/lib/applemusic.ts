@@ -4,11 +4,6 @@ const CHART_TTL = 60 * 60 * 1000;
 const COUNTRIES = ['ru', 'us', 'gb', 'de', 'fr', 'au', 'mx', 'se', 'jp', 'kr'] as const;
 type Country = typeof COUNTRIES[number];
 
-// Pre-warm all country caches on module load so first user request is fast
-setTimeout(() => {
-  for (const country of COUNTRIES) fetchChart(country).catch(() => {});
-}, 0);
-
 interface ChartItem {
   name: string;
   artistName: string;

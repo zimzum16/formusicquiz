@@ -412,21 +412,21 @@ router.openapi(infoRoute, async (c) => {
 
   const [geniusResult, lastfmResult, youtubeResult, yandexResult, appleResult] =
     await Promise.allSettled([
-      searchSong(title, artist),
-      getTrackInfo(title, artist),
-      findVideo(title, artist),
-      getYandexTrackInfo(title, artist),
-      withTimeout(getAppleMusicData(title, artist), 3000),
+      withTimeout(searchSong(title, artist), 7000),
+      withTimeout(getTrackInfo(title, artist), 7000),
+      withTimeout(findVideo(title, artist), 7000),
+      withTimeout(getYandexTrackInfo(title, artist), 4000),
+      withTimeout(getAppleMusicData(title, artist), 4000),
     ]);
 
   const genius = geniusResult.status === 'fulfilled' ? geniusResult.value : null;
   const lastfm = lastfmResult.status === 'fulfilled' ? lastfmResult.value : null;
   const youtube =
-    youtubeResult.status === 'fulfilled'
+    youtubeResult.status === 'fulfilled' && youtubeResult.value
       ? youtubeResult.value
-      : { video_id: null, url: '', search_url: '', view_count: null, like_count: null };
+      : { video_id: null, url: '', search_url: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${artist} ${title}`)}`, view_count: null, like_count: null };
   const yandex =
-    yandexResult.status === 'fulfilled'
+    yandexResult.status === 'fulfilled' && yandexResult.value
       ? yandexResult.value
       : { url: null, search_url: `https://music.yandex.ru/search?text=${encodeURIComponent(`${artist} ${title}`)}`, likes_count: null, play_count: null, chart: null };
   const apple_music =
