@@ -185,7 +185,7 @@ export default function Home({ navigate }: HomeProps) {
               <p className="text-gray-400 text-sm mb-6">навсегда</p>
               <p className="text-gray-600 text-sm mb-6">150 песен в месяц · Базовый функционал</p>
               <button
-                onClick={() => navigate('auth')}
+                onClick={() => navigate('song-info')}
                 className="w-full py-2.5 border border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 font-medium rounded-xl text-sm transition-colors"
               >
                 Попробовать бесплатно
@@ -215,7 +215,7 @@ export default function Home({ navigate }: HomeProps) {
           <p className="text-gray-500 text-sm">
             Уже есть аккаунт?{' '}
             <button
-              onClick={() => navigate('auth')}
+              onClick={() => navigate('song-info')}
               className="text-sky-500 hover:text-sky-600 font-medium transition-colors"
             >
               Войти

@@ -65,7 +65,7 @@ export default function Pricing({ navigate }: PricingProps) {
             </ul>
 
             <button
-              onClick={() => navigate('auth')}
+              onClick={() => navigate('song-info')}
               className="w-full py-3 border-2 border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 font-semibold rounded-xl transition-colors"
             >
               Подключить бесплатно
@@ -105,7 +105,7 @@ export default function Pricing({ navigate }: PricingProps) {
               </ul>
 
               <button
-                onClick={() => navigate('auth')}
+                onClick={() => navigate('song-info')}
                 className="w-full py-3 bg-sky-500 hover:bg-sky-400 text-white font-semibold rounded-xl transition-colors"
               >
                 Подключить за X ₽ за 6 месяцев
@@ -132,7 +132,7 @@ export default function Pricing({ navigate }: PricingProps) {
         <p className="text-center text-gray-500 text-sm mt-10">
           Уже есть аккаунт?{' '}
           <button
-            onClick={() => navigate('auth')}
+            onClick={() => navigate('song-info')}
             className="text-sky-500 hover:text-sky-600 font-semibold transition-colors"
           >
             Войти

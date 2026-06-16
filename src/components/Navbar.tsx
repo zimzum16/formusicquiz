@@ -5,16 +5,14 @@ import { Page } from '../App';
 interface NavbarProps {
   currentPage: Page;
   navigate: (page: Page) => void;
-  isLoggedIn: boolean;
 }
 
 const navLinks: { label: string; page: Page }[] = [
   { label: 'О песне', page: 'song-info' },
   { label: 'Редактор', page: 'editor' },
-  { label: 'Тарифы', page: 'pricing' },
 ];
 
-export default function Navbar({ currentPage, navigate, isLoggedIn }: NavbarProps) {
+export default function Navbar({ currentPage, navigate }: NavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -47,27 +45,6 @@ export default function Navbar({ currentPage, navigate, isLoggedIn }: NavbarProp
             ))}
           </nav>
 
-          <div className="hidden md:flex items-center gap-3">
-            {isLoggedIn ? (
-              <button
-                onClick={() => navigate('profile')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  currentPage === 'profile'
-                    ? 'bg-sky-50 text-sky-600'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
-              >
-                Профиль
-              </button>
-            ) : (
-              <button
-                onClick={() => navigate('auth')}
-                className="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                Войти
-              </button>
-            )}
-          </div>
 
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -93,21 +70,6 @@ export default function Navbar({ currentPage, navigate, isLoggedIn }: NavbarProp
               {label}
             </button>
           ))}
-          {isLoggedIn ? (
-            <button
-              onClick={() => { navigate('profile'); setMobileOpen(false); }}
-              className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Профиль
-            </button>
-          ) : (
-            <button
-              onClick={() => { navigate('auth'); setMobileOpen(false); }}
-              className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium bg-sky-500 text-white hover:bg-sky-600 transition-colors"
-            >
-              Войти
-            </button>
-          )}
         </div>
       )}
     </header>
