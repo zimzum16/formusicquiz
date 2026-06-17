@@ -336,9 +336,16 @@ router.openapi(lyricsRoute, async (c) => {
     const cached = lyricsCache.get(cacheKey);
     if (cached && Date.now() - cached.ts < TRACK_CACHE_TTL) return c.json(cached.data, 200);
 
-    const genius = await searchSong(query.title, query.artist).catch(() => null);
-    if (!genius) return c.json({ sections: [] }, 200);
+    const genius = await searchSong(query.title, query.artist).catch((e) => {
+      console.error('[lyrics] searchSong error:', e);
+      return null;
+    });
+    if (!genius) {
+      console.error('[lyrics] genius not found for', query.title, query.artist);
+      return c.json({ sections: [] }, 200);
+    }
     lyricsUrl = genius.lyrics_url;
+    console.log('[lyrics] found url:', lyricsUrl);
   } else {
     return c.json({ sections: [] }, 200);
   }
@@ -353,19 +360,24 @@ router.openapi(lyricsRoute, async (c) => {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
       },
+      signal: AbortSignal.timeout(10000),
     });
 
+    console.log('[lyrics] genius page status:', res.status, 'for', lyricsUrl);
     if (!res.ok) return c.json({ sections: [] }, 200);
 
     const html = await res.text();
+    console.log('[lyrics] html length:', html.length, 'has container:', html.includes('data-lyrics-container'));
     const sections = parseGeniusLyrics(html);
+    console.log('[lyrics] parsed sections:', sections.length);
     const data = { sections };
     lyricsCache.set(lyricsUrl, { data, ts: Date.now() });
     if (!('url' in query)) {
       lyricsCache.set(`ta:${query.title}|${query.artist}`, { data, ts: Date.now() });
     }
     return c.json(data, 200);
-  } catch {
+  } catch (e) {
+    console.error('[lyrics] fetch error:', e);
     return c.json({ sections: [] }, 200);
   }
 });
