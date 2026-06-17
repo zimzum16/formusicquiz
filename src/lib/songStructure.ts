@@ -15,7 +15,7 @@ interface GeniusSection {
   lines: string[]
 }
 
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const BASE = import.meta.env.VITE_API_URL ?? ''
 
 async function fetchGeniusSections(title: string, artist: string): Promise<GeniusSection[]> {
   try {
