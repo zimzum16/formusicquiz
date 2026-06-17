@@ -1,6 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { searchTracks, getTrack } from '../lib/spotify.js';
 import { searchSong } from '../lib/genius.js';
+import { extractLyricsText } from '../lib/lyricsCompare.js';
 import { getTrackInfo } from '../lib/lastfm.js';
 import { getTrackStats } from '../lib/setlistfm.js';
 import { findVideo } from '../lib/youtube.js';
@@ -146,62 +147,9 @@ function formatSectionLabel(name: string): string {
     .replace(/\brefrain\b/i, 'Припев');
 }
 
-function extractLyricsText(html: string): string {
-  const parts: string[] = [];
-  let searchFrom = 0;
-
-  while (true) {
-    const markerIdx = html.indexOf('data-lyrics-container="true"', searchFrom);
-    if (markerIdx === -1) break;
-
-    const contentStart = html.indexOf('>', markerIdx) + 1;
-    if (contentStart === 0) break;
-
-    // Count div depth to find matching closing </div>
-    let depth = 1;
-    let pos = contentStart;
-    let found = false;
-
-    while (pos < html.length && depth > 0) {
-      const nextOpen = html.indexOf('<div', pos);
-      const nextClose = html.indexOf('</div>', pos);
-
-      if (nextClose === -1) break;
-      if (nextOpen !== -1 && nextOpen < nextClose) {
-        depth++;
-        pos = nextOpen + 4;
-      } else {
-        depth--;
-        if (depth === 0) {
-          parts.push(html.slice(contentStart, nextClose));
-          found = true;
-          break;
-        }
-        pos = nextClose + 6;
-      }
-    }
-
-    searchFrom = found ? pos : contentStart + 1;
-  }
-
-  return parts.join('\n');
-}
-
 function parseGeniusLyrics(html: string): GeniusLyricsSection[] {
   let text = extractLyricsText(html);
   if (!text) return [];
-
-  text = text
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#x([0-9a-fA-F]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\xa0/g, ' ');
 
   // Если маркер секции приклеен к тексту ("Read More [Verse 1]") — выносим на отдельную строку
   text = text.replace(/[^\n]*(\[[A-Z][^\]\n]{0,40}\])/g, (match, marker) => {
