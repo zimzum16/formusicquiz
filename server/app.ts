@@ -14,7 +14,7 @@ app.use('*', cors({
 
 app.route('/api/tracks', tracksRouter);
 
-app.get('/api/health', (c) => c.json({ ok: true }));
+app.get('/api/health', (c) => c.json({ ok: true, v: 2 }));
 
 // Прокси для скрапинга — используется Vercel-функцией, которая блокируется Genius
 // Сам эндпоинт работает только когда запускается на VPS (там IP не заблокирован)
