@@ -365,22 +365,32 @@ router.openapi(lyricsRoute, async (c) => {
   if (cached && Date.now() - cached.ts < TRACK_CACHE_TTL) return c.json(cached.data, 200);
 
   try {
-    // Если задан SCRAPE_PROXY_URL — идём через VPS-прокси (обходит блокировку Genius на Vercel)
+    const scraperapiKey = process.env.SCRAPERAPI_KEY;
     const proxyBase = process.env.SCRAPE_PROXY_URL;
-    const fetchUrl = proxyBase
-      ? `${proxyBase}/api/scrape?url=${encodeURIComponent(lyricsUrl)}`
-      : lyricsUrl;
 
-    const res = await fetch(fetchUrl, {
-      headers: !proxyBase ? {
+    let fetchUrl: string;
+    let fetchHeaders: Record<string, string> = {};
+
+    if (scraperapiKey) {
+      fetchUrl = `http://api.scraperapi.com?api_key=${scraperapiKey}&url=${encodeURIComponent(lyricsUrl)}`;
+    } else if (proxyBase) {
+      fetchUrl = `${proxyBase}/api/scrape?url=${encodeURIComponent(lyricsUrl)}`;
+    } else {
+      fetchUrl = lyricsUrl;
+      fetchHeaders = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
-      } : {},
+      };
+    }
+
+    const via = scraperapiKey ? '(via scraperapi)' : proxyBase ? '(via proxy)' : '(direct)';
+    const res = await fetch(fetchUrl, {
+      headers: fetchHeaders,
       signal: AbortSignal.timeout(15000),
     });
 
-    console.log('[lyrics] genius page status:', res.status, proxyBase ? '(via proxy)' : '(direct)', 'for', lyricsUrl);
+    console.log('[lyrics] genius page status:', res.status, via, 'for', lyricsUrl);
     if (!res.ok) return c.json({ sections: [] }, 200);
 
     const html = await res.text();
