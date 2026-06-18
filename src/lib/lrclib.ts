@@ -28,7 +28,6 @@ export async function fetchLrcLines(title: string, artist: string): Promise<LrcL
     const params = new URLSearchParams({ track_name: title, artist_name: artist })
     const res = await fetch(`https://lrclib.net/api/search?${params}`, {
       headers: { 'Lrclib-Client': 'SoundLens/1.0' },
-      signal: AbortSignal.timeout(5000),
     })
     if (!res.ok) return []
 

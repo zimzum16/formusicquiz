@@ -1,5 +1,3 @@
-import { fetchLrcLines, type LrcLine } from './lrclib'
-
 export type SectionType = 'intro' | 'verse' | 'chorus' | 'bridge' | 'outro' | 'unknown'
 
 export interface SongMarker {
@@ -8,6 +6,8 @@ export interface SongMarker {
   type: SectionType
   label: string
 }
+
+interface LrcLine { time: number; text: string }
 
 interface GeniusSection {
   type: SectionType
@@ -24,6 +24,18 @@ async function fetchGeniusSections(title: string, artist: string): Promise<Geniu
     if (!res.ok) return []
     const data: { sections: GeniusSection[] } = await res.json()
     return data.sections ?? []
+  } catch {
+    return []
+  }
+}
+
+async function fetchLrcLines(title: string, artist: string): Promise<LrcLine[]> {
+  try {
+    const params = new URLSearchParams({ title, artist })
+    const res = await fetch(`${BASE}/api/tracks/lrc?${params}`)
+    if (!res.ok) return []
+    const data: { lines: LrcLine[] } = await res.json()
+    return data.lines ?? []
   } catch {
     return []
   }

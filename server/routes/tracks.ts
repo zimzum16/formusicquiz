@@ -190,10 +190,34 @@ type TrackInfoPayload = {
 const trackCache = new Map<string, { data: TrackInfoPayload; ts: number }>();
 const setlistCache = new Map<string, { data: z.infer<typeof SetlistfmSchema> | null; ts: number }>();
 const lyricsCache = new Map<string, { data: { sections: GeniusLyricsSection[] }; ts: number }>();
+const lrcCache = new Map<string, { data: { lines: { time: number; text: string }[] }; ts: number }>();
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 const TITLE_RE = /\s*[-–(]\s*(single version|\d{4}\s+remaster.*|remaster(ed)?.*|radio edit|live.*|acoustic.*|demo.*|instrumental.*|extended.*|deluxe.*|feat\..*)\s*\)?$/i;
+
+const lrcRoute = createRoute({
+  method: 'get',
+  path: '/lrc',
+  request: {
+    query: z.object({
+      title: z.string().min(1),
+      artist: z.string().min(1),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            lines: z.array(z.object({ time: z.number(), text: z.string() })),
+          }),
+        },
+      },
+      description: 'LRC строки из lrclib.net',
+    },
+  },
+});
 
 const searchRoute = createRoute({
   method: 'get',
@@ -271,6 +295,45 @@ const infoRoute = createRoute({
 });
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
+
+router.openapi(lrcRoute, async (c) => {
+  const { title, artist } = c.req.valid('query');
+  const cacheKey = `lrc:${title}|${artist}`;
+  const cached = lrcCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < TRACK_CACHE_TTL) return c.json(cached.data, 200);
+
+  try {
+    const params = new URLSearchParams({ track_name: title, artist_name: artist });
+    const res = await fetch(`https://lrclib.net/api/search?${params}`, {
+      headers: { 'Lrclib-Client': 'SoundLens/1.0' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return c.json({ lines: [] }, 200);
+
+    const results = (await res.json()) as { syncedLyrics: string | null }[];
+    const hit = results.find(r => r.syncedLyrics);
+    if (!hit?.syncedLyrics) return c.json({ lines: [] }, 200);
+
+    const LRC_LINE_RE = /^\[(\d+):(\d+(?:\.\d+)?)\]\s*(.*)$/;
+    const lines = hit.syncedLyrics
+      .split('\n')
+      .map(line => {
+        const m = line.match(LRC_LINE_RE);
+        if (!m) return null;
+        const time = parseInt(m[1], 10) * 60 + parseFloat(m[2]);
+        const text = m[3].trim();
+        if (!text || text === '♪' || text === '🎵') return null;
+        return { time, text };
+      })
+      .filter((l): l is { time: number; text: string } => l !== null);
+
+    const data = { lines };
+    lrcCache.set(cacheKey, { data, ts: Date.now() });
+    return c.json(data, 200);
+  } catch {
+    return c.json({ lines: [] }, 200);
+  }
+});
 
 router.openapi(lyricsRoute, async (c) => {
   const query = c.req.valid('query');
