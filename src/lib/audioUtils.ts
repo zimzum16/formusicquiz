@@ -1,8 +1,30 @@
-import { Mp3Encoder } from '@breezystack/lamejs'
 import type { TrimSegment, ProcessedAudioFile } from '../types/audio'
 
 const EXPORT_MP3_KBPS = 128
-const MP3_FRAME_SAMPLES = 1152
+
+function encodeToMP3Worker(leftF32: Float32Array, rightF32: Float32Array | undefined, sampleRate: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./audioWorker.ts', import.meta.url), { type: 'module' })
+
+    // Копируем subarray в standalone-буферы для transfer (zero-copy передача в Worker)
+    const leftBuffer = leftF32.slice().buffer
+    const rightBuffer = rightF32 ? rightF32.slice().buffer : null
+
+    worker.onmessage = (e: MessageEvent<{ chunks: ArrayBuffer[] }>) => {
+      const blob = new Blob(e.data.chunks, { type: 'audio/mpeg' })
+      worker.terminate()
+      resolve(blob)
+    }
+    worker.onerror = (err) => {
+      worker.terminate()
+      reject(err)
+    }
+
+    const transferable: Transferable[] = [leftBuffer]
+    if (rightBuffer) transferable.push(rightBuffer)
+    worker.postMessage({ leftBuffer, rightBuffer, sampleRate, kbps: EXPORT_MP3_KBPS }, transferable)
+  })
+}
 
 export async function processAudioSegment(
   audioBuffer: AudioBuffer,
@@ -25,8 +47,8 @@ export async function processAudioSegment(
     // Быстрый путь: нет fade — берём PCM напрямую, без OfflineAudioContext
     const start = Math.floor(segment.startTime * sr)
     const end = Math.min(Math.ceil(segment.endTime * sr), audioBuffer.length)
-    leftF32 = audioBuffer.getChannelData(0).subarray(start, end)
-    rightF32 = isStereo ? audioBuffer.getChannelData(1).subarray(start, end) : undefined
+    leftF32 = audioBuffer.getChannelData(0).slice(start, end)
+    rightF32 = isStereo ? audioBuffer.getChannelData(1).slice(start, end) : undefined
   } else {
     // Полный путь через OfflineAudioContext для применения fade
     const frameCount = Math.max(1, Math.floor(duration * sr))
@@ -50,11 +72,11 @@ export async function processAudioSegment(
 
     source.start(0, segment.startTime, duration)
     const rendered = await offlineCtx.startRendering()
-    leftF32 = rendered.getChannelData(0)
-    rightF32 = isStereo ? rendered.getChannelData(1) : undefined
+    leftF32 = rendered.getChannelData(0).slice()
+    rightF32 = isStereo ? rendered.getChannelData(1).slice() : undefined
   }
 
-  const blob = encodeToMP3(leftF32, rightF32, sr)
+  const blob = await encodeToMP3Worker(leftF32, rightF32, sr)
 
   const sanitize = (s: string) => s.split('\x00').join('').trim()
   const a = sanitize(artist) || 'Unknown'
@@ -67,38 +89,6 @@ export async function processAudioSegment(
     url: URL.createObjectURL(blob),
     duration,
   }
-}
-
-function float32ToInt16(data: Float32Array): Int16Array {
-  const out = new Int16Array(data.length)
-  for (let i = 0; i < data.length; i++) {
-    const s = Math.max(-1, Math.min(1, data[i]))
-    out[i] = s < 0 ? s * 0x8000 : s * 0x7fff
-  }
-  return out
-}
-
-function encodeToMP3(leftF32: Float32Array, rightF32: Float32Array | undefined, sampleRate: number): Blob {
-  const isStereo = rightF32 !== undefined
-  const left = float32ToInt16(leftF32)
-  const right = rightF32 ? float32ToInt16(rightF32) : undefined
-
-  const encoder = new Mp3Encoder(isStereo ? 2 : 1, sampleRate, EXPORT_MP3_KBPS)
-  const chunks: ArrayBuffer[] = []
-
-  const push = (data: Uint8Array) => {
-    if (data.length > 0)
-      chunks.push(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer)
-  }
-
-  for (let i = 0; i < left.length; i += MP3_FRAME_SAMPLES) {
-    const l = left.subarray(i, i + MP3_FRAME_SAMPLES)
-    const r = right?.subarray(i, i + MP3_FRAME_SAMPLES)
-    push(r ? encoder.encodeBuffer(l, r) : encoder.encodeBuffer(l))
-  }
-  push(encoder.flush())
-
-  return new Blob(chunks, { type: 'audio/mpeg' })
 }
 
 export function formatTimeDetailed(sec: number): string {

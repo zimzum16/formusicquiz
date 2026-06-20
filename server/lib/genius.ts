@@ -51,14 +51,29 @@ function toRelated(s: { title: string; primary_artist: { name: string }; url: st
   return { title: s.title, artist: s.primary_artist.name, genius_url: s.url };
 }
 
+function artistMatches(resultArtist: string, searchArtist: string): boolean {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const a = norm(resultArtist);
+  const b = norm(searchArtist);
+  return a.includes(b) || b.includes(a);
+}
+
 export async function searchSong(title: string, artist: string): Promise<GeniusSong | null> {
   const q = encodeURIComponent(`${artist} ${title}`);
   const searchRes = await fetch(`${BASE}/search?q=${q}`, { headers: headers() });
   const searchData = (await searchRes.json()) as {
-    response: { hits: { result: { id: number } }[] };
+    response: {
+      hits: { type: string; result: { id: number; url: string; primary_artist: { name: string } } }[];
+    };
   };
 
-  const hit = searchData.response.hits[0];
+  // Only consider actual lyrics pages (URLs always end in "-lyrics").
+  // Articles, lists, translations end in "-annotated", "-preklad-lyrics" (different artist), etc.
+  const lyricHits = searchData.response.hits.filter((h) => h.result.url.endsWith('-lyrics'));
+
+  // Prefer a hit whose primary artist matches the one we searched for.
+  const hit =
+    lyricHits.find((h) => artistMatches(h.result.primary_artist.name, artist)) ?? lyricHits[0];
   if (!hit) return null;
 
   const songId = hit.result.id;

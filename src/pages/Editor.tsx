@@ -12,7 +12,9 @@ import { SongStructurePanel } from '../components/editor/SongStructurePanel'
 
 export default function Editor() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const audioRef2 = useRef<HTMLAudioElement | null>(null)
   const [currentTime, setCurrentTime] = useState(0)
+  const [currentTime2, setCurrentTime2] = useState(0)
   const prevSegmentCountRef = useRef(0)
 
   const {
@@ -34,16 +36,16 @@ export default function Editor() {
   } = useAudioEditor()
 
   useEffect(() => {
-    if (audioFile?.url) setCurrentTime(0)
+    if (audioFile?.url) { setCurrentTime(0); setCurrentTime2(0) }
   }, [audioFile?.url])
 
-  // При добавлении нового сегмента — сбрасываем позицию воспроизведения
+  // При добавлении нового сегмента — сбрасываем только второй плеер
   useEffect(() => {
     const n = segments.length
     if (n > prevSegmentCountRef.current && audioFile) {
-      setCurrentTime(0)
-      const el = audioRef.current
-      if (el) { el.pause(); el.currentTime = 0 }
+      setCurrentTime2(0)
+      const el2 = audioRef2.current
+      if (el2) { el2.pause(); el2.currentTime = 0 }
     }
     prevSegmentCountRef.current = n
   }, [segments.length, audioFile])
@@ -54,6 +56,11 @@ export default function Editor() {
   const playbackEnvelope = seg0 ? {
     range: { startTime: seg0.startTime, endTime: seg0.endTime },
     fade: { fadeIn: seg0.fadeIn, fadeOut: seg0.fadeOut, fadeInDuration: seg0.fadeInDuration, fadeOutDuration: seg0.fadeOutDuration },
+  } : null
+
+  const playbackEnvelope2 = seg1 ? {
+    range: { startTime: seg1.startTime, endTime: seg1.endTime },
+    fade: { fadeIn: seg1.fadeIn, fadeOut: seg1.fadeOut, fadeInDuration: seg1.fadeInDuration, fadeOutDuration: seg1.fadeOutDuration },
   } : null
 
   return (
@@ -83,6 +90,7 @@ export default function Editor() {
             <SongInfo audioFile={audioFile} />
 
             <AudioPlayer ref={audioRef} audioFile={audioFile} onTimeUpdate={setCurrentTime} />
+            {seg1 && <AudioPlayer ref={audioRef2} audioFile={audioFile} onTimeUpdate={setCurrentTime2} />}
 
             {seg0 && (
               <WaveformDisplay
@@ -123,16 +131,23 @@ export default function Editor() {
               <WaveformDisplay
                 key={seg1.id}
                 audioFile={audioFile}
-                currentTime={currentTime}
-                audioRef={audioRef}
-                onSeek={setCurrentTime}
+                currentTime={currentTime2}
+                audioRef={audioRef2}
+                onSeek={setCurrentTime2}
                 prefetchedBuffer={sharedDecodedBuffer}
-                playbackEnvelope={playbackEnvelope}
-                playbackFadeEnvelope={false}
-                showPlaybackVolume
+                playbackEnvelope={playbackEnvelope2}
                 trimRange={{ startTime: seg1.startTime, endTime: seg1.endTime }}
                 trimFade={{ fadeIn: seg1.fadeIn, fadeOut: seg1.fadeOut, fadeInDuration: seg1.fadeInDuration, fadeOutDuration: seg1.fadeOutDuration }}
                 onTrimRangeChange={(r) => updateSegment(seg1.id, r)}
+                markers={songMarkers}
+                bottomSlot={
+                  <SongStructurePanel
+                    markers={songMarkers}
+                    isAnalyzing={isAnalyzingStructure}
+                    duration={audioFile.duration}
+                    onApplySegment={(s, e) => updateSegment(seg1.id, { startTime: s, endTime: e })}
+                  />
+                }
                 playToolbar={(playBtn, volumeSlot) => (
                   <TrimControls
                     variant="inline"

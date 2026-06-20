@@ -445,13 +445,15 @@ router.openapi(infoRoute, async (c) => {
   const { title: rawTitle, artist } = spotifyTrack;
   // Убираем суффиксы Spotify перед поиском в Genius/Last.fm/Setlist.fm
   const title = rawTitle.replace(TITLE_RE, '').trim();
+  // Genius плохо ищет по "Artist1, Artist2 Title" — берём только первого исполнителя
+  const primaryArtist = artist.split(',')[0].trim();
 
   const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T | null> =>
     Promise.race([p, new Promise<null>(resolve => setTimeout(() => resolve(null), ms))]);
 
   const [geniusResult, lastfmResult, youtubeResult, yandexResult, appleResult] =
     await Promise.allSettled([
-      withTimeout(searchSong(title, artist), 7000),
+      withTimeout(searchSong(title, primaryArtist), 7000),
       withTimeout(getTrackInfo(title, artist), 7000),
       withTimeout(findVideo(title, artist), 7000),
       withTimeout(getYandexTrackInfo(title, artist), 4000),

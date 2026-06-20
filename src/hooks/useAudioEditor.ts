@@ -160,17 +160,11 @@ export function useAudioEditor() {
     setError(null)
 
     try {
-      const processed: ProcessedAudioFile[] = []
-      for (let i = 0; i < segments.length; i++) {
-        const result = await processAudioSegment(
-          sharedDecodedBuffer,
-          segments[i],
-          audioFile.artist,
-          audioFile.title,
-          i + 1
+      const processed = await Promise.all(
+        segments.map((seg, i) =>
+          processAudioSegment(sharedDecodedBuffer, seg, audioFile.artist, audioFile.title, i + 1)
         )
-        processed.push(result)
-      }
+      )
       setProcessedFiles(processed)
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err)
