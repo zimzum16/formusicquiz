@@ -87,6 +87,24 @@ function matchScore(normQuery: string, normTarget: string): number {
   return Math.max(wordCoverage(normQuery, normTarget), diceBigrams(normQuery, normTarget))
 }
 
+// After finding a strong match at anchorIdx, verify that at least one of the
+// subsequent Genius candidates also appears within the next few LRC lines.
+// This prevents false positives when sections share an opening line
+// (e.g. outro and final chorus start identically).
+// LRC files split lines differently than Genius, so we use a loose window of
+// 6 LRC lines and a low threshold (0.4) to tolerate partial line breaks.
+function confirmContext(normCandidates: string[], anchorIdx: number, lrcLines: LrcLine[]): boolean {
+  if (normCandidates.length <= 1) return true
+  const limit = Math.min(anchorIdx + 6, lrcLines.length)
+  for (let k = anchorIdx + 1; k < limit; k++) {
+    const t = normalize(lrcLines[k].text)
+    for (let c = 1; c < normCandidates.length; c++) {
+      if (matchScore(normCandidates[c], t) >= 0.4) return true
+    }
+  }
+  return false
+}
+
 function alignSections(
   sections: GeniusSection[],
   lrcLines: LrcLine[],
@@ -96,7 +114,7 @@ function alignSections(
   let searchFrom = 0
 
   for (const section of sections) {
-    // Пробуем первые 3 непустые строки секции — берём лучший результат
+    // Первые 3 непустые строки — кандидаты для поиска
     const candidates = section.lines.filter(l => l.trim().length > 3).slice(0, 3)
     if (candidates.length === 0) continue
 
@@ -105,6 +123,10 @@ function alignSections(
 
     const normCandidates = candidates.map(normalize)
 
+    // Single-line matching: for each LRC line, take max score across all candidates.
+    // When score >= 0.8, verify that a subsequent candidate also appears nearby
+    // (prevents anchoring on a shared opening line from the previous section).
+    // Falls back to the raw best-score position if context never confirms.
     outer:
     for (let i = searchFrom; i < lrcLines.length; i++) {
       const normTarget = normalize(lrcLines[i].text)
@@ -113,7 +135,13 @@ function alignSections(
         if (score > bestScore) {
           bestScore = score
           bestIdx = i
-          if (bestScore === 1) break outer // идеальное совпадение — дальше не ищем
+          // Stop at the first "good enough + confirmed" match rather than
+          // scanning to the end for a slightly better one. A lower threshold
+          // here prevents sections from drifting to later parts of the song
+          // where a shared phrase happens to score higher.
+          if (bestScore >= 0.65 && confirmContext(normCandidates, i, lrcLines)) {
+            break outer
+          }
         }
       }
     }
@@ -125,6 +153,17 @@ function alignSections(
         type: section.type,
         label: section.label,
       })
+      // Advance past a minimum gap so the next section cannot start within
+      // the first 10 s of this one (prevents pre-chorus from anchoring on
+      // an LRC line that is still inside the verse).
+      const MIN_GAP = 10
+      const sectionStart = lrcLines[bestIdx].time
+      let next = bestIdx + 1
+      while (next < lrcLines.length && lrcLines[next].time < sectionStart + MIN_GAP) next++
+      searchFrom = next
+    } else if (bestIdx >= 0 && bestScore >= 0.3) {
+      // Low-confidence match: don't place a marker but advance past this position
+      // so the next section doesn't anchor itself in this section's LRC territory
       searchFrom = bestIdx + 1
     }
   }

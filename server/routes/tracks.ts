@@ -126,10 +126,13 @@ interface GeniusLyricsSection {
 function mapSectionType(name: string): SectionType {
   const lower = name.toLowerCase();
   if (/verse|куплет/.test(lower)) return 'verse';
-  if (/chorus|припев|refrain|hook/.test(lower)) return 'chorus';
   if (/bridge|бридж/.test(lower)) return 'bridge';
   if (/intro|интро/.test(lower)) return 'intro';
   if (/outro|аутро|coda/.test(lower)) return 'outro';
+  // pre/post-chorus checked before chorus to avoid partial match
+  if (/pre-chorus|pre chorus|пред.припев/.test(lower)) return 'unknown';
+  if (/post-chorus|post chorus|пост.припев/.test(lower)) return 'unknown';
+  if (/chorus|припев|refrain|hook/.test(lower)) return 'chorus';
   return 'unknown';
 }
 
@@ -137,9 +140,13 @@ function formatSectionLabel(name: string): string {
   // Strip artist attribution after colon: "Verse 1: Drake" → "Verse 1"
   const clean = name.split(':')[0].trim();
   return clean
+    // pre/post must come before chorus to avoid partial substitution
+    .replace(/\bpre-chorus\b/i, 'Пред-припев')
+    .replace(/\bpost-chorus\b/i, 'Пост-припев')
+    .replace(/\bpre chorus\b/i, 'Пред-припев')
+    .replace(/\bpost chorus\b/i, 'Пост-припев')
     .replace(/\bverse\b/i, 'Куплет')
     .replace(/\bchorus\b/i, 'Припев')
-    .replace(/\bpre-chorus\b/i, 'Пред-припев')
     .replace(/\bbridge\b/i, 'Бридж')
     .replace(/\bintro\b/i, 'Интро')
     .replace(/\boutro\b/i, 'Аутро')
