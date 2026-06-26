@@ -1,4 +1,5 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
+import { Redis } from '@upstash/redis';
 import { searchTracks, getTrack } from '../lib/spotify.js';
 import { searchSong } from '../lib/genius.js';
 import { extractLyricsText } from '../lib/lyricsCompare.js';
@@ -184,9 +185,11 @@ function parseGeniusLyrics(html: string): GeniusLyricsSection[] {
   return sections;
 }
 
-// ── In-memory cache ───────────────────────────────────────────────────────────
+// ── Cache ─────────────────────────────────────────────────────────────────────
 
-const TRACK_CACHE_TTL = 60 * 60 * 1000;
+const MEM_TTL = 60 * 60 * 1000;
+const TRACK_TTL_S = 60 * 60; // 1 час
+
 type TrackInfoPayload = {
   spotify: z.infer<typeof TrackSchema>;
   genius: z.infer<typeof GeniusSchema> | null;
@@ -195,10 +198,25 @@ type TrackInfoPayload = {
   yandex: z.infer<typeof YandexSchema>;
   apple_music: z.infer<typeof AppleMusicSchema>;
 };
-const trackCache = new Map<string, { data: TrackInfoPayload; ts: number }>();
-const setlistCache = new Map<string, { data: z.infer<typeof SetlistfmSchema> | null; ts: number }>();
-const lyricsCache = new Map<string, { data: { sections: GeniusLyricsSection[] }; ts: number }>();
-const lrcCache = new Map<string, { data: { lines: { time: number; text: string }[] }; ts: number }>();
+
+const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+  ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
+  : null;
+
+// In-memory fallback для локальной разработки без Redis
+const memCache = new Map<string, { data: unknown; ts: number }>();
+
+async function cacheGet<T>(key: string): Promise<T | null> {
+  if (redis) return redis.get<T>(key);
+  const e = memCache.get(key);
+  if (e && Date.now() - e.ts < MEM_TTL) return e.data as T;
+  return null;
+}
+
+async function cacheSet<T>(key: string, data: T, ttlS?: number): Promise<void> {
+  if (redis) { await redis.set(key, data, ttlS ? { ex: ttlS } : undefined); return; }
+  memCache.set(key, { data, ts: Date.now() });
+}
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -307,8 +325,8 @@ const infoRoute = createRoute({
 router.openapi(lrcRoute, async (c) => {
   const { title, artist } = c.req.valid('query');
   const cacheKey = `lrc:${title}|${artist}`;
-  const cached = lrcCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < TRACK_CACHE_TTL) return c.json(cached.data, 200);
+  const cached = await cacheGet<{ lines: { time: number; text: string }[] }>(cacheKey);
+  if (cached) return c.json(cached, 200);
 
   try {
     type LrcResult = { syncedLyrics: string | null; artistName?: string; trackName?: string };
@@ -365,7 +383,7 @@ router.openapi(lrcRoute, async (c) => {
       .filter((l): l is { time: number; text: string } => l !== null);
 
     const data = { lines };
-    lrcCache.set(cacheKey, { data, ts: Date.now() });
+    await cacheSet(cacheKey, data);
     return c.json(data, 200);
   } catch {
     return c.json({ lines: [] }, 200);
@@ -383,8 +401,8 @@ router.openapi(lyricsRoute, async (c) => {
     lyricsUrl = query.url;
   } else if (query.title && query.artist) {
     const cacheKey = `ta:${query.title}|${query.artist}`;
-    const cached = lyricsCache.get(cacheKey);
-    if (cached && Date.now() - cached.ts < TRACK_CACHE_TTL) return c.json(cached.data, 200);
+    const cached = await cacheGet<{ sections: GeniusLyricsSection[] }>(cacheKey);
+    if (cached) return c.json(cached, 200);
 
     const genius = await searchSong(query.title, query.artist).catch((e) => {
       console.error('[lyrics] searchSong error:', e);
@@ -402,8 +420,8 @@ router.openapi(lyricsRoute, async (c) => {
     return c.json({ sections: [] }, 200);
   }
 
-  const cached = lyricsCache.get(lyricsUrl);
-  if (cached && Date.now() - cached.ts < TRACK_CACHE_TTL) return c.json(cached.data, 200);
+  const cachedByUrl = await cacheGet<{ sections: GeniusLyricsSection[] }>(lyricsUrl);
+  if (cachedByUrl) return c.json(cachedByUrl, 200);
 
   try {
     const scraperapiKey = process.env.SCRAPERAPI_KEY;
@@ -439,9 +457,9 @@ router.openapi(lyricsRoute, async (c) => {
     const sections = parseGeniusLyrics(html);
     console.log('[lyrics] parsed sections:', sections.length);
     const data = { sections, title: geniusTitle, artist: geniusArtist };
-    lyricsCache.set(lyricsUrl, { data, ts: Date.now() });
+    await cacheSet(lyricsUrl, data);
     if (!('url' in query)) {
-      lyricsCache.set(`ta:${query.title}|${query.artist}`, { data, ts: Date.now() });
+      await cacheSet(`ta:${query.title}|${query.artist}`, data);
     }
     return c.json(data, 200);
   } catch (e) {
@@ -483,8 +501,8 @@ router.openapi(searchRoute, async (c) => {
 router.openapi(infoRoute, async (c) => {
   const { id } = c.req.valid('param');
 
-  const cached = trackCache.get(id);
-  if (cached && Date.now() - cached.ts < TRACK_CACHE_TTL) return c.json(cached.data, 200);
+  const cached = await cacheGet<TrackInfoPayload>(`track:${id}`);
+  if (cached) return c.json(cached, 200);
 
   const spotifyTrack = id.startsWith('itunes:')
     ? await getTrackItunes(id)
@@ -524,15 +542,15 @@ router.openapi(infoRoute, async (c) => {
       ? appleResult.value
       : { search_url: `https://music.apple.com/ru/search?term=${encodeURIComponent(`${artist} ${title}`)}`, charts: [] };
   const payload: TrackInfoPayload = { spotify: spotifyTrack, genius, lastfm, youtube, yandex, apple_music };
-  trackCache.set(id, { data: payload, ts: Date.now() });
+  await cacheSet(`track:${id}`, payload, TRACK_TTL_S);
   return c.json(payload, 200);
 });
 
 router.openapi(setlistfmRoute, async (c) => {
   const { id } = c.req.valid('param');
 
-  const cached = setlistCache.get(id);
-  if (cached && Date.now() - cached.ts < TRACK_CACHE_TTL) return c.json(cached.data, 200);
+  const cached = await cacheGet<z.infer<typeof SetlistfmSchema>>(`setlist:${id}`);
+  if (cached) return c.json(cached, 200);
 
   const spotifyTrack = id.startsWith('itunes:')
     ? await getTrackItunes(id)
@@ -543,7 +561,7 @@ router.openapi(setlistfmRoute, async (c) => {
   const title = rawTitle.replace(TITLE_RE, '').trim();
 
   const data = await getTrackStats(title, artist).catch(() => null);
-  setlistCache.set(id, { data, ts: Date.now() });
+  if (data) await cacheSet(`setlist:${id}`, data, TRACK_TTL_S);
   return c.json(data, 200);
 });
 
