@@ -24,6 +24,10 @@ async function getAppToken(): Promise<string> {
     body: 'grant_type=client_credentials',
   });
 
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Spotify token error ${res.status}: ${text.slice(0, 200)}`);
+  }
   const data = (await res.json()) as { access_token: string; expires_in: number };
   tokenCache = {
     token: data.access_token,
@@ -57,6 +61,11 @@ export async function searchTracks(query: string, artist?: string): Promise<Spot
   const url = `${BASE}/search?q=${encodeURIComponent(q)}&type=track&limit=10&market=US`;
 
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) {
+    const text = await res.text();
+    console.error(`[spotify] search error ${res.status}:`, text.slice(0, 200));
+    return [];
+  }
   const data = (await res.json()) as { tracks: { items: SpotifyApiTrack[] } };
 
   return data.tracks.items.map(normalizeTrack);

@@ -310,15 +310,28 @@ router.openapi(lrcRoute, async (c) => {
   if (cached && Date.now() - cached.ts < TRACK_CACHE_TTL) return c.json(cached.data, 200);
 
   try {
-    const params = new URLSearchParams({ track_name: title, artist_name: artist });
-    const res = await fetch(`https://lrclib.net/api/search?${params}`, {
-      headers: { 'Lrclib-Client': 'SoundLens/1.0' },
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!res.ok) return c.json({ lines: [] }, 200);
+    const fetchLrc = async (params: URLSearchParams) => {
+      const res = await fetch(`https://lrclib.net/api/search?${params}`, {
+        headers: { 'Lrclib-Client': 'SoundLens/1.0' },
+        signal: AbortSignal.timeout(4000),
+      });
+      if (!res.ok) return null;
+      const results = (await res.json()) as { syncedLyrics: string | null }[];
+      return results.find(r => r.syncedLyrics) ?? null;
+    };
 
-    const results = (await res.json()) as { syncedLyrics: string | null }[];
-    const hit = results.find(r => r.syncedLyrics);
+    // Попытка 1: точный поиск по треку + исполнителю
+    let hit = await fetchLrc(new URLSearchParams({ track_name: title, artist_name: artist }));
+
+    // Попытка 2: только по треку (без исполнителя)
+    if (!hit) hit = await fetchLrc(new URLSearchParams({ track_name: title }));
+
+    // Попытка 3: keyword-поиск по первому слову названия (ловит опечатки в транслитерации)
+    if (!hit) {
+      const keyword = title.split(/[\s\-–—]/)[0];
+      if (keyword.length >= 3) hit = await fetchLrc(new URLSearchParams({ q: `${keyword} ${artist}` }));
+    }
+
     if (!hit?.syncedLyrics) return c.json({ lines: [] }, 200);
 
     const LRC_LINE_RE = /^\[(\d+):(\d+(?:\.\d+)?)\]\s*(.*)$/;
@@ -347,6 +360,8 @@ router.openapi(lyricsRoute, async (c) => {
 
   // Получаем URL страницы: либо напрямую, либо через поиск Genius по title+artist
   let lyricsUrl: string;
+  let geniusTitle = '';
+  let geniusArtist = '';
   if (query.url) {
     lyricsUrl = query.url;
   } else if (query.title && query.artist) {
@@ -363,6 +378,8 @@ router.openapi(lyricsRoute, async (c) => {
       return c.json({ sections: [] }, 200);
     }
     lyricsUrl = genius.lyrics_url;
+    geniusTitle = genius.title;
+    geniusArtist = genius.artist;
     console.log('[lyrics] found url:', lyricsUrl);
   } else {
     return c.json({ sections: [] }, 200);
@@ -404,7 +421,7 @@ router.openapi(lyricsRoute, async (c) => {
     console.log('[lyrics] html length:', html.length, 'has container:', html.includes('data-lyrics-container'));
     const sections = parseGeniusLyrics(html);
     console.log('[lyrics] parsed sections:', sections.length);
-    const data = { sections };
+    const data = { sections, title: geniusTitle, artist: geniusArtist };
     lyricsCache.set(lyricsUrl, { data, ts: Date.now() });
     if (!('url' in query)) {
       lyricsCache.set(`ta:${query.title}|${query.artist}`, { data, ts: Date.now() });

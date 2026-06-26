@@ -7,6 +7,12 @@ export interface SongMarker {
   label: string
 }
 
+export interface SongAnalysis {
+  markers: SongMarker[]
+  title: string
+  artist: string
+}
+
 interface LrcLine { time: number; text: string }
 
 interface GeniusSection {
@@ -17,15 +23,21 @@ interface GeniusSection {
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
 
-async function fetchGeniusSections(title: string, artist: string): Promise<GeniusSection[]> {
+interface GeniusResult {
+  sections: GeniusSection[]
+  title: string
+  artist: string
+}
+
+async function fetchGeniusSections(title: string, artist: string): Promise<GeniusResult> {
   try {
     const params = new URLSearchParams({ title, artist })
     const res = await fetch(`${BASE}/api/tracks/lyrics?${params}`)
-    if (!res.ok) return []
-    const data: { sections: GeniusSection[] } = await res.json()
-    return data.sections ?? []
+    if (!res.ok) return { sections: [], title: '', artist: '' }
+    const data: GeniusResult = await res.json()
+    return { sections: data.sections ?? [], title: data.title ?? '', artist: data.artist ?? '' }
   } catch {
-    return []
+    return { sections: [], title: '', artist: '' }
   }
 }
 
@@ -190,13 +202,23 @@ export async function analyzeSongStructure(
   title: string,
   artist: string,
   duration: number
-): Promise<SongMarker[]> {
-  const [sections, lrcLines] = await Promise.all([
+): Promise<SongAnalysis> {
+  const [genius, lrcLines] = await Promise.all([
     fetchGeniusSections(title, artist),
     fetchLrcLines(title, artist),
   ])
 
-  if (sections.length === 0 || lrcLines.length === 0) return []
+  const resolvedTitle = genius.title || title
+  const resolvedArtist = genius.artist || artist
 
-  return alignSections(sections, lrcLines, duration)
+  if (genius.sections.length === 0) return { markers: [], title: resolvedTitle, artist: resolvedArtist }
+
+  // Если LRC не нашёлся с исходным title — retry с правильным названием из Genius
+  const lines = lrcLines.length === 0 && genius.title && genius.title !== title
+    ? await fetchLrcLines(resolvedTitle, resolvedArtist)
+    : lrcLines
+
+  if (lines.length === 0) return { markers: [], title: resolvedTitle, artist: resolvedArtist }
+
+  return { markers: alignSections(genius.sections, lines, duration), title: resolvedTitle, artist: resolvedArtist }
 }

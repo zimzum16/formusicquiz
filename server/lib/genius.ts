@@ -18,6 +18,8 @@ interface GeniusMedia {
 
 export interface GeniusSong {
   lyrics_url: string;
+  title: string;
+  artist: string;
   description: string | null;
   release_date: string | null;
   release_year: number | null;
@@ -61,6 +63,11 @@ function artistMatches(resultArtist: string, searchArtist: string): boolean {
 export async function searchSong(title: string, artist: string): Promise<GeniusSong | null> {
   const q = encodeURIComponent(`${artist} ${title}`);
   const searchRes = await fetch(`${BASE}/search?q=${q}`, { headers: headers() });
+  if (!searchRes.ok) {
+    const text = await searchRes.text();
+    console.error(`[genius] search error ${searchRes.status}:`, text.slice(0, 200));
+    return null;
+  }
   const searchData = (await searchRes.json()) as {
     response: {
       hits: { type: string; result: { id: number; url: string; primary_artist: { name: string } } }[];
@@ -84,6 +91,8 @@ export async function searchSong(title: string, artist: string): Promise<GeniusS
   const s = songData.response.song;
   return {
     lyrics_url: s.url,
+    title: s.title ?? '',
+    artist: s.primary_artist?.name ?? '',
     description: s.description?.plain ?? null,
     release_date: s.release_date ?? null,
     release_year: s.release_date_components?.year ?? null,
@@ -108,6 +117,8 @@ export async function searchSong(title: string, artist: string): Promise<GeniusS
 
 interface GeniusApiSong {
   url: string;
+  title?: string;
+  primary_artist?: { name: string; url: string };
   description?: { plain: string };
   release_date?: string;
   release_date_components?: { year: number | null; month: number | null; day: number | null };

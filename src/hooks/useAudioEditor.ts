@@ -3,7 +3,7 @@ import type { AudioFile, TrimSegment, ProcessedAudioFile } from '../types/audio'
 import { processAudioSegment } from '../lib/audioUtils'
 import { extractID3Tags, parseFilename } from '../lib/id3Parser'
 import { tracksApi } from '../lib/api'
-import { analyzeSongStructure, type SongMarker } from '../lib/songStructure'
+import { analyzeSongStructure, type SongMarker, type SongAnalysis } from '../lib/songStructure'
 
 export function useAudioEditor() {
   const [audioFile, setAudioFile] = useState<AudioFile | null>(null)
@@ -74,13 +74,23 @@ export function useAudioEditor() {
         genre: id3Tags.genre,
       })
 
-      // Анализ структуры — сразу, не ждём Spotify/Genius
+      // Анализ структуры и Spotify запускаем параллельно
       setIsAnalyzingStructure(true)
       analyzeSongStructure(title, artist, audioBuffer.duration)
-        .then(setSongMarkers)
+        .then((analysis: SongAnalysis) => {
+          setSongMarkers(analysis.markers)
+          // Обновляем title/artist из Genius (правильная орфография, кириллица)
+          if (analysis.title && (analysis.title !== title || analysis.artist !== artist)) {
+            setAudioFile(prev => prev ? {
+              ...prev,
+              title: analysis.title || prev.title,
+              artist: analysis.artist || prev.artist,
+            } : prev)
+          }
+        })
         .finally(() => setIsAnalyzingStructure(false))
 
-      // Фоновое обогащение из Spotify + Genius — не блокирует UI
+      // Фоновое обогащение из Spotify — только обложка, альбом, год
       void (async () => {
         try {
           const results = await tracksApi.search(title, artist)
