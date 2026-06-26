@@ -8,6 +8,7 @@ import { findVideo } from '../lib/youtube.js';
 import { getTrackInfo as getYandexTrackInfo } from '../lib/yandex.js';
 import { getAppleMusicData } from '../lib/applemusic.js';
 import { hasCyrillic, cyrToLat, latToCyr, looksLikeKeyboardMismatch, keyboardToLatin } from '../lib/translit.js';
+import { searchTracksItunes, getTrackItunes } from '../lib/itunes.js';
 
 const router = new OpenAPIHono();
 
@@ -454,6 +455,12 @@ router.openapi(searchRoute, async (c) => {
   const [primary, secondary] = isCyr ? [b, a] : [a, b];
   const seen = new Set(primary.map(t => t.id));
   const merged = [...primary, ...secondary.filter(t => !seen.has(t.id))];
+
+  if (merged.length === 0) {
+    const itunesResults = await searchTracksItunes(q, artist);
+    return c.json(itunesResults.slice(0, 20));
+  }
+
   return c.json(merged.slice(0, 20));
 });
 
@@ -463,7 +470,9 @@ router.openapi(infoRoute, async (c) => {
   const cached = trackCache.get(id);
   if (cached && Date.now() - cached.ts < TRACK_CACHE_TTL) return c.json(cached.data, 200);
 
-  const spotifyTrack = await getTrack(id);
+  const spotifyTrack = id.startsWith('itunes:')
+    ? await getTrackItunes(id)
+    : await getTrack(id);
   if (!spotifyTrack) return c.json({ error: 'Track not found' }, 404);
 
   const { title: rawTitle, artist } = spotifyTrack;
@@ -509,7 +518,9 @@ router.openapi(setlistfmRoute, async (c) => {
   const cached = setlistCache.get(id);
   if (cached && Date.now() - cached.ts < TRACK_CACHE_TTL) return c.json(cached.data, 200);
 
-  const spotifyTrack = await getTrack(id);
+  const spotifyTrack = id.startsWith('itunes:')
+    ? await getTrackItunes(id)
+    : await getTrack(id);
   if (!spotifyTrack) return c.json(null, 200);
 
   const { title: rawTitle, artist } = spotifyTrack;
