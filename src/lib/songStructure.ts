@@ -56,8 +56,8 @@ async function fetchLrcLines(title: string, artist: string): Promise<LrcLine[]> 
 function normalize(text: string): string {
   return text
     .toLowerCase()
-    .replace(/'/g, '')        // апостроф убираем: "don't" → "dont", "it's" → "its"
-    .replace(/[^\w\s]/g, ' ')
+    .replace(/'/g, '')
+    .replace(/[^\wа-яёА-ЯЁ\s]/g, ' ') // \w не включает кириллицу — добавляем явно
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -195,33 +195,48 @@ function alignSections(
     }
   }
 
+  // Если последняя секция занимает > 40% песни — возможно это аутро, не отмеченное в Genius
+  const last = markers[markers.length - 1]
+  if (markers.length > 0 && last && (duration - last.start) / duration > 0.4) {
+    // Ищем в LRC первую строку после последнего маркера, где текст не похож на слова секции
+    const lastSectionEnd = lrcLines.findIndex(l => l.time >= last.start + 20)
+    if (lastSectionEnd >= 0 && lastSectionEnd < lrcLines.length - 1) {
+      const outroStart = lrcLines[lastSectionEnd].time
+      markers[markers.length - 1] = { ...last, end: outroStart }
+      markers.push({ start: outroStart, end: duration, type: 'outro', label: 'Аутро' })
+    }
+  }
+
   return markers
 }
 
 export async function analyzeSongStructure(
   title: string,
   artist: string,
-  duration: number
+  duration: number,
+  onGeniusResolved?: (title: string, artist: string) => void
 ): Promise<SongAnalysis> {
-  const [genius, lrcLines] = await Promise.all([
-    fetchGeniusSections(title, artist),
-    fetchLrcLines(title, artist),
-  ])
-
-  // Genius возвращает полные названия вида "Трасса Е-95 (Route E-95)" и "АлисА (AlisA) (Group)"
-  // — убираем скобочные пояснения перед поиском на lrclib
   const stripParens = (s: string) => s.replace(/\s*\([^)]*\)/g, '').trim()
-  const resolvedTitle = stripParens(genius.title || title)
-  const resolvedArtist = stripParens(genius.artist || artist)
 
-  if (genius.sections.length === 0) return { markers: [], title: resolvedTitle, artist: resolvedArtist }
+  // Genius и LRC запускаем параллельно, но title/artist обновляем сразу как Genius ответил
+  const geniusPromise = fetchGeniusSections(title, artist).then(g => {
+    const resolvedTitle = stripParens(g.title || title)
+    const resolvedArtist = stripParens(g.artist || artist)
+    onGeniusResolved?.(resolvedTitle, resolvedArtist)
+    return { ...g, resolvedTitle, resolvedArtist }
+  })
+  const lrcPromise = fetchLrcLines(title, artist)
+
+  const [genius, lrcLines] = await Promise.all([geniusPromise, lrcPromise])
+
+  if (genius.sections.length === 0) return { markers: [], title: genius.resolvedTitle, artist: genius.resolvedArtist }
 
   // Если LRC не нашёлся с исходным title — retry с очищенным названием из Genius
-  const lines = lrcLines.length === 0 && resolvedTitle !== title
-    ? await fetchLrcLines(resolvedTitle, resolvedArtist)
+  const lines = lrcLines.length === 0 && genius.resolvedTitle !== title
+    ? await fetchLrcLines(genius.resolvedTitle, genius.resolvedArtist)
     : lrcLines
 
-  if (lines.length === 0) return { markers: [], title: resolvedTitle, artist: resolvedArtist }
+  if (lines.length === 0) return { markers: [], title: genius.resolvedTitle, artist: genius.resolvedArtist }
 
-  return { markers: alignSections(genius.sections, lines, duration), title: resolvedTitle, artist: resolvedArtist }
+  return { markers: alignSections(genius.sections, lines, duration), title: genius.resolvedTitle, artist: genius.resolvedArtist }
 }

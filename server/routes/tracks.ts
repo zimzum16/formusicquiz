@@ -311,30 +311,42 @@ router.openapi(lrcRoute, async (c) => {
   if (cached && Date.now() - cached.ts < TRACK_CACHE_TTL) return c.json(cached.data, 200);
 
   try {
-    const fetchLrc = async (params: URLSearchParams) => {
+    type LrcResult = { syncedLyrics: string | null; artistName?: string; trackName?: string };
+
+    const normName = (s: string) => s.toLowerCase().replace(/[^a-zа-яё0-9]/gi, '');
+
+    const fetchLrc = async (params: URLSearchParams, preferArtist?: string) => {
       try {
         const res = await fetch(`https://lrclib.net/api/search?${params}`, {
           headers: { 'Lrclib-Client': 'SoundLens/1.0' },
-          signal: AbortSignal.timeout(6000),
+          signal: AbortSignal.timeout(12000),
         });
         if (!res.ok) return null;
-        const results = (await res.json()) as { syncedLyrics: string | null }[];
-        return results.find(r => r.syncedLyrics) ?? null;
+        const results = (await res.json()) as LrcResult[];
+        const withLyrics = results.filter(r => r.syncedLyrics);
+        if (!withLyrics.length) return null;
+        // Если есть предпочтительный исполнитель — ищем совпадение по нему
+        if (preferArtist) {
+          const norm = normName(preferArtist);
+          const match = withLyrics.find(r => normName(r.artistName ?? '').includes(norm) || norm.includes(normName(r.artistName ?? '')));
+          if (match) return match;
+        }
+        return withLyrics[0];
       } catch {
         return null;
       }
     };
 
-    // Попытка 1: точный поиск по треку + исполнителю
-    let hit = await fetchLrc(new URLSearchParams({ track_name: title, artist_name: artist }));
+    // Попытка 1: точный поиск — обычно возвращает правильный трек
+    let hit = await fetchLrc(new URLSearchParams({ track_name: title, artist_name: artist }), artist);
 
-    // Попытка 2: только по треку (без исполнителя)
-    if (!hit) hit = await fetchLrc(new URLSearchParams({ track_name: title }));
+    // Попытка 2: без исполнителя, но фильтруем результаты по artist
+    if (!hit) hit = await fetchLrc(new URLSearchParams({ track_name: title }), artist);
 
-    // Попытка 3: keyword-поиск по первому слову названия (ловит опечатки в транслитерации)
+    // Попытка 3: keyword-поиск для случаев с опечатками в названии
     if (!hit) {
       const keyword = title.split(/[\s\-–—]/)[0];
-      if (keyword.length >= 3) hit = await fetchLrc(new URLSearchParams({ q: `${keyword} ${artist}` }));
+      if (keyword.length >= 3) hit = await fetchLrc(new URLSearchParams({ q: `${keyword} ${artist}` }), artist);
     }
 
     if (!hit?.syncedLyrics) return c.json({ lines: [] }, 200);

@@ -76,18 +76,13 @@ export function useAudioEditor() {
 
       // Анализ структуры и Spotify запускаем параллельно
       setIsAnalyzingStructure(true)
-      analyzeSongStructure(title, artist, audioBuffer.duration)
-        .then((analysis: SongAnalysis) => {
-          setSongMarkers(analysis.markers)
-          // Обновляем title/artist из Genius (правильная орфография, кириллица)
-          if (analysis.title && (analysis.title !== title || analysis.artist !== artist)) {
-            setAudioFile(prev => prev ? {
-              ...prev,
-              title: analysis.title || prev.title,
-              artist: analysis.artist || prev.artist,
-            } : prev)
-          }
-        })
+      analyzeSongStructure(title, artist, audioBuffer.duration, (gTitle, gArtist) => {
+        // Обновляем title/artist сразу как Genius ответил — не ждём LRC
+        if (gTitle !== title || gArtist !== artist) {
+          setAudioFile(prev => prev ? { ...prev, title: gTitle, artist: gArtist } : prev)
+        }
+      })
+        .then((analysis: SongAnalysis) => { setSongMarkers(analysis.markers) })
         .finally(() => setIsAnalyzingStructure(false))
 
       // Фоновое обогащение из Spotify — только обложка, альбом, год
