@@ -312,13 +312,17 @@ router.openapi(lrcRoute, async (c) => {
 
   try {
     const fetchLrc = async (params: URLSearchParams) => {
-      const res = await fetch(`https://lrclib.net/api/search?${params}`, {
-        headers: { 'Lrclib-Client': 'SoundLens/1.0' },
-        signal: AbortSignal.timeout(4000),
-      });
-      if (!res.ok) return null;
-      const results = (await res.json()) as { syncedLyrics: string | null }[];
-      return results.find(r => r.syncedLyrics) ?? null;
+      try {
+        const res = await fetch(`https://lrclib.net/api/search?${params}`, {
+          headers: { 'Lrclib-Client': 'SoundLens/1.0' },
+          signal: AbortSignal.timeout(6000),
+        });
+        if (!res.ok) return null;
+        const results = (await res.json()) as { syncedLyrics: string | null }[];
+        return results.find(r => r.syncedLyrics) ?? null;
+      } catch {
+        return null;
+      }
     };
 
     // Попытка 1: точный поиск по треку + исполнителю

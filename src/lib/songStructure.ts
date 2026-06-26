@@ -208,13 +208,16 @@ export async function analyzeSongStructure(
     fetchLrcLines(title, artist),
   ])
 
-  const resolvedTitle = genius.title || title
-  const resolvedArtist = genius.artist || artist
+  // Genius возвращает полные названия вида "Трасса Е-95 (Route E-95)" и "АлисА (AlisA) (Group)"
+  // — убираем скобочные пояснения перед поиском на lrclib
+  const stripParens = (s: string) => s.replace(/\s*\([^)]*\)/g, '').trim()
+  const resolvedTitle = stripParens(genius.title || title)
+  const resolvedArtist = stripParens(genius.artist || artist)
 
   if (genius.sections.length === 0) return { markers: [], title: resolvedTitle, artist: resolvedArtist }
 
-  // Если LRC не нашёлся с исходным title — retry с правильным названием из Genius
-  const lines = lrcLines.length === 0 && genius.title && genius.title !== title
+  // Если LRC не нашёлся с исходным title — retry с очищенным названием из Genius
+  const lines = lrcLines.length === 0 && resolvedTitle !== title
     ? await fetchLrcLines(resolvedTitle, resolvedArtist)
     : lrcLines
 
