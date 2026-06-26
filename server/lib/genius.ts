@@ -54,9 +54,10 @@ function toRelated(s: { title: string; primary_artist: { name: string }; url: st
 }
 
 function artistMatches(resultArtist: string, searchArtist: string): boolean {
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
   const a = norm(resultArtist);
   const b = norm(searchArtist);
+  if (a.length === 0 || b.length === 0) return false;
   return a.includes(b) || b.includes(a);
 }
 

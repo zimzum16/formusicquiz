@@ -75,10 +75,12 @@ export function useAudioEditor() {
       })
 
       // Анализ структуры и Spotify запускаем параллельно
+      const hasId3Tags = !!(id3Tags.artist && id3Tags.title)
       setIsAnalyzingStructure(true)
       analyzeSongStructure(title, artist, audioBuffer.duration, (gTitle, gArtist) => {
-        // Обновляем title/artist сразу как Genius ответил — не ждём LRC
-        if (gTitle !== title || gArtist !== artist) {
+        // Обновляем title/artist из Genius только если ID3-тегов не было —
+        // иначе Genius-каноническое имя перезапишет корректные теги другим форматом
+        if (!hasId3Tags && (gTitle !== title || gArtist !== artist)) {
           setAudioFile(prev => prev ? { ...prev, title: gTitle, artist: gArtist } : prev)
         }
       })
@@ -90,7 +92,15 @@ export function useAudioEditor() {
         try {
           const results = await tracksApi.search(title, artist)
           if (!results.length) return
-          const match = results[0]
+
+          const normalize = (s: string) => s.toLowerCase().replace(/[^a-zа-яё0-9]/gi, '')
+          const artistNorm = normalize(artist)
+          const match = results.find(r => {
+            const rNorm = normalize(r.artist)
+            return rNorm.includes(artistNorm) || artistNorm.includes(rNorm)
+          })
+          if (!match) return
+
           const year = match.release_date?.slice(0, 4) ?? undefined
 
           setAudioFile(prev => prev ? {
