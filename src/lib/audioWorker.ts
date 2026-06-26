@@ -43,5 +43,5 @@ self.onmessage = (e: MessageEvent<EncodeRequest>) => {
   }
   push(encoder.flush())
 
-  self.postMessage({ chunks }, chunks as unknown as Transferable[])
+  ;(self as unknown as { postMessage(msg: unknown, transfer: Transferable[]): void }).postMessage({ chunks }, chunks)
 }

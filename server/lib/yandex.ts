@@ -32,10 +32,6 @@ function buildSearchUrl(title: string, artist: string): string {
   return `https://music.yandex.ru/search?text=${query}`;
 }
 
-// Keep legacy export for any callers that haven't been updated
-export function getSearchUrl(title: string, artist: string): string {
-  return buildSearchUrl(title, artist);
-}
 
 async function fetchChart(): Promise<ChartEntry[]> {
   if (chartCache && Date.now() - chartCache.ts < CHART_TTL) return chartCache.data;
