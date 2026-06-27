@@ -424,35 +424,47 @@ router.openapi(lyricsRoute, async (c) => {
   if (cachedByUrl) return c.json(cachedByUrl, 200);
 
   try {
-    const scraperapiKey = process.env.SCRAPERAPI_KEY;
+    const scraperapiKeys = [
+      ...(process.env.SCRAPERAPI_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean),
+      ...(process.env.SCRAPERAPI_KEY ? [process.env.SCRAPERAPI_KEY] : []),
+    ];
+    const zenrowsKeys = (process.env.ZENROWS_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean);
     const proxyBase = process.env.SCRAPE_PROXY_URL;
 
-    let fetchUrl: string;
-    let fetchHeaders: Record<string, string> = {};
+    const directHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.5',
+    };
 
-    if (scraperapiKey) {
-      fetchUrl = `http://api.scraperapi.com?api_key=${scraperapiKey}&url=${encodeURIComponent(lyricsUrl)}`;
-    } else if (proxyBase) {
-      fetchUrl = `${proxyBase}/api/scrape?url=${encodeURIComponent(lyricsUrl)}`;
-    } else {
-      fetchUrl = lyricsUrl;
-      fetchHeaders = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-      };
+    let html = '';
+
+    for (const key of scraperapiKeys) {
+      const res = await fetch(`http://api.scraperapi.com?api_key=${key}&url=${encodeURIComponent(lyricsUrl)}`, { signal: AbortSignal.timeout(15000) });
+      console.log('[lyrics] scraperapi status:', res.status);
+      if (res.ok) { html = await res.text(); break; }
     }
 
-    const via = scraperapiKey ? '(via scraperapi)' : proxyBase ? '(via proxy)' : '(direct)';
-    const res = await fetch(fetchUrl, {
-      headers: fetchHeaders,
-      signal: AbortSignal.timeout(15000),
-    });
+    if (!html) {
+      for (const key of zenrowsKeys) {
+        const res = await fetch(`https://api.zenrows.com/v1/?apikey=${key}&url=${encodeURIComponent(lyricsUrl)}&antibot=true`, { signal: AbortSignal.timeout(15000) });
+        console.log('[lyrics] zenrows status:', res.status);
+        if (res.ok) { html = await res.text(); break; }
+      }
+    }
 
-    console.log('[lyrics] genius page status:', res.status, via, 'for', lyricsUrl);
-    if (!res.ok) return c.json({ sections: [] }, 200);
+    if (!html && proxyBase) {
+      const res = await fetch(`${proxyBase}/api/scrape?url=${encodeURIComponent(lyricsUrl)}`, { signal: AbortSignal.timeout(15000) });
+      console.log('[lyrics] proxy status:', res.status);
+      if (res.ok) html = await res.text();
+    }
 
-    const html = await res.text();
+    if (!html) {
+      const res = await fetch(lyricsUrl, { headers: directHeaders, signal: AbortSignal.timeout(15000) });
+      console.log('[lyrics] direct status:', res.status);
+      if (!res.ok) return c.json({ sections: [] }, 200);
+      html = await res.text();
+    }
     console.log('[lyrics] html length:', html.length, 'has container:', html.includes('data-lyrics-container'));
     const sections = parseGeniusLyrics(html);
     console.log('[lyrics] parsed sections:', sections.length);
