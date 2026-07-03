@@ -1,26 +1,20 @@
 import { useRef, useState, useEffect } from 'react'
 import type { ProcessedAudioFile } from '../../types/audio'
-import { Download, Music, Play, Pause, Volume2, VolumeX } from 'lucide-react'
 
 interface AudioPlayerState {
   isPlaying: boolean
   currentTime: number
-  volume: number
-  isMuted: boolean
 }
 
-const DEFAULT_AUDIO_STATE: AudioPlayerState = {
-  isPlaying: false,
-  currentTime: 0,
-  volume: 0.3,
-  isMuted: false,
-}
+const DEFAULT_STATE: AudioPlayerState = { isPlaying: false, currentTime: 0 }
 
-function mergeFileState(
-  prev: { [key: string]: AudioPlayerState } | undefined,
-  fileId: string
-): AudioPlayerState {
-  return { ...DEFAULT_AUDIO_STATE, ...prev?.[fileId] }
+const SANS: React.CSSProperties = { fontFamily: 'Montserrat, sans-serif' }
+const MONO: React.CSSProperties = { fontFamily: 'JetBrains Mono, monospace' }
+
+function fmt(seconds: number) {
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${m}:${String(s).padStart(2, '0')}`
 }
 
 interface ProcessedResultsProps {
@@ -28,227 +22,193 @@ interface ProcessedResultsProps {
 }
 
 export function ProcessedResults({ files }: ProcessedResultsProps) {
-  const audioRefs = useRef<{ [key: string]: HTMLAudioElement | null }>({})
-  const [audioStates, setAudioStates] = useState<{ [key: string]: AudioPlayerState }>({})
-  const audioStatesRef = useRef(audioStates)
-  audioStatesRef.current = audioStates
+  const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({})
+  const [states, setStates] = useState<Record<string, AudioPlayerState>>({})
+  const statesRef = useRef(states)
+  statesRef.current = states
 
   useEffect(() => {
-    const initialStates: { [key: string]: AudioPlayerState } = {}
-    files.forEach((file) => {
-      initialStates[file.id] = { ...DEFAULT_AUDIO_STATE }
-    })
-    setAudioStates(initialStates)
+    const init: Record<string, AudioPlayerState> = {}
+    files.forEach((f) => { init[f.id] = { ...DEFAULT_STATE } })
+    setStates(init)
   }, [files])
 
-  const handleDownload = (file: ProcessedAudioFile) => {
-    const link = document.createElement('a')
-    link.href = file.url
-    link.download = file.name
-    link.click()
-  }
+  const get = (id: string): AudioPlayerState => states[id] ?? DEFAULT_STATE
 
-  const togglePlayPause = (fileId: string) => {
-    const audio = audioRefs.current[fileId]
+  const togglePlay = (id: string) => {
+    const audio = audioRefs.current[id]
     if (!audio) return
-    const current = mergeFileState(audioStates, fileId)
-    if (current.isPlaying) {
+    const cur = get(id)
+    if (cur.isPlaying) {
       audio.pause()
+      setStates(prev => ({ ...prev, [id]: { ...get(id), isPlaying: false } }))
     } else {
-      Object.keys(audioRefs.current).forEach((id) => {
-        if (id !== fileId && audioRefs.current[id]) {
-          audioRefs.current[id]!.pause()
-          setAudioStates((prev) => {
-            const b = mergeFileState(prev, id)
-            return { ...prev, [id]: { ...b, isPlaying: false } }
-          })
+      Object.entries(audioRefs.current).forEach(([otherId, el]) => {
+        if (otherId !== id && el) {
+          el.pause()
+          setStates(prev => ({ ...prev, [otherId]: { ...statesRef.current[otherId] ?? DEFAULT_STATE, isPlaying: false } }))
         }
       })
       void audio.play()
-    }
-    setAudioStates((prev) => {
-      const b = mergeFileState(prev, fileId)
-      return { ...prev, [fileId]: { ...b, isPlaying: !b.isPlaying } }
-    })
-  }
-
-  const handleTimeUpdate = (fileId: string) => {
-    const audio = audioRefs.current[fileId]
-    if (!audio) return
-    setAudioStates((prev) => {
-      const b = mergeFileState(prev, fileId)
-      return { ...prev, [fileId]: { ...b, currentTime: audio.currentTime } }
-    })
-  }
-
-  const handleSeek = (fileId: string, value: number) => {
-    const audio = audioRefs.current[fileId]
-    if (!audio) return
-    audio.currentTime = value
-    setAudioStates((prev) => {
-      const b = mergeFileState(prev, fileId)
-      return { ...prev, [fileId]: { ...b, currentTime: value } }
-    })
-  }
-
-  const handleVolumeChange = (fileId: string, value: number) => {
-    const audio = audioRefs.current[fileId]
-    if (!audio) return
-    audio.volume = value
-    setAudioStates((prev) => {
-      const b = mergeFileState(prev, fileId)
-      return { ...prev, [fileId]: { ...b, volume: value, isMuted: value === 0 } }
-    })
-  }
-
-  const toggleMute = (fileId: string) => {
-    const audio = audioRefs.current[fileId]
-    if (!audio) return
-    const currentState = mergeFileState(audioStates, fileId)
-    if (currentState.isMuted) {
-      const v = currentState.volume > 0 ? currentState.volume : DEFAULT_AUDIO_STATE.volume
-      audio.volume = v
-      setAudioStates((prev) => {
-        const b = mergeFileState(prev, fileId)
-        return { ...prev, [fileId]: { ...b, isMuted: false, volume: v } }
-      })
-    } else {
-      audio.volume = 0
-      setAudioStates((prev) => {
-        const b = mergeFileState(prev, fileId)
-        return { ...prev, [fileId]: { ...b, isMuted: true } }
-      })
+      setStates(prev => ({ ...prev, [id]: { ...get(id), isPlaying: true } }))
     }
   }
 
-  const handleDownloadAll = () => {
-    files.forEach((file, i) => {
-      window.setTimeout(() => handleDownload(file), i * 450)
-    })
+  const handleTimeUpdate = (id: string) => {
+    const audio = audioRefs.current[id]
+    if (!audio) return
+    setStates(prev => ({ ...prev, [id]: { ...statesRef.current[id] ?? DEFAULT_STATE, currentTime: audio.currentTime } }))
   }
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    return `${mins}:${secs.toString().padStart(2, '0')}`
+  const handleSeek = (id: string, val: number) => {
+    const audio = audioRefs.current[id]
+    if (!audio) return
+    audio.currentTime = val
+    setStates(prev => ({ ...prev, [id]: { ...(prev[id] ?? DEFAULT_STATE), currentTime: val } }))
   }
 
-  const downloadLabel = files.length >= 2 ? 'Скачать файлы' : 'Скачать файл'
+  const download = (file: ProcessedAudioFile) => {
+    const a = document.createElement('a')
+    a.href = file.url
+    a.download = file.name
+    a.click()
+  }
+
+  const downloadAll = () => {
+    files.forEach((f, i) => window.setTimeout(() => download(f), i * 450))
+  }
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-4">
-      <div className="p-6 rounded-2xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 space-y-4">
-        <div className="flex items-center gap-2">
-          <Music size={24} className="text-green-600 dark:text-green-400" />
-          <h3 className="text-lg font-medium text-green-900 dark:text-green-100">Готово</h3>
-        </div>
-
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch">
-          {files.map((file) => {
-            const state = mergeFileState(audioStates, file.id)
-            return (
-              <div
-                key={file.id}
-                className="p-4 rounded-xl bg-white dark:bg-neutral-900 border border-green-200 dark:border-green-800 space-y-4 sm:min-w-0 sm:flex-1"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-neutral-900 dark:text-white truncate min-w-0 flex-1">
-                      {file.name}
-                    </p>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => toggleMute(file.id)}
-                        className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
-                        aria-label={state.isMuted ? 'Включить звук' : 'Выключить звук'}
-                      >
-                        {state.isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                      </button>
-                      <input
-                        type="range" min="0" max="1" step="0.01"
-                        value={state.isMuted ? 0 : (Number.isFinite(state.volume) ? state.volume : DEFAULT_AUDIO_STATE.volume)}
-                        onChange={(e) => handleVolumeChange(file.id, parseFloat(e.target.value))}
-                        className="h-1.5 w-12 flex-none bg-neutral-200 dark:bg-neutral-700 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-2.5 [&::-moz-range-thumb]:h-2.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-500 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">
-                    Длительность: {Math.floor(file.duration / 60)}:{String(Math.floor(file.duration % 60)).padStart(2, '0')}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <audio
-                    ref={(el) => { audioRefs.current[file.id] = el }}
-                    src={file.url}
-                    onLoadedMetadata={(e) => {
-                      const a = e.currentTarget
-                      const s = mergeFileState(audioStatesRef.current, file.id)
-                      a.volume = s.isMuted ? 0 : s.volume
-                    }}
-                    onTimeUpdate={() => handleTimeUpdate(file.id)}
-                    onEnded={() =>
-                      setAudioStates((prev) => {
-                        const b = mergeFileState(prev, file.id)
-                        return { ...prev, [file.id]: { ...b, isPlaying: false, currentTime: 0 } }
-                      })
-                    }
-                    preload="metadata"
-                  />
-
-                  <div className="flex items-center gap-3 min-w-0">
-                    <button
-                      type="button"
-                      onClick={() => togglePlayPause(file.id)}
-                      className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-blue-500 hover:bg-blue-600 text-white transition-colors shadow-sm"
-                      aria-label={state.isPlaying ? 'Пауза' : 'Воспроизвести'}
-                    >
-                      {state.isPlaying
-                        ? <Pause size={18} fill="currentColor" />
-                        : <Play size={18} fill="currentColor" className="ml-0.5" />}
-                    </button>
-
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <input
-                        type="range" min="0" max={file.duration} step="0.1" value={state.currentTime}
-                        onChange={(e) => handleSeek(file.id, parseFloat(e.target.value))}
-                        className="w-full h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-500 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
-                      />
-                      <div className="flex justify-between text-xs text-neutral-600 dark:text-neutral-400">
-                        <span>{formatTime(state.currentTime)}</span>
-                        <span>{formatTime(file.duration)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleDownload(file)}
-                  className="flex w-full items-center justify-center gap-2 px-3 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 transition-colors text-sm"
-                >
-                  <Download size={14} />
-                  Скачать
-                </button>
-              </div>
-            )
-          })}
-        </div>
+    <div
+      className="rounded-[20px] border"
+      style={{
+        padding: '24px 28px',
+        background: 'rgba(24,24,28,.78)',
+        backdropFilter: 'saturate(180%) blur(24px)',
+        WebkitBackdropFilter: 'saturate(180%) blur(24px)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,.07), 0 12px 40px rgba(0,0,0,.55)',
+        borderColor: 'rgba(45,212,191,.25)',
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-[18px]" style={{ color: '#2DD4BF', fontWeight: 800, fontSize: '15px', ...SANS }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <polyline points="20,6 9,17 4,12" stroke="#2DD4BF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        Готово
       </div>
 
-      {files.length >= 2 && (
-        <div className="flex justify-center">
-          <button
-            type="button"
-            onClick={handleDownloadAll}
-            className="flex shrink-0 items-center gap-2 px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors shadow-sm"
-          >
-            <Download size={18} className="shrink-0" strokeWidth={2} aria-hidden />
-            <span className="text-sm">{downloadLabel}</span>
-          </button>
-        </div>
-      )}
+      {/* File cards grid */}
+      <div className="grid gap-[14px]" style={{ gridTemplateColumns: `repeat(${Math.min(files.length, 2)}, 1fr)` }}>
+        {files.map((file) => {
+          const st = get(file.id)
+          const progress = file.duration > 0 ? (st.currentTime / file.duration) * 100 : 0
+
+          return (
+            <div
+              key={file.id}
+              style={{ padding: '16px', borderRadius: '14px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)' }}
+            >
+              <audio
+                ref={(el) => { audioRefs.current[file.id] = el }}
+                src={file.url}
+                onTimeUpdate={() => handleTimeUpdate(file.id)}
+                onEnded={() => setStates(prev => ({ ...prev, [file.id]: { ...(prev[file.id] ?? DEFAULT_STATE), isPlaying: false, currentTime: 0 } }))}
+                preload="metadata"
+              />
+
+              <div className="text-[14px] font-bold text-white mb-[3px] truncate" style={SANS}>
+                {file.name}
+              </div>
+              <div className="mb-[12px] text-[11px] font-bold uppercase tracking-[.09em]" style={{ color: '#8a8a8a', ...SANS }}>
+                Длительность: {fmt(file.duration)}
+              </div>
+
+              {/* Mini player */}
+              <div className="flex items-center gap-[10px] mb-[14px]">
+                <button
+                  type="button"
+                  onClick={() => togglePlay(file.id)}
+                  className="flex shrink-0 items-center justify-center transition-opacity hover:opacity-80"
+                  style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#2DD4BF', border: 'none', cursor: 'pointer', boxShadow: '0 0 12px rgba(45,212,191,.4)' }}
+                  aria-label={st.isPlaying ? 'Пауза' : 'Воспроизвести'}
+                >
+                  {st.isPlaying ? (
+                    <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden><rect x="1" y="0" width="3" height="10" fill="#06231f" /><rect x="6" y="0" width="3" height="10" fill="#06231f" /></svg>
+                  ) : (
+                    <svg width="9" height="9" viewBox="0 0 16 16" aria-hidden><path d="M3 1l11 7-11 7z" fill="#06231f" /></svg>
+                  )}
+                </button>
+
+                <div className="flex-1 relative" style={{ height: '3px', borderRadius: '3px', background: 'rgba(255,255,255,.12)', cursor: 'pointer' }}
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    const ratio = (e.clientX - rect.left) / rect.width
+                    handleSeek(file.id, ratio * file.duration)
+                  }}
+                >
+                  <div style={{ width: `${progress}%`, height: '100%', borderRadius: '3px', background: '#2DD4BF', transition: 'width .1s linear' }} />
+                </div>
+
+                <span className="shrink-0 text-[12px]" style={{ color: '#8a8a8a', ...MONO }}>
+                  {fmt(file.duration)}
+                </span>
+              </div>
+
+              {/* Download single */}
+              <button
+                type="button"
+                onClick={() => download(file)}
+                className="w-full text-white transition-opacity hover:opacity-70"
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(255,255,255,.12)',
+                  borderRadius: '980px',
+                  padding: '9px',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  letterSpacing: '.06em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  ...SANS,
+                }}
+              >
+                ↓ Скачать
+              </button>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Download all */}
+      <div className="flex justify-center mt-[20px]">
+        <button
+          type="button"
+          onClick={downloadAll}
+          className="flex shrink-0 items-center gap-2 transition-opacity hover:opacity-80"
+          style={{
+            background: '#2DD4BF',
+            color: '#06231f',
+            border: 'none',
+            borderRadius: '980px',
+            padding: '13px 32px',
+            fontWeight: 800,
+            fontSize: '13px',
+            letterSpacing: '.08em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            boxShadow: '0 0 20px rgba(45,212,191,.25)',
+            ...SANS,
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#06231f" strokeWidth="2" strokeLinecap="round" />
+            <polyline points="7,10 12,15 17,10" stroke="#06231f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <line x1="12" y1="15" x2="12" y2="3" stroke="#06231f" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          {files.length >= 2 ? 'Скачать файлы' : 'Скачать файл'}
+        </button>
+      </div>
     </div>
   )
 }

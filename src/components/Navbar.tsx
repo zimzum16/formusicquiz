@@ -1,5 +1,3 @@
-import { useState } from 'react';
-import { Music2, Menu, X } from 'lucide-react';
 import { Page } from '../App';
 
 interface NavbarProps {
@@ -7,71 +5,54 @@ interface NavbarProps {
   navigate: (page: Page) => void;
 }
 
-const navLinks: { label: string; page: Page }[] = [
-  { label: 'О песне', page: 'song-info' },
-  { label: 'Редактор', page: 'editor' },
-];
-
 export default function Navbar({ currentPage, navigate }: NavbarProps) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-
   return (
-    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <button
-            onClick={() => navigate('home')}
-            className="flex items-center gap-2 group"
-          >
-            <div className="w-8 h-8 bg-sky-500 rounded-lg flex items-center justify-center group-hover:bg-sky-600 transition-colors">
-              <Music2 size={18} className="text-white" />
-            </div>
-            <span className="font-semibold text-gray-900 text-lg tracking-tight">SoundLens</span>
-          </button>
-
-          <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map(({ label, page }) => (
-              <button
-                key={page}
-                onClick={() => navigate(page)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  currentPage === page
-                    ? 'bg-sky-50 text-sky-600'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
-
-
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
-          >
-            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+    <header className="flex items-center justify-between px-5 sm:px-8 py-3.5 bg-black/70 backdrop-blur-xl border-b border-white/[0.08] sticky top-0 z-50">
+      <button
+        onClick={() => navigate('home')}
+        className="flex items-center gap-2.5"
+      >
+        <div className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center flex-shrink-0"
+          style={{ background: 'linear-gradient(150deg,#3ad0c4,#2b8af0)', boxShadow: '0 2px 10px rgba(43,138,240,.45)' }}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+            <path d="M9 18V6l10-2v10" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="6.5" cy="18" r="2.6" fill="#fff" />
+            <circle cx="16.5" cy="14" r="2.6" fill="#fff" />
+          </svg>
         </div>
-      </div>
+        <span className="font-extrabold text-[18px] text-white tracking-[-0.01em]" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+          SoundLens
+        </span>
+      </button>
 
-      {mobileOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1">
-          {navLinks.map(({ label, page }) => (
-            <button
-              key={page}
-              onClick={() => { navigate(page); setMobileOpen(false); }}
-              className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                currentPage === page
-                  ? 'bg-sky-50 text-sky-600'
-                  : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
+      <nav className="flex items-center gap-1 bg-white/[0.07] p-1 rounded-full">
+        <button
+          onClick={() => navigate('song-info')}
+          className="px-4 sm:px-5 py-2 rounded-full text-[13px] font-bold transition-all"
+          style={{
+            fontFamily: 'Montserrat, sans-serif',
+            letterSpacing: '0.02em',
+            background: currentPage === 'song-info' ? '#2DD4BF' : 'transparent',
+            color: currentPage === 'song-info' ? '#06231f' : '#8a8a8a',
+            boxShadow: currentPage === 'song-info' ? '0 0 14px rgba(45,212,191,.4)' : 'none',
+          }}
+        >
+          О песне
+        </button>
+        <button
+          onClick={() => navigate('editor')}
+          className="px-4 sm:px-5 py-2 rounded-full text-[13px] font-bold transition-all"
+          style={{
+            fontFamily: 'Montserrat, sans-serif',
+            letterSpacing: '0.02em',
+            background: currentPage === 'editor' ? '#2DD4BF' : 'transparent',
+            color: currentPage === 'editor' ? '#06231f' : '#8a8a8a',
+            boxShadow: currentPage === 'editor' ? '0 0 14px rgba(45,212,191,.4)' : 'none',
+          }}
+        >
+          Редактор
+        </button>
+      </nav>
     </header>
   );
 }

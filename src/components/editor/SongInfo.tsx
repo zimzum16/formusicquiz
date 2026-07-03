@@ -1,4 +1,3 @@
-import { User, Disc, Calendar, Tag, FileText, ExternalLink } from 'lucide-react'
 import type { AudioFile } from '../../types/audio'
 import { ImageSearchBlock } from './ImageSearchBlock'
 
@@ -6,93 +5,90 @@ interface SongInfoProps {
   audioFile: AudioFile
 }
 
+const SANS: React.CSSProperties = { fontFamily: 'Montserrat, sans-serif' }
+
 export function SongInfo({ audioFile }: SongInfoProps) {
   const { artist, title, album, coverArt, year, genre, geniusUrl } = audioFile
 
   return (
-    <div className="mx-auto w-full max-w-6xl p-6 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm">
-      <div className="flex flex-col gap-6 md:flex-row md:items-start">
+    <div
+      className="w-full rounded-[20px] border border-white/[0.1]"
+      style={{
+        padding: '24px 28px',
+        background: 'rgba(24,24,28,.78)',
+        backdropFilter: 'saturate(180%) blur(24px)',
+        WebkitBackdropFilter: 'saturate(180%) blur(24px)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,.07), 0 12px 40px rgba(0,0,0,.55)',
+      }}
+    >
+      <div className="flex items-center gap-7">
+        {/* Cover */}
         {coverArt && (
-          <div className="mx-auto shrink-0 md:mx-0">
+          <div className="shrink-0">
             <img
               src={coverArt}
               alt={`${artist} - ${title}`}
-              className="h-32 w-32 rounded-xl object-cover shadow-md"
+              className="rounded-[16px] object-cover"
+              style={{ width: '200px', height: '200px', boxShadow: '0 16px 48px rgba(0,0,0,.6)' }}
             />
           </div>
         )}
 
-        <div className="flex min-w-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
-          <div className="min-w-0 flex-1 space-y-4">
-            <h2 className="text-2xl font-semibold text-neutral-900 dark:text-white">{title}</h2>
+        {/* Meta */}
+        <div className="min-w-0 flex-1">
+          <h2 className="font-extrabold text-white leading-tight mb-[6px]" style={{ fontSize: '26px', letterSpacing: '-.03em', lineHeight: 1.1, ...SANS }}>
+            {title}
+          </h2>
+          <p className="font-medium mb-4" style={{ fontSize: '17px', color: '#8a8a8a', ...SANS }}>
+            {artist}
+          </p>
 
-            <div className="flex flex-col gap-3 text-sm">
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3">
-                <div className="flex items-start gap-2">
-                  <User size={16} className="mt-0.5 shrink-0 text-blue-600 dark:text-blue-400" />
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-500">Исполнитель</div>
-                    <div className="font-medium text-neutral-900 dark:text-white">{artist}</div>
-                  </div>
-                </div>
-
-                {album && (
-                  <div className="flex items-start gap-2">
-                    <Disc size={16} className="mt-0.5 shrink-0 text-blue-600 dark:text-blue-400" />
-                    <div>
-                      <div className="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-500">Альбом</div>
-                      <div className="font-medium text-neutral-900 dark:text-white">{album}</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {(year || genre) && (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3">
-                  {year && (
-                    <div className="flex items-start gap-2">
-                      <Calendar size={16} className="mt-0.5 shrink-0 text-blue-600 dark:text-blue-400" />
-                      <div>
-                        <div className="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-500">Год</div>
-                        <div className="font-medium text-neutral-900 dark:text-white">{year}</div>
-                      </div>
-                    </div>
-                  )}
-                  {genre && (
-                    <div className="flex items-start gap-2">
-                      <Tag size={16} className="mt-0.5 shrink-0 text-blue-600 dark:text-blue-400" />
-                      <div>
-                        <div className="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-500">Жанр</div>
-                        <div className="font-medium text-neutral-900 dark:text-white">{genre}</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {geniusUrl && (
-                <div className="flex items-start gap-2">
-                  <FileText size={16} className="mt-0.5 shrink-0 text-blue-600 dark:text-blue-400" />
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-500">Текст песни</div>
-                    <a
-                      href={geniusUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group inline-flex items-center gap-1.5 text-sm font-medium text-neutral-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 underline-offset-2 hover:underline"
-                    >
-                      Открыть на Genius
-                      <ExternalLink size={13} className="opacity-60 group-hover:opacity-100" />
-                    </a>
-                  </div>
-                </div>
-              )}
-            </div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {album && (
+              <span
+                className="inline-flex items-center font-semibold text-white border border-white/[0.1]"
+                style={{ padding: '6px 14px', borderRadius: '999px', background: 'rgba(255,255,255,.07)', fontSize: '13px', ...SANS }}
+              >
+                {album}
+              </span>
+            )}
+            {year && (
+              <span
+                className="inline-flex items-center font-semibold text-white border border-white/[0.1]"
+                style={{ padding: '6px 14px', borderRadius: '999px', background: 'rgba(255,255,255,.07)', fontSize: '13px', ...SANS }}
+              >
+                {year}
+              </span>
+            )}
+            {genre && (
+              <span
+                className="inline-flex items-center font-semibold border border-white/[0.1]"
+                style={{ padding: '6px 14px', borderRadius: '999px', background: 'rgba(255,255,255,.07)', fontSize: '13px', color: '#8a8a8a', ...SANS }}
+              >
+                {genre}
+              </span>
+            )}
           </div>
 
-          <div className="w-full shrink-0 lg:max-w-sm xl:max-w-md">
-            <ImageSearchBlock audioFile={audioFile} placement="aside" />
-          </div>
+          {geniusUrl && (
+            <a
+              href={geniusUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-[6px] font-bold hover:opacity-80 transition-opacity"
+              style={{ fontSize: '14px', color: '#2DD4BF', textDecoration: 'none', ...SANS }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#2DD4BF">
+                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.77 17.4c-2.714 0-4.714-2.057-4.714-4.8 0-2.743 2-4.8 4.714-4.8 1.257 0 2.286.457 3.086 1.257l-1.257 1.257c-.457-.457-1.029-.686-1.829-.686-1.543 0-2.743 1.2-2.743 2.972s1.2 2.972 2.743 2.972c1.714 0 2.4-.857 2.514-1.8H12.77v-1.714h4.457c.057.343.086.686.086 1.086 0 2.914-1.829 4.257-4.543 4.257z" />
+              </svg>
+              Открыть текст на Genius
+            </a>
+          )}
+        </div>
+
+        {/* Image search */}
+        <div className="shrink-0 self-center">
+          <ImageSearchBlock audioFile={audioFile} />
         </div>
       </div>
     </div>

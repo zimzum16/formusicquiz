@@ -12,13 +12,17 @@ function App() {
 
   const navigate = (page: Page) => setCurrentPage(page);
 
+  const isHome = currentPage === 'home' || currentPage === 'pricing';
+
   return (
-    <div className="min-h-screen bg-white font-sans antialiased">
-      <Navbar currentPage={currentPage} navigate={navigate} />
-      {currentPage === 'home' && <Home navigate={navigate} />}
-      {currentPage === 'song-info' && <SongInfo />}
-      {currentPage === 'editor' && <Editor />}
-      {currentPage === 'pricing' && <Pricing navigate={navigate} />}
+    <div className="min-h-screen bg-[#080809] font-sans antialiased py-0 sm:py-8">
+      <div className={`w-full mx-auto bg-black overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,.6)] ${isHome ? '' : 'max-w-[1060px] sm:rounded-[20px]'}`}>
+        <Navbar currentPage={currentPage} navigate={navigate} />
+        {currentPage === 'home' && <Home navigate={navigate} />}
+        {currentPage === 'song-info' && <SongInfo />}
+        {currentPage === 'editor' && <Editor />}
+        {currentPage === 'pricing' && <Pricing navigate={navigate} />}
+      </div>
     </div>
   );
 }

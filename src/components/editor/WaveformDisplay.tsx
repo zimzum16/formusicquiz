@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
-import { Play, Pause, Volume2, VolumeX } from 'lucide-react'
 import type { AudioFile } from '../../types/audio'
 import { drawWaveform, fadeEnvelopeMultiplier } from '../../lib/waveform'
 import { formatTimeDetailed, formatTimeDetailedComma } from '../../lib/audioUtils'
@@ -433,27 +432,45 @@ export function WaveformDisplay({
     <button
       type="button"
       onClick={togglePlayPause}
-      className="flex shrink-0 items-center justify-center w-12 h-12 rounded-full bg-blue-500 hover:bg-blue-600 text-white transition-colors shadow-md hover:shadow-lg"
+      className="flex shrink-0 items-center justify-center transition-opacity hover:opacity-80"
+      style={{ width: 56, height: 56, borderRadius: '50%', background: '#2DD4BF', border: 'none', cursor: 'pointer', boxShadow: '0 0 14px rgba(45,212,191,.4)' }}
       aria-label={isPlaying ? 'Пауза' : 'Воспроизвести'}
     >
-      {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-0.5" />}
+      {isPlaying ? (
+        <svg width="14" height="14" viewBox="0 0 10 10" aria-hidden><rect x="1" y="0" width="3" height="10" fill="#06231f" /><rect x="6" y="0" width="3" height="10" fill="#06231f" /></svg>
+      ) : (
+        <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden><path d="M3 1l11 7-11 7z" fill="#06231f" /></svg>
+      )}
     </button>
   )
 
   const volumeUi = showPlaybackVolume !== false ? (
-    <div className="flex items-center gap-[9px] shrink-0">
+    <div className="flex items-center gap-[10px] shrink-0">
       <button
         type="button"
         onClick={toggleMute}
-        className="flex shrink-0 items-center justify-center text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
+        className="flex shrink-0 items-center justify-center transition-opacity hover:opacity-70"
+        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         aria-label={isMuted ? 'Включить звук' : 'Выключить звук'}
       >
-        {isMuted ? <VolumeX size={27} /> : <Volume2 size={27} />}
+        {isMuted ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M4 9v6h4l5 4V5L8 9H4z" fill="#8a8a8a" />
+            <line x1="18" y1="9" x2="23" y2="15" stroke="#8a8a8a" strokeWidth="1.8" strokeLinecap="round" />
+            <line x1="23" y1="9" x2="18" y2="15" stroke="#8a8a8a" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M4 9v6h4l5 4V5L8 9H4z" fill="#8a8a8a" />
+            <path d="M16 8c1.5 1.5 1.5 6.5 0 8" stroke="#8a8a8a" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+        )}
       </button>
       <input
         type="range" min="0" max="1" step="0.01" value={isMuted ? 0 : volume}
         onChange={handleVolumeChange}
-        className="h-1.5 w-[4.5rem] flex-none bg-neutral-200 dark:bg-neutral-700 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-[18px] [&::-webkit-slider-thumb]:h-[18px] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-[18px] [&::-moz-range-thumb]:h-[18px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-500 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+        style={{ background: 'rgba(255,255,255,.12)' }}
+        className="h-1 w-[84px] flex-none rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#2DD4BF] [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#2DD4BF] [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
       />
     </div>
   ) : null

@@ -1,6 +1,5 @@
 import type { TrimSegment, AudioFile } from '../../types/audio'
 import { TrimControls } from './TrimControls'
-import { Plus } from 'lucide-react'
 
 interface MultiTrimPanelProps {
   segments: TrimSegment[]
@@ -24,10 +23,25 @@ export function MultiTrimPanel({
           <button
             type="button"
             onClick={onAddSegment}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors shadow-sm"
+            className="flex items-center gap-2 transition-opacity hover:opacity-80"
+            style={{
+              background: 'transparent',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,.18)',
+              borderRadius: '980px',
+              padding: '10px 22px',
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 700,
+              fontSize: '13px',
+              letterSpacing: '.04em',
+              cursor: 'pointer',
+            }}
           >
-            <Plus size={18} />
-            <span className="text-sm">Выбрать ещё фрагмент</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <line x1="12" y1="5" x2="12" y2="19" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+              <line x1="5" y1="12" x2="19" y2="12" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            Выбрать ещё фрагмент
           </button>
         </div>
       ) : null}
