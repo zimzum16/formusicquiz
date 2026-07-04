@@ -6,6 +6,10 @@ function clampFadeSec(v: number): FadeDuration {
   return (Math.min(4, Math.max(1, Math.round(v))) || 1) as FadeDuration
 }
 
+const CHIP_BASE = 'h-[17px] w-[17px] sm:h-[19px] sm:w-[19px] flex-shrink-0 rounded-[4px] text-[10px] font-bold transition-colors flex items-center justify-center'
+const CHIP_ON = 'bg-[#2DD4BF] text-[#06231f]'
+const CHIP_OFF = 'border-2 border-[#3d424c] bg-[#2d3139] text-white hover:border-[#2DD4BF]/50'
+
 function IconFadeIn({ className }: { className?: string }) {
   const bottom = 26, w = 4, gaps = 4
   const heights = [8, 12, 16, 20]
@@ -36,8 +40,6 @@ const BTN_OFF =
   'border-neutral-300 bg-neutral-200/90 text-neutral-800 dark:border-[#3d424c] dark:bg-[#2d3139] dark:text-white'
 const BTN_ON = 'border-[#2DD4BF] bg-[#2DD4BF] text-[#06231f]'
 
-const rangeCls =
-  'h-1.5 w-full cursor-pointer appearance-none rounded-full bg-neutral-200 dark:bg-neutral-600 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#2DD4BF] [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-[#2DD4BF]'
 
 interface ToolbarFadeProps {
   segment: TrimSegment
@@ -48,20 +50,19 @@ export function FadeInToolbarInline({ segment, onUpdate }: ToolbarFadeProps) {
   const fadeInSec = clampFadeSec(Number(segment.fadeInDuration) || 1)
   return (
     <div className="flex shrink-0 items-center justify-center gap-2">
-      <div className="hidden lg:flex w-36 min-w-36 shrink-0 flex-col justify-center gap-0.5" dir="rtl">
-        {segment.fadeIn ? (
-          <>
-            <input
-              type="range" min={1} max={4} step={1} value={fadeInSec}
-              onChange={e => onUpdate({ fadeInDuration: clampFadeSec(parseInt(e.target.value, 10)) })}
-              className={rangeCls}
-            />
-            <span dir="ltr" className="block text-center text-[10px] tabular-nums" style={{ color: '#8a8a8a', fontFamily: 'Montserrat, sans-serif' }}>
-              {fadeInSec} с
-            </span>
-          </>
-        ) : null}
-      </div>
+      {segment.fadeIn && (
+        <div className="grid grid-cols-2 gap-[2px]">
+          {FADE_DURATIONS.map(n => (
+            <button
+              key={n} type="button"
+              onClick={() => onUpdate({ fadeInDuration: n })}
+              className={`${CHIP_BASE} ${fadeInSec === n ? CHIP_ON : CHIP_OFF}`}
+              style={{ fontFamily: 'Montserrat, sans-serif' }}
+              aria-label={`${n} с`}
+            >{n}</button>
+          ))}
+        </div>
+      )}
       <button
         type="button"
         onClick={() => onUpdate(segment.fadeIn ? { fadeIn: false } : { fadeIn: true, fadeInDuration: fadeInSec })}
@@ -88,20 +89,19 @@ export function FadeOutToolbarInline({ segment, onUpdate }: ToolbarFadeProps) {
       >
         <IconFadeOut className="h-[22px] w-[22px] sm:h-6 sm:w-6" />
       </button>
-      <div className="hidden lg:flex w-36 min-w-36 shrink-0 flex-col justify-center gap-0.5">
-        {segment.fadeOut ? (
-          <>
-            <input
-              type="range" min={1} max={4} step={1} value={fadeOutSec}
-              onChange={e => onUpdate({ fadeOutDuration: clampFadeSec(parseInt(e.target.value, 10)) })}
-              className={rangeCls}
-            />
-            <span className="text-center text-[10px] tabular-nums" style={{ color: '#8a8a8a', fontFamily: 'Montserrat, sans-serif' }}>
-              {fadeOutSec} с
-            </span>
-          </>
-        ) : null}
-      </div>
+      {segment.fadeOut && (
+        <div className="grid grid-cols-2 gap-[2px]">
+          {FADE_DURATIONS.map(n => (
+            <button
+              key={n} type="button"
+              onClick={() => onUpdate({ fadeOutDuration: n })}
+              className={`${CHIP_BASE} ${fadeOutSec === n ? CHIP_ON : CHIP_OFF}`}
+              style={{ fontFamily: 'Montserrat, sans-serif' }}
+              aria-label={`${n} с`}
+            >{n}</button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

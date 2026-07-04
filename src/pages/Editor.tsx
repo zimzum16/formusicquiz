@@ -178,7 +178,7 @@ export default function Editor() {
                   <button
                     type="button"
                     onClick={() => removeSegment(seg1.id)}
-                    className="text-sm font-medium text-[#8a8a8a] hover:text-white transition-colors"
+                    className="text-sm font-medium text-[#2DD4BF] hover:opacity-70 transition-opacity"
                     style={{ fontFamily: 'Montserrat, sans-serif' }}
                     aria-label="Закрыть второй фрагмент"
                   >

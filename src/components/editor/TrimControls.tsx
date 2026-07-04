@@ -177,7 +177,7 @@ export function TrimControls({
 
     return (
       <div className="flex w-full min-w-0 flex-col items-center gap-y-2 mt-[30px]">
-        <div dir="ltr" className="grid w-full min-w-0 grid-cols-1 sm:grid-cols-[7.125rem_1fr_7.125rem] gap-y-2 sm:gap-y-0 sm:items-center">
+        <div dir="ltr" className="grid w-full min-w-0 grid-cols-1 sm:grid-cols-[7.125rem_1fr_auto] gap-y-2 sm:gap-y-0 sm:items-center">
           {/* Volume: centred on mobile, left column on sm+ */}
           <div className="relative flex items-center justify-center sm:justify-start">
             {volumeSlot}
@@ -186,7 +186,7 @@ export function TrimControls({
             )}
           </div>
           {/* Controls: always centred in middle column */}
-          <div className="flex items-center justify-center">{ctrls}</div>
+          <div className="flex items-center justify-center overflow-x-auto">{ctrls}</div>
           {/* Trailing: right column on sm+ */}
           <div className="hidden sm:flex items-center justify-end pl-1">
             {inlineTrailingSlot}

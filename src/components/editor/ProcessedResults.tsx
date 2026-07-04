@@ -26,6 +26,8 @@ export function ProcessedResults({ files }: ProcessedResultsProps) {
   const [states, setStates] = useState<Record<string, AudioPlayerState>>({})
   const statesRef = useRef(states)
   statesRef.current = states
+  const [volumes, setVolumes] = useState<Record<string, number>>({})
+  const [mutedStates, setMutedStates] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     const init: Record<string, AudioPlayerState> = {}
@@ -34,6 +36,28 @@ export function ProcessedResults({ files }: ProcessedResultsProps) {
   }, [files])
 
   const get = (id: string): AudioPlayerState => states[id] ?? DEFAULT_STATE
+  const getVol = (id: string) => volumes[id] ?? 0.3
+  const getMuted = (id: string) => mutedStates[id] ?? false
+
+  const applyVolume = (id: string, muted: boolean, vol: number) => {
+    const audio = audioRefs.current[id]
+    if (audio) audio.volume = muted ? 0 : vol
+  }
+
+  const handleVolumeChange = (id: string, val: number) => {
+    const muted = val === 0
+    setVolumes(prev => ({ ...prev, [id]: val }))
+    setMutedStates(prev => ({ ...prev, [id]: muted }))
+    applyVolume(id, muted, val)
+  }
+
+  const toggleMute = (id: string) => {
+    const muted = getMuted(id)
+    const vol = getVol(id)
+    const newMuted = !muted
+    setMutedStates(prev => ({ ...prev, [id]: newMuted }))
+    applyVolume(id, newMuted, vol > 0 ? vol : 0.8)
+  }
 
   const togglePlay = (id: string) => {
     const audio = audioRefs.current[id]
@@ -49,6 +73,7 @@ export function ProcessedResults({ files }: ProcessedResultsProps) {
           setStates(prev => ({ ...prev, [otherId]: { ...statesRef.current[otherId] ?? DEFAULT_STATE, isPlaying: false } }))
         }
       })
+      audio.volume = getMuted(id) ? 0 : getVol(id)
       void audio.play()
       setStates(prev => ({ ...prev, [id]: { ...get(id), isPlaying: true } }))
     }
@@ -99,7 +124,7 @@ export function ProcessedResults({ files }: ProcessedResultsProps) {
       </div>
 
       {/* File cards grid */}
-      <div className="grid gap-[14px]" style={{ gridTemplateColumns: `repeat(${Math.min(files.length, 2)}, 1fr)` }}>
+      <div className={`grid gap-[14px] grid-cols-1 ${files.length >= 2 ? 'sm:grid-cols-2' : ''}`}>
         {files.map((file) => {
           const st = get(file.id)
           const progress = file.duration > 0 ? (st.currentTime / file.duration) * 100 : 0
@@ -125,7 +150,7 @@ export function ProcessedResults({ files }: ProcessedResultsProps) {
               </div>
 
               {/* Mini player */}
-              <div className="flex items-center gap-[10px] mb-[14px]">
+              <div className="flex items-center gap-[8px] mb-[14px]">
                 <button
                   type="button"
                   onClick={() => togglePlay(file.id)}
@@ -140,41 +165,52 @@ export function ProcessedResults({ files }: ProcessedResultsProps) {
                   )}
                 </button>
 
-                <div className="flex-1 relative" style={{ height: '3px', borderRadius: '3px', background: 'rgba(255,255,255,.12)', cursor: 'pointer' }}
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect()
-                    const ratio = (e.clientX - rect.left) / rect.width
-                    handleSeek(file.id, ratio * file.duration)
-                  }}
-                >
-                  <div style={{ width: `${progress}%`, height: '100%', borderRadius: '3px', background: '#2DD4BF', transition: 'width .1s linear' }} />
+                <div className="flex-1 min-w-0 flex items-center gap-[8px]">
+                  <div className="w-4/5 relative" style={{ height: '3px', borderRadius: '3px', background: 'rgba(255,255,255,.12)', cursor: 'pointer' }}
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      const ratio = (e.clientX - rect.left) / rect.width
+                      handleSeek(file.id, ratio * file.duration)
+                    }}
+                  >
+                    <div style={{ width: `${progress}%`, height: '100%', borderRadius: '3px', background: '#2DD4BF', transition: 'width .1s linear' }} />
+                  </div>
+                  <span className="shrink-0 text-[11px]" style={{ color: '#8a8a8a', ...MONO }}>
+                    {fmt(file.duration)}
+                  </span>
                 </div>
 
-                <span className="shrink-0 text-[12px]" style={{ color: '#8a8a8a', ...MONO }}>
-                  {fmt(file.duration)}
-                </span>
+                {/* Volume */}
+                <div className="flex shrink-0 items-center gap-[6px]">
+                  <button
+                    type="button"
+                    onClick={() => toggleMute(file.id)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}
+                    aria-label={getMuted(file.id) ? 'Включить звук' : 'Выключить звук'}
+                  >
+                    {getMuted(file.id) ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <path d="M4 9v6h4l5 4V5L8 9H4z" fill="#8a8a8a" />
+                        <line x1="18" y1="9" x2="23" y2="15" stroke="#8a8a8a" strokeWidth="1.8" strokeLinecap="round" />
+                        <line x1="23" y1="9" x2="18" y2="15" stroke="#8a8a8a" strokeWidth="1.8" strokeLinecap="round" />
+                      </svg>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <path d="M4 9v6h4l5 4V5L8 9H4z" fill="#8a8a8a" />
+                        <path d="M16 8c1.5 1.5 1.5 6.5 0 8" stroke="#8a8a8a" strokeWidth="1.6" strokeLinecap="round" />
+                      </svg>
+                    )}
+                  </button>
+                  <input
+                    type="range" min="0" max="1" step="0.01"
+                    value={getMuted(file.id) ? 0 : getVol(file.id)}
+                    onChange={(e) => handleVolumeChange(file.id, parseFloat(e.target.value))}
+                    style={{ background: 'rgba(255,255,255,.12)' }}
+                    className="h-1 w-[52px] flex-none rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#2DD4BF] [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#2DD4BF] [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+                  />
+                </div>
               </div>
 
-              {/* Download single */}
-              <button
-                type="button"
-                onClick={() => download(file)}
-                className="w-full text-white transition-opacity hover:opacity-70"
-                style={{
-                  background: 'transparent',
-                  border: '1px solid rgba(255,255,255,.12)',
-                  borderRadius: '980px',
-                  padding: '9px',
-                  fontWeight: 700,
-                  fontSize: '12px',
-                  letterSpacing: '.06em',
-                  textTransform: 'uppercase',
-                  cursor: 'pointer',
-                  ...SANS,
-                }}
-              >
-                ↓ Скачать
-              </button>
             </div>
           )
         })}
