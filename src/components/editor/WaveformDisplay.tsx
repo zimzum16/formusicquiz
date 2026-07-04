@@ -485,7 +485,7 @@ export function WaveformDisplay({
         </div>
       )}
 
-      <div ref={containerRef} className="relative">
+      <div ref={containerRef} className="relative px-4 sm:px-6 lg:px-8">
         <div className="relative h-[380px] w-full overflow-hidden bg-black">
           <canvas ref={canvasRef} className="absolute inset-0 block h-full w-full select-none" aria-hidden />
 
