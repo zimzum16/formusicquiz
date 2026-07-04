@@ -514,6 +514,12 @@ export function WaveformDisplay({
                 className="absolute inset-y-0 border-l-2 border-r-2 border-amber-400/80 bg-amber-400/10"
                 style={{ left: `${trimStartPct}%`, width: `${Math.max(trimEndPct - trimStartPct, 0.08)}%` }}
               />
+              <div
+                className="absolute bottom-2 -translate-x-1/2 px-1.5 py-0.5 rounded text-[10px] font-mono text-neutral-900 bg-amber-400 whitespace-nowrap shadow pointer-events-none"
+                style={{ left: `${(trimStartPct + trimEndPct) / 2}%` }}
+              >
+                {formatTimeDetailed(trimRange!.endTime - trimRange!.startTime)}
+              </div>
             </div>
           )}
 
