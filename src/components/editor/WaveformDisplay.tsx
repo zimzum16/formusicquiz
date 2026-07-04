@@ -648,27 +648,27 @@ export function WaveformDisplay({
       </div>
 
       {bottomSlot && (
-        <div className="px-4 pt-2">
+        <div className="pt-2">
           {bottomSlot}
         </div>
       )}
 
       {playToolbar ? (
         typeof playToolbar === 'function' ? (
-          <div className="px-4 pb-3 w-full flex justify-center min-w-0">
+          <div className="pb-3 w-full flex justify-center min-w-0">
             {(playToolbar as (pb: React.ReactNode, vol: React.ReactNode | null) => React.ReactNode)(
               playButton,
               useInlineVolume ? volumeUi : null,
             )}
           </div>
         ) : (
-          <div className="px-4 pb-3 flex flex-col items-center gap-3 sm:gap-4">
+          <div className="pb-3 flex flex-col items-center gap-3 sm:gap-4">
             {playButton}
             <div className="w-full flex justify-center min-w-0">{playToolbar}</div>
           </div>
         )
       ) : (
-        <div className="px-4 pb-3 flex justify-center">{playButton}</div>
+        <div className="pb-3 flex justify-center">{playButton}</div>
       )}
     </div>
   )

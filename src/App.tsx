@@ -12,7 +12,7 @@ function App() {
 
   const navigate = (page: Page) => setCurrentPage(page);
 
-  const isHome = currentPage === 'home' || currentPage === 'pricing';
+  const isHome = currentPage === 'home' || currentPage === 'pricing' || currentPage === 'editor';
 
   return (
     <div className="min-h-screen bg-[#080809] font-sans antialiased py-0 sm:py-8">

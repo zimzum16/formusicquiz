@@ -62,32 +62,33 @@ export default function Editor() {
     fade: { fadeIn: seg1.fadeIn, fadeOut: seg1.fadeOut, fadeInDuration: seg1.fadeInDuration, fadeOutDuration: seg1.fadeOutDuration },
   } : null
 
+  const centered = 'max-w-[1060px] mx-auto w-full px-4 sm:px-6 lg:px-8'
+
   return (
-    <div className="w-full px-4 py-8 sm:px-6 lg:px-8 space-y-4">
-      <div className="text-center">
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-          Обрезка и редактирование
-        </h1>
-      </div>
-
-      {error && (
-        <div className="p-4 rounded-[14px] border border-red-500/30 bg-red-500/10">
-          <p className="text-red-400 text-sm" style={{ fontFamily: 'Montserrat, sans-serif' }}>{error}</p>
+    <div className="py-8 space-y-4">
+      <div className={`${centered} space-y-4`}>
+        <div className="text-center">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+            Обрезка и редактирование
+          </h1>
         </div>
-      )}
 
-      <FileUpload
-        onFileUpload={handleFileUpload}
-        uploadProgress={uploadProgress}
-        hasFile={!!audioFile}
-        onReset={reset}
-      />
+        {error && (
+          <div className="p-4 rounded-[14px] border border-red-500/30 bg-red-500/10">
+            <p className="text-red-400 text-sm" style={{ fontFamily: 'Montserrat, sans-serif' }}>{error}</p>
+          </div>
+        )}
 
-      {audioFile && (
-        <>
-          <div className="space-y-4">
+        <FileUpload
+          onFileUpload={handleFileUpload}
+          uploadProgress={uploadProgress}
+          hasFile={!!audioFile}
+          onReset={reset}
+        />
+
+        {audioFile && (
+          <>
             <SongInfo audioFile={audioFile} />
-
             <div className="rounded-[18px] border border-white/[0.1] overflow-hidden" style={{ background: 'rgba(24,24,28,.78)' }}>
               <AudioPlayer ref={audioRef} audioFile={audioFile} onTimeUpdate={setCurrentTime} />
             </div>
@@ -96,90 +97,102 @@ export default function Editor() {
                 <AudioPlayer ref={audioRef2} audioFile={audioFile} onTimeUpdate={setCurrentTime2} />
               </div>
             )}
+          </>
+        )}
+      </div>
 
-            {seg0 && (
-              <WaveformDisplay
-                  audioFile={audioFile}
-                  currentTime={currentTime}
-                  audioRef={audioRef}
-                  onSeek={setCurrentTime}
-                  prefetchedBuffer={sharedDecodedBuffer}
-                  playbackEnvelope={playbackEnvelope}
-                  trimRange={{ startTime: seg0.startTime, endTime: seg0.endTime }}
-                  trimFade={{ fadeIn: seg0.fadeIn, fadeOut: seg0.fadeOut, fadeInDuration: seg0.fadeInDuration, fadeOutDuration: seg0.fadeOutDuration }}
-                  onTrimRangeChange={(r) => updateSegment(seg0.id, r)}
-                  markers={songMarkers}
-                  bottomSlot={
-                    <SongStructurePanel
-                      markers={songMarkers}
-                      isAnalyzing={isAnalyzingStructure}
-                      duration={audioFile.duration}
-                      onApplySegment={(s, e) => updateSegment(seg0.id, { startTime: s, endTime: e })}
-                    />
-                  }
-                  playToolbar={(playBtn, volumeSlot) => (
-                    <TrimControls
-                      variant="inline"
-                      segment={seg0}
-                      audioFile={audioFile}
-                      canRemove={segments.length > 1}
-                      onUpdate={(updates) => updateSegment(seg0.id, updates)}
-                      onRemove={() => removeSegment(seg0.id)}
-                      playSlot={playBtn}
-                      volumeSlot={volumeSlot}
-                    />
-                  )}
-                />
-            )}
+      {audioFile && seg0 && (
+        <WaveformDisplay
+          audioFile={audioFile}
+          currentTime={currentTime}
+          audioRef={audioRef}
+          onSeek={setCurrentTime}
+          prefetchedBuffer={sharedDecodedBuffer}
+          playbackEnvelope={playbackEnvelope}
+          trimRange={{ startTime: seg0.startTime, endTime: seg0.endTime }}
+          trimFade={{ fadeIn: seg0.fadeIn, fadeOut: seg0.fadeOut, fadeInDuration: seg0.fadeInDuration, fadeOutDuration: seg0.fadeOutDuration }}
+          onTrimRangeChange={(r) => updateSegment(seg0.id, r)}
+          markers={songMarkers}
+          bottomSlot={
+            <div className={centered}>
+              <SongStructurePanel
+                markers={songMarkers}
+                isAnalyzing={isAnalyzingStructure}
+                duration={audioFile.duration}
+                onApplySegment={(s, e) => updateSegment(seg0.id, { startTime: s, endTime: e })}
+              />
+            </div>
+          }
+          playToolbar={(playBtn, volumeSlot) => (
+            <div className={centered}>
+              <TrimControls
+                variant="inline"
+                segment={seg0}
+                audioFile={audioFile}
+                canRemove={segments.length > 1}
+                onUpdate={(updates) => updateSegment(seg0.id, updates)}
+                onRemove={() => removeSegment(seg0.id)}
+                playSlot={playBtn}
+                volumeSlot={volumeSlot}
+              />
+            </div>
+          )}
+        />
+      )}
 
-            {seg1 && (
-              <WaveformDisplay
-                  key={seg1.id}
-                  audioFile={audioFile}
-                  currentTime={currentTime2}
-                  audioRef={audioRef2}
-                  onSeek={setCurrentTime2}
-                  prefetchedBuffer={sharedDecodedBuffer}
-                  playbackEnvelope={playbackEnvelope2}
-                  trimRange={{ startTime: seg1.startTime, endTime: seg1.endTime }}
-                  trimFade={{ fadeIn: seg1.fadeIn, fadeOut: seg1.fadeOut, fadeInDuration: seg1.fadeInDuration, fadeOutDuration: seg1.fadeOutDuration }}
-                  onTrimRangeChange={(r) => updateSegment(seg1.id, r)}
-                  markers={songMarkers}
-                  bottomSlot={
-                    <SongStructurePanel
-                      markers={songMarkers}
-                      isAnalyzing={isAnalyzingStructure}
-                      duration={audioFile.duration}
-                      onApplySegment={(s, e) => updateSegment(seg1.id, { startTime: s, endTime: e })}
-                    />
-                  }
-                  playToolbar={(playBtn, volumeSlot) => (
-                    <TrimControls
-                      variant="inline"
-                      segment={seg1}
-                      audioFile={audioFile}
-                      canRemove={segments.length > 1}
-                      onUpdate={(updates) => updateSegment(seg1.id, updates)}
-                      onRemove={() => removeSegment(seg1.id)}
-                      playSlot={playBtn}
-                      volumeSlot={volumeSlot}
-                      inlineTrailingSlot={
-                        <button
-                          type="button"
-                          onClick={() => removeSegment(seg1.id)}
-                          className="text-sm font-medium text-[#8a8a8a] hover:text-white transition-colors"
-                          style={{ fontFamily: 'Montserrat, sans-serif' }}
-                          aria-label="Закрыть второй фрагмент"
-                        >
-                          Закрыть
-                        </button>
-                      }
-                    />
-                  )}
-                />
-            )}
-          </div>
+      {audioFile && seg1 && (
+        <WaveformDisplay
+          key={seg1.id}
+          audioFile={audioFile}
+          currentTime={currentTime2}
+          audioRef={audioRef2}
+          onSeek={setCurrentTime2}
+          prefetchedBuffer={sharedDecodedBuffer}
+          playbackEnvelope={playbackEnvelope2}
+          trimRange={{ startTime: seg1.startTime, endTime: seg1.endTime }}
+          trimFade={{ fadeIn: seg1.fadeIn, fadeOut: seg1.fadeOut, fadeInDuration: seg1.fadeInDuration, fadeOutDuration: seg1.fadeOutDuration }}
+          onTrimRangeChange={(r) => updateSegment(seg1.id, r)}
+          markers={songMarkers}
+          bottomSlot={
+            <div className={centered}>
+              <SongStructurePanel
+                markers={songMarkers}
+                isAnalyzing={isAnalyzingStructure}
+                duration={audioFile.duration}
+                onApplySegment={(s, e) => updateSegment(seg1.id, { startTime: s, endTime: e })}
+              />
+            </div>
+          }
+          playToolbar={(playBtn, volumeSlot) => (
+            <div className={centered}>
+              <TrimControls
+                variant="inline"
+                segment={seg1}
+                audioFile={audioFile}
+                canRemove={segments.length > 1}
+                onUpdate={(updates) => updateSegment(seg1.id, updates)}
+                onRemove={() => removeSegment(seg1.id)}
+                playSlot={playBtn}
+                volumeSlot={volumeSlot}
+                inlineTrailingSlot={
+                  <button
+                    type="button"
+                    onClick={() => removeSegment(seg1.id)}
+                    className="text-sm font-medium text-[#8a8a8a] hover:text-white transition-colors"
+                    style={{ fontFamily: 'Montserrat, sans-serif' }}
+                    aria-label="Закрыть второй фрагмент"
+                  >
+                    Закрыть
+                  </button>
+                }
+              />
+            </div>
+          )}
+        />
+      )}
 
+      {audioFile && (
+        <div className={`${centered} space-y-4`}>
           <MultiTrimPanel
             segments={segments}
             audioFile={audioFile}
@@ -198,7 +211,7 @@ export default function Editor() {
           {processedFiles.length > 0 && (
             <ProcessedResults files={processedFiles} />
           )}
-        </>
+        </div>
       )}
     </div>
   )
