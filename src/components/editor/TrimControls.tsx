@@ -187,8 +187,8 @@ export function TrimControls({
           </div>
           {/* Controls: always centred in middle column */}
           <div className="flex items-center justify-center overflow-x-auto">{ctrls}</div>
-          {/* Trailing: right column on sm+ */}
-          <div className="hidden sm:flex items-center justify-end pl-1">
+          {/* Trailing: right column on sm+ — spacer keeps controls centred when empty */}
+          <div className="hidden sm:flex items-center justify-end pl-1 w-[7.125rem]">
             {inlineTrailingSlot}
           </div>
         </div>
