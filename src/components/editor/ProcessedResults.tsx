@@ -115,15 +115,7 @@ export function ProcessedResults({ files }: ProcessedResultsProps) {
         borderColor: 'rgba(45,212,191,.25)',
       }}
     >
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-[18px]" style={{ color: '#2DD4BF', fontWeight: 800, fontSize: '15px', ...SANS }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <polyline points="20,6 9,17 4,12" stroke="#2DD4BF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        Готово
-      </div>
-
-      {/* File cards grid */}
+{/* File cards grid */}
       <div className={`grid gap-[14px] grid-cols-1 ${files.length >= 2 ? 'sm:grid-cols-2' : ''}`}>
         {files.map((file) => {
           const st = get(file.id)

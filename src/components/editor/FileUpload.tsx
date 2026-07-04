@@ -30,14 +30,7 @@ export function FileUpload({ onFileUpload, uploadProgress, onReset }: FileUpload
 
   if (isComplete) {
     return (
-      <div className="flex flex-wrap items-center justify-center gap-3">
-        <span
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border text-[13px] font-bold"
-          style={{ borderColor: 'rgba(45,212,191,.4)', background: 'rgba(45,212,191,.08)', color: '#2DD4BF', ...SANS }}
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="#2DD4BF" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          Файл успешно загружен
-        </span>
+      <div className="fixed top-[64px] left-1/2 -translate-x-1/2 z-40 flex flex-wrap items-center justify-center gap-3 py-2">
         {onReset && (
           <button
             type="button"
@@ -46,8 +39,8 @@ export function FileUpload({ onFileUpload, uploadProgress, onReset }: FileUpload
               onReset()
               queueMicrotask(() => fileInputRef.current?.click())
             }}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/[0.18] text-white text-[13px] font-bold hover:bg-white/[0.05] transition-colors"
-            style={SANS}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/30 text-white text-[13px] font-bold transition-colors hover:brightness-110 shadow-lg"
+            style={{ ...SANS, background: 'rgba(18,18,22,.88)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', boxShadow: '0 4px 24px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.08)' }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
