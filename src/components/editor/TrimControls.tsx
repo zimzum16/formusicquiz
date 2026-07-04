@@ -41,16 +41,17 @@ function TrimTimeFields({
   const isCompact = size === 'compact'
   const slimCol = columns !== 'both' && isCompact
 
+  const LABEL_STYLE = { fontFamily: 'Montserrat, sans-serif', color: '#8a8a8a' }
   const labelCl = isCompact
     ? slimCol
-      ? 'block mb-1 w-full text-center text-xs font-medium text-neutral-700 dark:text-neutral-300'
-      : 'block mb-1 text-xs font-medium text-neutral-700 dark:text-neutral-300'
-    : 'block mb-2 text-sm font-medium text-neutral-700 dark:text-neutral-300'
+      ? 'block mb-1 w-full text-center text-xs font-medium'
+      : 'block mb-1 text-xs font-medium'
+    : 'block mb-2 text-sm font-medium'
 
-  const inputBase = 'box-border w-[14ch] max-w-full min-w-0 px-2.5 py-1.5 font-mono text-sm tabular-nums leading-none rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+  const inputBase = 'box-border w-[11ch] sm:w-[14ch] max-w-full min-w-0 px-2.5 py-1.5 font-mono text-sm tabular-nums leading-none rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#2DD4BF] focus:border-transparent'
   const inputCl = isCompact
     ? slimCol ? `${inputBase} text-center` : inputBase
-    : 'box-border w-full max-w-[8ch] px-3 py-2.5 font-mono text-sm tabular-nums leading-none rounded-xl bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all'
+    : 'box-border w-full max-w-[8ch] px-3 py-2.5 font-mono text-sm tabular-nums leading-none rounded-xl bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#2DD4BF] focus:border-transparent transition-all'
   const subCl = isCompact
     ? 'mt-0.5 w-[14ch] max-w-full text-[10px] font-mono text-neutral-500 tabular-nums dark:text-neutral-500 text-center'
     : 'mt-1 max-w-[8ch] text-xs font-mono text-neutral-500 tabular-nums dark:text-neutral-500'
@@ -69,7 +70,7 @@ function TrimTimeFields({
 
   const startBlock = (
     <div className={colOuter}>
-      <label className={labelCl}>Начало</label>
+      <label className={labelCl} style={LABEL_STYLE}>Начало</label>
       <input
         type="text" value={startDisplay} placeholder="00:00.0" className={inputCl}
         inputMode="decimal" autoComplete="off"
@@ -90,7 +91,7 @@ function TrimTimeFields({
 
   const endBlock = (
     <div className={colOuter}>
-      <label className={labelCl}>Конец</label>
+      <label className={labelCl} style={LABEL_STYLE}>Конец</label>
       <input
         type="text" value={endDisplay} placeholder="00:00.0" className={inputCl}
         inputMode="decimal" autoComplete="off"
@@ -145,46 +146,53 @@ export function TrimControls({
   const error = validateTimeRange(segment.startTime, segment.endTime, maxDuration)
 
   if (variant === 'inline') {
-    return (
-      <div className={playSlot != null ? 'flex w-full min-w-0 flex-col items-center gap-2 mt-[30px]' : 'flex w-full min-w-0 flex-col items-center gap-2'}>
-        <div dir="ltr" className={
-          playSlot != null
-            ? volumeSlot
-              ? 'flex w-full min-w-0 items-center gap-x-3'
-              : 'flex w-full min-w-0 flex-nowrap items-center justify-center gap-x-4 overflow-x-auto sm:gap-x-6 md:gap-x-8'
-            : 'flex w-full min-w-0 flex-wrap items-center justify-center gap-x-3 gap-y-2 sm:flex-nowrap sm:justify-center'
-        }>
-          {playSlot != null ? (
-            volumeSlot ? (
-              <>
-                <div className="flex min-w-[7.125rem] w-[7.125rem] shrink-0 items-center justify-start">{volumeSlot}</div>
-                <div className="flex min-w-0 flex-1 justify-center overflow-x-auto overflow-y-visible">
-                  <div className="flex w-max min-w-0 shrink-0 flex-nowrap items-center justify-center gap-x-4 py-0.5 sm:gap-x-6 md:gap-x-8 lg:gap-x-10">
-                    <div className="flex min-w-0 shrink justify-center px-1"><FadeInToolbarInline segment={segment} onUpdate={onUpdate} /></div>
-                    <div className="shrink-0"><TrimTimeFields segment={segment} handleStartTimeChange={handleStartTimeChange} handleEndTimeChange={handleEndTimeChange} error={null} size="compact" columns="start" /></div>
-                    <div className="shrink-0">{playSlot}</div>
-                    <div className="shrink-0"><TrimTimeFields segment={segment} handleStartTimeChange={handleStartTimeChange} handleEndTimeChange={handleEndTimeChange} error={null} size="compact" columns="end" /></div>
-                    <div className="flex min-w-0 shrink justify-center px-1"><FadeOutToolbarInline segment={segment} onUpdate={onUpdate} /></div>
-                  </div>
-                </div>
-                <div className={inlineTrailingSlot ? 'flex min-w-[7.125rem] shrink-0 items-center justify-end pl-1' : 'min-w-[7.125rem] w-[7.125rem] shrink-0'}>
-                  {inlineTrailingSlot}
-                </div>
-              </>
-            ) : (
-              <div className="flex w-full min-w-0 flex-nowrap items-center justify-center gap-x-4 overflow-x-auto sm:gap-x-6 md:gap-x-8">
-                <div className="flex min-w-0 shrink justify-center px-1"><FadeInToolbarInline segment={segment} onUpdate={onUpdate} /></div>
-                <div className="shrink-0"><TrimTimeFields segment={segment} handleStartTimeChange={handleStartTimeChange} handleEndTimeChange={handleEndTimeChange} error={null} size="compact" columns="start" /></div>
-                <div className="shrink-0">{playSlot}</div>
-                <div className="shrink-0"><TrimTimeFields segment={segment} handleStartTimeChange={handleStartTimeChange} handleEndTimeChange={handleEndTimeChange} error={null} size="compact" columns="end" /></div>
-                <div className="flex min-w-0 shrink justify-center px-1"><FadeOutToolbarInline segment={segment} onUpdate={onUpdate} /></div>
-              </div>
-            )
-          ) : (
+    if (!playSlot) {
+      return (
+        <div className="flex w-full min-w-0 flex-col items-center gap-2">
+          <div dir="ltr" className="flex w-full min-w-0 flex-wrap items-center justify-center gap-x-3 gap-y-2 sm:flex-nowrap">
             <TrimTimeFields segment={segment} handleStartTimeChange={handleStartTimeChange} handleEndTimeChange={handleEndTimeChange} error={error} size="compact" columns="both" />
-          )}
+          </div>
         </div>
-        {playSlot != null && error ? <p className="w-full px-1 text-center text-xs text-red-600 dark:text-red-400">{error}</p> : null}
+      )
+    }
+
+    const ctrls = (
+      <div className="flex shrink-0 flex-nowrap items-center justify-center gap-x-1.5 sm:gap-x-3 lg:gap-x-6 xl:gap-x-8">
+        <FadeInToolbarInline segment={segment} onUpdate={onUpdate} />
+        <TrimTimeFields segment={segment} handleStartTimeChange={handleStartTimeChange} handleEndTimeChange={handleEndTimeChange} error={null} size="compact" columns="start" />
+        <div className="shrink-0">{playSlot}</div>
+        <TrimTimeFields segment={segment} handleStartTimeChange={handleStartTimeChange} handleEndTimeChange={handleEndTimeChange} error={null} size="compact" columns="end" />
+        <FadeOutToolbarInline segment={segment} onUpdate={onUpdate} />
+      </div>
+    )
+
+    if (!volumeSlot) {
+      return (
+        <div className="flex w-full min-w-0 flex-col items-center gap-2 mt-[30px]">
+          <div dir="ltr" className="flex w-full items-center justify-center">{ctrls}</div>
+          {error && <p className="w-full px-1 text-center text-xs text-red-600 dark:text-red-400">{error}</p>}
+        </div>
+      )
+    }
+
+    return (
+      <div className="flex w-full min-w-0 flex-col items-center gap-y-2 mt-[30px]">
+        <div dir="ltr" className="grid w-full min-w-0 grid-cols-1 sm:grid-cols-[7.125rem_1fr_7.125rem] gap-y-2 sm:gap-y-0 sm:items-center">
+          {/* Volume: centred on mobile, left column on sm+ */}
+          <div className="relative flex items-center justify-center sm:justify-start">
+            {volumeSlot}
+            {inlineTrailingSlot && (
+              <div className="sm:hidden absolute right-0">{inlineTrailingSlot}</div>
+            )}
+          </div>
+          {/* Controls: always centred in middle column */}
+          <div className="flex items-center justify-center">{ctrls}</div>
+          {/* Trailing: right column on sm+ */}
+          <div className="hidden sm:flex items-center justify-end pl-1">
+            {inlineTrailingSlot}
+          </div>
+        </div>
+        {error && <p className="w-full px-1 text-center text-xs text-red-600 dark:text-red-400">{error}</p>}
       </div>
     )
   }

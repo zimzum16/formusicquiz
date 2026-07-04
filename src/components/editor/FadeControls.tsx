@@ -31,13 +31,13 @@ function IconFadeOut({ className }: { className?: string }) {
 }
 
 const ICON_BTN =
-  'flex h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 items-center justify-center rounded-[10px] border-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-neutral-900'
+  'flex h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 items-center justify-center rounded-[10px] border-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2DD4BF] focus-visible:ring-offset-2 focus-visible:ring-offset-black'
 const BTN_OFF =
   'border-neutral-300 bg-neutral-200/90 text-neutral-800 dark:border-[#3d424c] dark:bg-[#2d3139] dark:text-white'
-const BTN_ON = 'border-blue-500 bg-blue-600 text-white dark:border-blue-400'
+const BTN_ON = 'border-[#2DD4BF] bg-[#2DD4BF] text-[#06231f]'
 
 const rangeCls =
-  'h-1.5 w-full cursor-pointer appearance-none rounded-full bg-neutral-200 dark:bg-neutral-600 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-blue-500'
+  'h-1.5 w-full cursor-pointer appearance-none rounded-full bg-neutral-200 dark:bg-neutral-600 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#2DD4BF] [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-[#2DD4BF]'
 
 interface ToolbarFadeProps {
   segment: TrimSegment
@@ -48,7 +48,7 @@ export function FadeInToolbarInline({ segment, onUpdate }: ToolbarFadeProps) {
   const fadeInSec = clampFadeSec(Number(segment.fadeInDuration) || 1)
   return (
     <div className="flex shrink-0 items-center justify-center gap-2">
-      <div className="flex w-36 min-w-36 shrink-0 flex-col justify-center gap-0.5" dir="rtl">
+      <div className="hidden lg:flex w-36 min-w-36 shrink-0 flex-col justify-center gap-0.5" dir="rtl">
         {segment.fadeIn ? (
           <>
             <input
@@ -56,7 +56,7 @@ export function FadeInToolbarInline({ segment, onUpdate }: ToolbarFadeProps) {
               onChange={e => onUpdate({ fadeInDuration: clampFadeSec(parseInt(e.target.value, 10)) })}
               className={rangeCls}
             />
-            <span dir="ltr" className="block text-center text-[10px] text-neutral-500 tabular-nums dark:text-neutral-400">
+            <span dir="ltr" className="block text-center text-[10px] tabular-nums" style={{ color: '#8a8a8a', fontFamily: 'Montserrat, sans-serif' }}>
               {fadeInSec} с
             </span>
           </>
@@ -88,7 +88,7 @@ export function FadeOutToolbarInline({ segment, onUpdate }: ToolbarFadeProps) {
       >
         <IconFadeOut className="h-[22px] w-[22px] sm:h-6 sm:w-6" />
       </button>
-      <div className="flex w-36 min-w-36 shrink-0 flex-col justify-center gap-0.5">
+      <div className="hidden lg:flex w-36 min-w-36 shrink-0 flex-col justify-center gap-0.5">
         {segment.fadeOut ? (
           <>
             <input
@@ -96,7 +96,7 @@ export function FadeOutToolbarInline({ segment, onUpdate }: ToolbarFadeProps) {
               onChange={e => onUpdate({ fadeOutDuration: clampFadeSec(parseInt(e.target.value, 10)) })}
               className={rangeCls}
             />
-            <span className="text-center text-[10px] text-neutral-500 tabular-nums dark:text-neutral-400">
+            <span className="text-center text-[10px] tabular-nums" style={{ color: '#8a8a8a', fontFamily: 'Montserrat, sans-serif' }}>
               {fadeOutSec} с
             </span>
           </>
@@ -128,7 +128,7 @@ export function FadeControls({ segment, onUpdate }: FadeControlsProps) {
             <div className="w-11 h-6 bg-neutral-300 dark:bg-neutral-700 rounded-full peer-checked:bg-blue-600 transition-colors" />
             <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5" />
           </div>
-          <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Добавить нарастание звука</span>
+          <span className="text-sm font-medium" style={{ color: '#8a8a8a', fontFamily: 'Montserrat, sans-serif' }}>Добавить нарастание звука</span>
         </label>
         {segment.fadeIn && (
           <select
@@ -152,7 +152,7 @@ export function FadeControls({ segment, onUpdate }: FadeControlsProps) {
             <div className="w-11 h-6 bg-neutral-300 dark:bg-neutral-700 rounded-full peer-checked:bg-blue-600 transition-colors" />
             <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5" />
           </div>
-          <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Добавить затухание звука</span>
+          <span className="text-sm font-medium" style={{ color: '#8a8a8a', fontFamily: 'Montserrat, sans-serif' }}>Добавить затухание звука</span>
         </label>
         {segment.fadeOut && (
           <select
