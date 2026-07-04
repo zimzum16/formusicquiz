@@ -478,15 +478,15 @@ export function WaveformDisplay({
   const useInlineVolume = volumeUi != null && typeof playToolbar === 'function'
 
   return (
-    <div className="rounded-2xl overflow-hidden bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 py-5 shadow-sm">
+    <div className="py-5">
       {!useInlineVolume && volumeUi != null && (
         <div className="px-4 pb-2 flex flex-wrap items-center justify-start gap-x-3 gap-y-2">
           {volumeUi}
         </div>
       )}
 
-      <div ref={containerRef} className="relative px-4">
-        <div className="relative h-[380px] w-full overflow-hidden ring-1 ring-inset ring-black/25 bg-[#0b1622] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] rounded-2xl">
+      <div ref={containerRef} className="relative">
+        <div className="relative h-[380px] w-full overflow-hidden bg-black">
           <canvas ref={canvasRef} className="absolute inset-0 block h-full w-full select-none" aria-hidden />
 
           {markers && markers.map((marker, i) => (

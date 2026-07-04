@@ -98,8 +98,7 @@ export default function Editor() {
             )}
 
             {seg0 && (
-              <div className="rounded-[18px] border border-white/[0.1] overflow-hidden" style={{ background: 'rgba(24,24,28,.78)' }}>
-                <WaveformDisplay
+              <WaveformDisplay
                   audioFile={audioFile}
                   currentTime={currentTime}
                   audioRef={audioRef}
@@ -131,12 +130,10 @@ export default function Editor() {
                     />
                   )}
                 />
-              </div>
             )}
 
             {seg1 && (
-              <div className="rounded-[18px] border border-white/[0.1] overflow-hidden" style={{ background: 'rgba(24,24,28,.78)' }}>
-                <WaveformDisplay
+              <WaveformDisplay
                   key={seg1.id}
                   audioFile={audioFile}
                   currentTime={currentTime2}
@@ -180,7 +177,6 @@ export default function Editor() {
                     />
                   )}
                 />
-              </div>
             )}
           </div>
 
