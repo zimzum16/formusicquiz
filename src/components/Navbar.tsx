@@ -7,7 +7,8 @@ interface NavbarProps {
 
 export default function Navbar({ currentPage, navigate }: NavbarProps) {
   return (
-    <header className="flex items-center justify-between px-5 sm:px-8 py-3.5 bg-black/70 backdrop-blur-xl border-b border-white/[0.08] sticky top-0 z-50">
+    <header className="bg-black/70 backdrop-blur-xl border-b border-white/[0.08] sticky top-0 z-50">
+      <div className="max-w-[1060px] mx-auto px-5 sm:px-8 py-3.5 flex items-center justify-between">
       <button
         onClick={() => navigate('home')}
         className="flex items-center gap-2.5"
@@ -53,6 +54,7 @@ export default function Navbar({ currentPage, navigate }: NavbarProps) {
           Редактор
         </button>
       </nav>
+      </div>
     </header>
   );
 }

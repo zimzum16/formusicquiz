@@ -492,15 +492,20 @@ router.openapi(searchRoute, async (c) => {
     if (cyr !== q) altQ = cyr;
   }
 
-  const [a, b] = await Promise.all([
-    searchTracks(q, artist),
-    altQ ? searchTracks(altQ, artist) : Promise.resolve([]),
-  ]);
+  let merged: Awaited<ReturnType<typeof searchTracks>> = [];
+  try {
+    const [a, b] = await Promise.all([
+      searchTracks(q, artist),
+      altQ ? searchTracks(altQ, artist) : Promise.resolve([]),
+    ]);
 
-  // Для кириллицы альтернативный запрос важнее (транслит или раскладка)
-  const [primary, secondary] = isCyr ? [b, a] : [a, b];
-  const seen = new Set(primary.map(t => t.id));
-  const merged = [...primary, ...secondary.filter(t => !seen.has(t.id))];
+    // Для кириллицы альтернативный запрос важнее (транслит или раскладка)
+    const [primary, secondary] = isCyr ? [b, a] : [a, b];
+    const seen = new Set(primary.map(t => t.id));
+    merged = [...primary, ...secondary.filter(t => !seen.has(t.id))];
+  } catch (e) {
+    console.error('[search] Spotify error, falling back to iTunes:', e instanceof Error ? e.message : e);
+  }
 
   if (merged.length === 0) {
     const itunesResults = await searchTracksItunes(q, artist);
