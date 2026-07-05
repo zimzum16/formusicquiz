@@ -30,7 +30,7 @@ export function FileUpload({ onFileUpload, uploadProgress, onReset }: FileUpload
 
   if (isComplete) {
     return (
-      <div className="fixed top-[64px] left-1/2 -translate-x-1/2 z-40 flex flex-wrap items-center justify-center gap-3 py-2">
+      <div className="fixed top-[64px] left-1/2 -translate-x-1/2 z-[60] flex flex-wrap items-center justify-center gap-3 py-2">
         {onReset && (
           <button
             type="button"

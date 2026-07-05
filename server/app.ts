@@ -45,7 +45,7 @@ app.get('/api/scrape', async (c) => {
 
 app.doc('/api/spec', {
   openapi: '3.0.0',
-  info: { title: 'SoundLens API', version: '1.0.0' },
+  info: { title: 'Trackslice API', version: '1.0.0' },
 });
 
 app.get('/docs', swaggerUI({ url: '/api/spec' }));

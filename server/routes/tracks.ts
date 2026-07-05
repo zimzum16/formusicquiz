@@ -336,7 +336,7 @@ router.openapi(lrcRoute, async (c) => {
     const fetchLrc = async (params: URLSearchParams, preferArtist?: string) => {
       try {
         const res = await fetch(`https://lrclib.net/api/search?${params}`, {
-          headers: { 'Lrclib-Client': 'SoundLens/1.0' },
+          headers: { 'Lrclib-Client': 'Trackslice/1.0' },
           signal: AbortSignal.timeout(12000),
         });
         if (!res.ok) return null;

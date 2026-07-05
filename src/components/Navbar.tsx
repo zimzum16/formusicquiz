@@ -22,7 +22,7 @@ export default function Navbar({ currentPage, navigate }: NavbarProps) {
           </svg>
         </div>
         <span className="font-extrabold text-[18px] text-white tracking-[-0.01em]" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-          SoundLens
+          Trackslice
         </span>
       </button>
 

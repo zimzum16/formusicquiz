@@ -22,9 +22,25 @@ const VAL = 'text-[13px] font-semibold text-white';
 
 function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between px-4 py-[11px] border-b border-white/[0.08] last:border-0 bg-white/[0.02]">
-      <span className={LBL} style={SANS}>{label}</span>
-      <span className={VAL} style={MONO}>{value}</span>
+    <div className="flex items-start justify-between gap-6 px-4 py-[11px] border-b border-white/[0.08] last:border-0 bg-white/[0.02]">
+      <span className={`${LBL} shrink-0 pt-[1px]`} style={SANS}>{label}</span>
+      <span className={`${VAL} text-right`} style={SANS}>{value}</span>
+    </div>
+  );
+}
+
+function MetaCompact({ items }: { items: { label: string; value: React.ReactNode }[] }) {
+  return (
+    <div className="flex border-b border-white/[0.08] last:border-0 bg-white/[0.02]">
+      {items.map((item, i) => (
+        <div
+          key={i}
+          className={`flex-1 flex flex-col items-center gap-0.5 px-4 py-[10px]${i > 0 ? ' border-l border-white/[0.08]' : ''}`}
+        >
+          <span className={LBL} style={SANS}>{item.label}</span>
+          <span className={`${VAL} text-[13px]`} style={SANS}>{item.value}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -80,7 +96,7 @@ function StatCol({ label, value, last }: { label: string; value: React.ReactNode
   return (
     <div className={`px-4 ${last ? '' : 'border-r border-white/[0.08]'}`}>
       <div className={LBL} style={SANS}>{label}</div>
-      <div className={`${VAL} mt-0.5`} style={MONO}>{value}</div>
+      <div className={`${VAL} mt-0.5`} style={SANS}>{value}</div>
     </div>
   );
 }
@@ -360,21 +376,6 @@ export default function SongInfo() {
                 className="flex-1 rounded-[18px] p-5 border border-white/[0.1] flex flex-col gap-4 min-w-0"
                 style={{ background: 'rgba(24,24,28,.78)', backdropFilter: 'saturate(180%) blur(24px)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.07),0 12px 40px rgba(0,0,0,.55)' }}
               >
-                {/* Genius header */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#2DD4BF">
-                      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.77 17.4c-2.714 0-4.714-2.057-4.714-4.8 0-2.743 2-4.8 4.714-4.8 1.257 0 2.286.457 3.086 1.257l-1.257 1.257c-.457-.457-1.029-.686-1.829-.686-1.543 0-2.743 1.2-2.743 2.972s1.2 2.972 2.743 2.972c1.714 0 2.4-.857 2.514-1.8H12.77v-1.714h4.457c.057.343.086.686.086 1.086 0 2.914-1.829 4.257-4.543 4.257z" />
-                    </svg>
-                    <span className="font-extrabold text-[15px] text-white" style={SANS}>Genius</span>
-                  </div>
-                  <a href={genius.lyrics_url} target="_blank" rel="noreferrer"
-                    className="text-[13px] font-bold hover:opacity-80 transition-opacity"
-                    style={{ color: '#2DD4BF', ...SANS }}>
-                    ↗ Открыть
-                  </a>
-                </div>
-
                 {/* Meta rows */}
                 <div className="rounded-[12px] overflow-hidden border border-white/[0.08]">
                   {genius.producer_artists.length > 0 && (
@@ -386,35 +387,18 @@ export default function SongInfo() {
                   {genius.featured_artists.length > 0 && (
                     <MetaRow label="Featuring" value={genius.featured_artists.map(a => a.name).join(', ')} />
                   )}
-                  {(genius.release_date || genius.release_year) && (
-                    <MetaRow label="Дата выхода" value={genius.release_date ?? String(genius.release_year)} />
-                  )}
-                  {genius.language && (
-                    <MetaRow label="Язык" value={genius.language} />
-                  )}
-                  {genius.pageviews !== null && (
-                    <MetaRow
-                      label="Просмотры"
-                      value={<span style={{ color: '#2DD4BF' }}>{fmtNum(genius.pageviews)}</span>}
-                    />
-                  )}
+                  {(() => {
+                    const compact: { label: string; value: React.ReactNode }[] = [];
+                    if (genius.release_date || genius.release_year)
+                      compact.push({ label: 'Дата выхода', value: genius.release_date ?? String(genius.release_year) });
+                    if (genius.language)
+                      compact.push({ label: 'Язык', value: genius.language });
+                    if (genius.pageviews !== null)
+                      compact.push({ label: 'Просмотры', value: fmtNum(genius.pageviews) });
+                    compact.push({ label: 'Текст песни', value: <a href={genius.lyrics_url} target="_blank" rel="noreferrer" className="hover:opacity-70 transition-opacity" style={{ color: '#2DD4BF' }}>Открыть ↗</a> });
+                    return compact.length > 0 ? <MetaCompact items={compact} /> : null;
+                  })()}
                 </div>
-
-                {/* Media links */}
-                {genius.media.length > 0 && (
-                  <div>
-                    <div className={`${LBL} mb-2`} style={SANS}>Стриминги</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {genius.media.map((m) => (
-                        <a key={m.url} href={m.url} target="_blank" rel="noreferrer"
-                          className="text-[11px] px-2.5 py-1 rounded-full border border-white/[0.1] bg-white/[0.05] text-[#8a8a8a] hover:text-white hover:border-white/20 transition-colors font-medium"
-                          style={SANS}>
-                          {m.type}
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {/* Relations */}
                 <div className="flex flex-col gap-3 flex-1">
@@ -446,22 +430,6 @@ export default function SongInfo() {
                   ))}
                 </div>
 
-                {/* Lyrics link */}
-                <a
-                  href={genius.lyrics_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 text-[13px] font-bold hover:opacity-80 transition-opacity mt-auto pt-1"
-                  style={{ color: '#2DD4BF', ...SANS }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#2DD4BF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <polyline points="14,2 14,8 20,8" stroke="#2DD4BF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <line x1="16" y1="13" x2="8" y2="13" stroke="#2DD4BF" strokeWidth="2" strokeLinecap="round"/>
-                    <line x1="16" y1="17" x2="8" y2="17" stroke="#2DD4BF" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
-                  Текст песни на Genius
-                </a>
               </div>
             )}
           </div>

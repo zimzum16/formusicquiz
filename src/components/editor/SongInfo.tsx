@@ -7,8 +7,15 @@ interface SongInfoProps {
 
 const SANS: React.CSSProperties = { fontFamily: 'Montserrat, sans-serif' }
 
+function parseFeat(raw: string): { cleanTitle: string; feat: string | null } {
+  const m = raw.match(/^(.*?)\s*[\(\[](feat\.?|ft\.?|featuring)\s*([^\)\]]+)[\)\]](.*)$/i)
+  if (!m) return { cleanTitle: raw, feat: null }
+  return { cleanTitle: (m[1] + m[4]).trim(), feat: m[3].trim() }
+}
+
 export function SongInfo({ audioFile }: SongInfoProps) {
-  const { artist, title, album, coverArt, year, genre, geniusUrl } = audioFile
+  const { artist, title: rawTitle, album, coverArt, year, genre, geniusUrl } = audioFile
+  const { cleanTitle: title, feat } = parseFeat(rawTitle)
 
   const chips = (
     <div className="flex flex-wrap gap-2 mb-3 sm:mb-4">
@@ -41,7 +48,7 @@ export function SongInfo({ audioFile }: SongInfoProps) {
       <svg width="14" height="14" viewBox="0 0 24 24" fill="#2DD4BF">
         <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.77 17.4c-2.714 0-4.714-2.057-4.714-4.8 0-2.743 2-4.8 4.714-4.8 1.257 0 2.286.457 3.086 1.257l-1.257 1.257c-.457-.457-1.029-.686-1.829-.686-1.543 0-2.743 1.2-2.743 2.972s1.2 2.972 2.743 2.972c1.714 0 2.4-.857 2.514-1.8H12.77v-1.714h4.457c.057.343.086.686.086 1.086 0 2.914-1.829 4.257-4.543 4.257z" />
       </svg>
-      Открыть текст на Genius
+      Текст песни
     </a>
   ) : null
 
@@ -72,16 +79,22 @@ export function SongInfo({ audioFile }: SongInfoProps) {
           <h2 className="font-extrabold text-white leading-tight mb-[4px] sm:mb-[6px]" style={{ fontSize: 'clamp(18px,4vw,26px)', letterSpacing: '-.03em', lineHeight: 1.1, ...SANS }}>
             {title}
           </h2>
-          <p className="font-medium mb-3 sm:mb-4" style={{ fontSize: 'clamp(14px,3vw,17px)', color: '#8a8a8a', ...SANS }}>
+          <p className="font-medium" style={{ fontSize: 'clamp(14px,3vw,17px)', color: '#8a8a8a', ...SANS }}>
             {artist}
           </p>
+          {feat && (
+            <p className="font-medium mb-3 sm:mb-4 mt-0.5" style={{ fontSize: 'clamp(14px,3vw,17px)', color: '#8a8a8a', ...SANS }}>
+              feat. {feat}
+            </p>
+          )}
+          {!feat && <div className="mb-3 sm:mb-4" />}
           {chips}
           {geniusLink}
         </div>
 
         {/* Search block: visible only on sm+ */}
-        <div className="hidden sm:block shrink-0 self-center">
-          <ImageSearchBlock audioFile={audioFile} />
+        <div className="hidden sm:flex shrink-0 self-start h-[160px]">
+          <ImageSearchBlock audioFile={audioFile} fillHeight />
         </div>
       </div>
 
