@@ -21,10 +21,19 @@ export async function getTrackInfo(title: string, artist: string): Promise<Lastf
     format: 'json',
   });
 
-  const res = await fetch(`${BASE}/?${params}`);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/?${params}`);
+  } catch (e) {
+    console.error('[lastfm] fetch failed:', e instanceof Error ? e.message : e);
+    return null;
+  }
   const data = (await res.json()) as LastfmApiResponse;
 
-  if (data.error || !data.track) return null;
+  if (data.error || !data.track) {
+    if (data.error) console.error('[lastfm] API error:', data.error);
+    return null;
+  }
 
   const t = data.track;
 
