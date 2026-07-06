@@ -542,7 +542,9 @@ router.openapi(infoRoute, async (c) => {
       ? appleResult.value
       : { search_url: `https://music.apple.com/ru/search?term=${encodeURIComponent(`${artist} ${title}`)}`, charts: [] };
   const payload: TrackInfoPayload = { spotify: spotifyTrack, genius, lastfm, youtube, yandex, apple_music };
-  await cacheSet(`track:${id}`, payload, TRACK_TTL_S);
+  // Don't cache if genius tags are empty — scrapeTags may have failed transiently
+  const tagsOk = !genius || genius.tags.length > 0;
+  if (tagsOk) await cacheSet(`track:${id}`, payload, TRACK_TTL_S);
   return c.json(payload, 200);
 });
 

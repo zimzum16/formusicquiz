@@ -97,8 +97,12 @@ function getCountriesFromTags(tags: string[]): { flag: string; ru: string }[] {
   const result: { flag: string; ru: string }[] = [];
   for (const tag of tags) {
     const entry = GENIUS_COUNTRY[tag] ?? (() => {
-      const m = tag.match(/\(([^)]+)\)$/);
-      return m ? GENIUS_COUNTRY[m[1]] : undefined;
+      // Try the part inside parentheses: "South Korea (대한민국)" → "대한민국"
+      const inParens = tag.match(/\(([^)]+)\)$/);
+      if (inParens && GENIUS_COUNTRY[inParens[1]]) return GENIUS_COUNTRY[inParens[1]];
+      // Try the part before parentheses: "South Korea (대한민국)" → "South Korea"
+      const beforeParens = tag.replace(/\s*\([^)]*\)$/, '').trim();
+      return GENIUS_COUNTRY[beforeParens];
     })();
     if (entry && !seen.has(entry.ru)) {
       seen.add(entry.ru);
@@ -635,7 +639,7 @@ export default function SongInfo() {
                       <div className="px-4 border-r border-white/[0.08]">
                         <div className={`${LBL} mb-0.5`} style={SANS}>Первое</div>
                         <div className="text-[13px] font-semibold text-white" style={SANS}>
-                          {setlistfm.first_performance.date} · {setlistfm.first_performance.city}
+                          {setlistfm.first_performance.date.split('-').join('.')} · {setlistfm.first_performance.city}
                         </div>
                       </div>
                     )}
@@ -643,7 +647,7 @@ export default function SongInfo() {
                       <div className="px-4">
                         <div className={`${LBL} mb-0.5`} style={SANS}>Последнее</div>
                         <div className="text-[13px] font-semibold text-white" style={SANS}>
-                          {setlistfm.last_performance.date} · {setlistfm.last_performance.city}
+                          {setlistfm.last_performance.date.split('-').join('.')} · {setlistfm.last_performance.city}
                         </div>
                       </div>
                     )}
