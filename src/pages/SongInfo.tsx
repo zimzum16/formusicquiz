@@ -70,7 +70,42 @@ const GENIUS_COUNTRY: Record<string, { flag: string; ru: string }> = {
   'Venezuela': { flag: '🇻🇪', ru: 'Венесуэла' },
   'Ecuador': { flag: '🇪🇨', ru: 'Эквадор' },
   'Mexico': { flag: '🇲🇽', ru: 'Мексика' },
+  'Uruguay': { flag: '🇺🇾', ru: 'Уругвай' },
+  'Paraguay': { flag: '🇵🇾', ru: 'Парагвай' },
+  'Bolivia': { flag: '🇧🇴', ru: 'Боливия' },
+  'Costa Rica': { flag: '🇨🇷', ru: 'Коста-Рика' },
+  'Guatemala': { flag: '🇬🇹', ru: 'Гватемала' },
+  'Honduras': { flag: '🇭🇳', ru: 'Гондурас' },
+  'El Salvador': { flag: '🇸🇻', ru: 'Сальвадор' },
+  'Nicaragua': { flag: '🇳🇮', ru: 'Никарагуа' },
   'New Zealand': { flag: '🇳🇿', ru: 'Новая Зеландия' },
+  'Mongolia': { flag: '🇲🇳', ru: 'Монголия' },
+  'Tunisian': { flag: '🇹🇳', ru: 'Тунис' },
+  'Tunisia': { flag: '🇹🇳', ru: 'Тунис' },
+  'Algerian': { flag: '🇩🇿', ru: 'Алжир' },
+  'Algeria': { flag: '🇩🇿', ru: 'Алжир' },
+  'Moroccan': { flag: '🇲🇦', ru: 'Марокко' },
+  'Morocco': { flag: '🇲🇦', ru: 'Марокко' },
+  'Ethiopian': { flag: '🇪🇹', ru: 'Эфиопия' },
+  'Ethiopia': { flag: '🇪🇹', ru: 'Эфиопия' },
+  'Kazakhstan': { flag: '🇰🇿', ru: 'Казахстан' },
+  'Uzbekistan': { flag: '🇺🇿', ru: 'Узбекистан' },
+  'Azerbaijan': { flag: '🇦🇿', ru: 'Азербайджан' },
+  'Georgia': { flag: '🇬🇪', ru: 'Грузия' },
+  'Armenia': { flag: '🇦🇲', ru: 'Армения' },
+  'Iran': { flag: '🇮🇷', ru: 'Иран' },
+  'Iraq': { flag: '🇮🇶', ru: 'Ирак' },
+  'Saudi Arabia': { flag: '🇸🇦', ru: 'Саудовская Аравия' },
+  'Lebanon': { flag: '🇱🇧', ru: 'Ливан' },
+  'Pakistan': { flag: '🇵🇰', ru: 'Пакистан' },
+  'Bangladesh': { flag: '🇧🇩', ru: 'Бангладеш' },
+  'Indonesia': { flag: '🇮🇩', ru: 'Индонезия' },
+  'Philippines': { flag: '🇵🇭', ru: 'Филиппины' },
+  'Vietnam': { flag: '🇻🇳', ru: 'Вьетнам' },
+  'Thailand': { flag: '🇹🇭', ru: 'Таиланд' },
+  'Malaysia': { flag: '🇲🇾', ru: 'Малайзия' },
+  'Singapore': { flag: '🇸🇬', ru: 'Сингапур' },
+  'Taiwan': { flag: '🇹🇼', ru: 'Тайвань' },
   // Native language names (Genius sometimes uses them)
   'Deutschland': { flag: '🇩🇪', ru: 'Германия' },
   'België/Belgique': { flag: '🇧🇪', ru: 'Бельгия' },
@@ -92,17 +127,24 @@ const GENIUS_COUNTRY: Record<string, { flag: string; ru: string }> = {
   'Україна': { flag: '🇺🇦', ru: 'Украина' },
 };
 
+const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+const GENIUS_COUNTRY_NORM = Object.fromEntries(
+  Object.entries(GENIUS_COUNTRY).map(([k, v]) => [norm(k), v])
+);
+const lookupCountry = (s: string) => GENIUS_COUNTRY[s] ?? GENIUS_COUNTRY_NORM[norm(s)];
+
 function getCountriesFromTags(tags: string[]): { flag: string; ru: string }[] {
   const seen = new Set<string>();
   const result: { flag: string; ru: string }[] = [];
   for (const tag of tags) {
-    const entry = GENIUS_COUNTRY[tag] ?? (() => {
-      // Try the part inside parentheses: "South Korea (대한민국)" → "대한민국"
+    const entry = lookupCountry(tag) ?? (() => {
+      // "South Korea (대한민국)" → try inside parens, then before parens
       const inParens = tag.match(/\(([^)]+)\)$/);
-      if (inParens && GENIUS_COUNTRY[inParens[1]]) return GENIUS_COUNTRY[inParens[1]];
-      // Try the part before parentheses: "South Korea (대한민국)" → "South Korea"
+      if (inParens) { const e = lookupCountry(inParens[1]); if (e) return e; }
       const beforeParens = tag.replace(/\s*\([^)]*\)$/, '').trim();
-      return GENIUS_COUNTRY[beforeParens];
+      const e2 = lookupCountry(beforeParens); if (e2) return e2;
+      // "Tunisian - تونسي" → try before " - "
+      return lookupCountry(tag.split(' - ')[0].trim());
     })();
     if (entry && !seen.has(entry.ru)) {
       seen.add(entry.ru);
