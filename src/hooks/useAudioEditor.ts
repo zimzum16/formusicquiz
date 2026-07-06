@@ -5,6 +5,15 @@ import { extractID3Tags, parseFilename } from '../lib/id3Parser'
 import { tracksApi } from '../lib/api'
 import { analyzeSongStructure, type SongMarker, type SongAnalysis } from '../lib/songStructure'
 
+// Убирает водяные знаки пиратских сайтов из ID3 тегов: [muzmo.ru], [zaycev.net] и т.п.
+const SITE_TAG_RE = /\s*[\[(][^\])\s]{2,50}\.(ru|net|com|org|me|cc|pw)[^\])]*[\])]/gi
+function cleanSiteTag(s: string | undefined): string | undefined {
+  if (!s) return s
+  const cleaned = s.replace(SITE_TAG_RE, '').trim()
+  // Если после очистки строка пустая или только спецсимволы — вернуть undefined
+  return cleaned.replace(/[^a-zа-яё0-9\s]/gi, '').trim() ? cleaned : undefined
+}
+
 export function useAudioEditor() {
   const [audioFile, setAudioFile] = useState<AudioFile | null>(null)
   const [segments, setSegments] = useState<TrimSegment[]>([])
@@ -51,8 +60,10 @@ export function useAudioEditor() {
 
       setUploadProgress(85)
 
-      let artist = id3Tags.artist
-      let title = id3Tags.title
+      const siteTagged = !!(id3Tags.artist && !cleanSiteTag(id3Tags.artist))
+        || !!(id3Tags.artist && SITE_TAG_RE.test(id3Tags.artist))
+      let artist = cleanSiteTag(id3Tags.artist)
+      let title = cleanSiteTag(id3Tags.title)
 
       if (!artist || !title) {
         const parsed = parseFilename(file.name)
@@ -68,8 +79,8 @@ export function useAudioEditor() {
         duration: audioBuffer.duration,
         artist,
         title,
-        coverArt: id3Tags.coverArt,
-        album: id3Tags.album,
+        coverArt: siteTagged ? undefined : id3Tags.coverArt,
+        album: cleanSiteTag(id3Tags.album),
         year: id3Tags.year,
         genre: id3Tags.genre,
       })
@@ -90,7 +101,9 @@ export function useAudioEditor() {
       // Фоновое обогащение из Spotify — только обложка, альбом, год
       void (async () => {
         try {
-          const results = await tracksApi.search(title, artist)
+          // Не посылаем placeholder-исполнителя в API — он не совпадёт ни с чем и обнулит iTunes-результаты
+          const searchArtist = artist === 'Неизвестный исполнитель' ? undefined : artist
+          const results = await tracksApi.search(title, searchArtist)
           if (!results.length) return
 
           const normalize = (s: string) => s.toLowerCase().replace(/[^a-zа-яё0-9]/gi, '')
@@ -102,7 +115,7 @@ export function useAudioEditor() {
               return rNorm.includes(aNorm) || aNorm.includes(rNorm)
             })
 
-          let artistMatches = findArtistMatches(results, artist)
+          let artistMatches = artist === 'Неизвестный исполнитель' ? [] : findArtistMatches(results, artist)
           let resolvedTitle = title
           let resolvedArtist = artist
 
