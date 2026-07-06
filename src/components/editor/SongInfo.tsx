@@ -29,11 +29,6 @@ export function SongInfo({ audioFile }: SongInfoProps) {
           {year}
         </span>
       )}
-      {genre && (
-        <span className="inline-flex items-center font-semibold border border-white/[0.1]" style={{ padding: '6px 14px', borderRadius: '999px', background: 'rgba(255,255,255,.07)', fontSize: '13px', color: '#8a8a8a', ...SANS }}>
-          {genre}
-        </span>
-      )}
     </div>
   )
 

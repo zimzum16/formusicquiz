@@ -654,7 +654,7 @@ export function WaveformDisplay({
       </div>
 
       {bottomSlot && (
-        <div className="pt-2">
+        <div className="pt-2 px-4 sm:px-6 lg:px-8">
           {bottomSlot}
         </div>
       )}

@@ -108,14 +108,12 @@ export default function Editor() {
           onTrimRangeChange={(r) => updateSegment(seg0.id, r)}
           markers={songMarkers}
           bottomSlot={
-            <div className={centered}>
-              <SongStructurePanel
-                markers={songMarkers}
-                isAnalyzing={isAnalyzingStructure}
-                duration={audioFile.duration}
-                onApplySegment={(s, e) => updateSegment(seg0.id, { startTime: s, endTime: e })}
-              />
-            </div>
+            <SongStructurePanel
+              markers={songMarkers}
+              isAnalyzing={isAnalyzingStructure}
+              duration={audioFile.duration}
+              onApplySegment={(s, e) => updateSegment(seg0.id, { startTime: s, endTime: e })}
+            />
           }
           playToolbar={(playBtn, volumeSlot) => (
             <div className={centered}>
@@ -148,14 +146,12 @@ export default function Editor() {
           onTrimRangeChange={(r) => updateSegment(seg1.id, r)}
           markers={songMarkers}
           bottomSlot={
-            <div className={centered}>
-              <SongStructurePanel
-                markers={songMarkers}
-                isAnalyzing={isAnalyzingStructure}
-                duration={audioFile.duration}
-                onApplySegment={(s, e) => updateSegment(seg1.id, { startTime: s, endTime: e })}
-              />
-            </div>
+            <SongStructurePanel
+              markers={songMarkers}
+              isAnalyzing={isAnalyzingStructure}
+              duration={audioFile.duration}
+              onApplySegment={(s, e) => updateSegment(seg1.id, { startTime: s, endTime: e })}
+            />
           }
           playToolbar={(playBtn, volumeSlot) => (
             <div className={centered}>
