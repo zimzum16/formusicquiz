@@ -119,6 +119,17 @@ export function useAudioEditor() {
             }
           }
 
+          // Фолбэк: исполнитель мог быть в другой раскладке (кириллица в ID3 vs латиница в Spotify).
+          // Ищем хотя бы по совпадению названия трека.
+          if (!artistMatches.length) {
+            const titleNorm = normalize(resolvedTitle)
+            const byTitle = results.find(r => {
+              const rn = normalize(r.title)
+              return rn === titleNorm || rn.includes(titleNorm) || titleNorm.includes(rn)
+            })
+            if (byTitle) artistMatches = [byTitle]
+          }
+
           if (!artistMatches.length) return
 
           const COMPILATION_RE = /greatest hits|best of|collection|anthology|compilation|platinum|hits|essential|сборник/i

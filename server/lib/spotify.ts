@@ -67,7 +67,7 @@ export async function searchTracks(query: string, artist?: string): Promise<Spot
   const token = await getAppToken();
   if (!token) return [];
   const q = artist ? `track:${query} artist:${artist}` : query;
-  const url = `${BASE}/search?q=${encodeURIComponent(q)}&type=track&limit=10&market=US`;
+  const url = `${BASE}/search?q=${encodeURIComponent(q)}&type=track&limit=10`;
 
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) {
