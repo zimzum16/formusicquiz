@@ -70,15 +70,24 @@ function artistMatches(resultArtist: string, searchArtist: string): boolean {
 // Tags are server-rendered in the page HTML but not returned by the API (always null).
 // Scrape them directly from the song page — no JS needed, no proxy required.
 async function scrapeTags(lyricsUrl: string): Promise<string[]> {
+  const decode = (s: string) =>
+    s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+
   try {
     const res = await fetch(lyricsUrl, {
       headers: PAGE_HEADERS,
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) return [];
     const html = await res.text();
-    const matches = [...html.matchAll(/href="https:\/\/genius\.com\/tags\/[^"]+\"[^>]*>([^<]+)<\/a>/g)];
-    return matches.map((m) => m[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
+
+    // Primary: anchor tags rendered server-side
+    const anchorMatches = [...html.matchAll(/href="https:\/\/genius\.com\/tags\/[^"]+\"[^>]*>([^<]+)<\/a>/g)];
+    if (anchorMatches.length > 0) return anchorMatches.map((m) => decode(m[1]));
+
+    // Fallback: embedded JSON (structure varies by page version)
+    const jsonMatches = [...html.matchAll(/"url":"https:\/\/genius\.com\/tags\/[^"]+","primary":[^,]+,"name":"([^"]+)"/g)];
+    return jsonMatches.map((m) => decode(m[1]));
   } catch {
     return [];
   }
