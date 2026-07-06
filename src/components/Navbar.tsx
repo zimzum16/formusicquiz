@@ -16,9 +16,9 @@ export default function Navbar({ currentPage, navigate }: NavbarProps) {
         <div className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center flex-shrink-0"
           style={{ background: '#0c0d10', border: '1px solid rgba(255,255,255,.09)', boxShadow: '0 0 0 1px rgba(45,212,191,.12), inset 0 1px 0 rgba(255,255,255,.06)' }}>
           <svg width="21" height="14" viewBox="0 0 60 40" fill="none">
-            <rect x="1"  y="12" width="3.5" height="16" rx="1.75" fill="rgba(255,255,255,0.2)"/>
-            <rect x="7"  y="7"  width="3.5" height="26" rx="1.75" fill="rgba(255,255,255,0.2)"/>
-            <rect x="13" y="14" width="3.5" height="12" rx="1.75" fill="rgba(255,255,255,0.2)"/>
+            <rect x="1"  y="12" width="3.5" height="16" rx="1.75" fill="rgba(255,255,255,0.4)"/>
+            <rect x="7"  y="7"  width="3.5" height="26" rx="1.75" fill="rgba(255,255,255,0.4)"/>
+            <rect x="13" y="14" width="3.5" height="12" rx="1.75" fill="rgba(255,255,255,0.4)"/>
             <line x1="19.5" y1="0" x2="19.5" y2="40" stroke="#2DD4BF" strokeWidth="1.5" strokeDasharray="3 2" opacity=".85"/>
             <g transform="translate(0,-6)">
               <rect x="21" y="11" width="3.5" height="24" rx="1.75" fill="#2DD4BF"/>
@@ -27,8 +27,8 @@ export default function Navbar({ currentPage, navigate }: NavbarProps) {
               <rect x="39" y="14" width="3.5" height="18" rx="1.75" fill="#2DD4BF" opacity=".8"/>
             </g>
             <line x1="45.5" y1="0" x2="45.5" y2="40" stroke="#2DD4BF" strokeWidth="1.5" strokeDasharray="3 2" opacity=".85"/>
-            <rect x="47" y="15" width="3.5" height="10" rx="1.75" fill="rgba(255,255,255,0.2)"/>
-            <rect x="53" y="10" width="3.5" height="20" rx="1.75" fill="rgba(255,255,255,0.2)"/>
+            <rect x="47" y="15" width="3.5" height="10" rx="1.75" fill="rgba(255,255,255,0.4)"/>
+            <rect x="53" y="10" width="3.5" height="20" rx="1.75" fill="rgba(255,255,255,0.4)"/>
           </svg>
         </div>
         <span className="font-extrabold text-[17px] tracking-[-0.025em]" style={{ fontFamily: 'Montserrat, sans-serif', color: '#fff' }}>
