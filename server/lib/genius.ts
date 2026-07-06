@@ -1,5 +1,10 @@
 const BASE = 'https://api.genius.com';
 
+const PAGE_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'text/html',
+};
+
 interface GeniusArtistRef {
   name: string;
   url: string;
@@ -24,6 +29,7 @@ export interface GeniusSong {
   release_date: string | null;
   release_year: number | null;
   language: string | null;
+  tags: string[];
   pageviews: number | null;
   song_art_image_url: string | null;
   media: GeniusMedia[];
@@ -61,35 +67,74 @@ function artistMatches(resultArtist: string, searchArtist: string): boolean {
   return a.includes(b) || b.includes(a);
 }
 
-export async function searchSong(title: string, artist: string): Promise<GeniusSong | null> {
-  const q = encodeURIComponent(`${artist} ${title}`);
-  const searchRes = await fetch(`${BASE}/search?q=${q}`, { headers: headers() });
-  if (!searchRes.ok) {
-    const text = await searchRes.text();
-    console.error(`[genius] search error ${searchRes.status}:`, text.slice(0, 200));
-    return null;
+// Tags are server-rendered in the page HTML but not returned by the API (always null).
+// Scrape them directly from the song page — no JS needed, no proxy required.
+async function scrapeTags(lyricsUrl: string): Promise<string[]> {
+  try {
+    const res = await fetch(lyricsUrl, {
+      headers: PAGE_HEADERS,
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const matches = [...html.matchAll(/href="https:\/\/genius\.com\/tags\/[^"]+\"[^>]*>([^<]+)<\/a>/g)];
+    return matches.map((m) => m[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
+  } catch {
+    return [];
   }
-  const searchData = (await searchRes.json()) as {
-    response: {
-      hits: { type: string; result: { id: number; url: string; primary_artist: { name: string } } }[];
-    };
-  };
+}
 
-  // Only consider actual lyrics pages (URLs always end in "-lyrics").
-  // Articles, lists, translations end in "-annotated", "-preklad-lyrics" (different artist), etc.
-  const lyricHits = searchData.response.hits.filter((h) => h.result.url.endsWith('-lyrics'));
+type GeniusHit = { type: string; result: { id: number; url: string; primary_artist: { name: string } } };
 
-  // Prefer a hit whose primary artist matches the one we searched for.
-  const hit =
-    lyricHits.find((h) => artistMatches(h.result.primary_artist.name, artist)) ?? lyricHits[0];
+async function geniusSearch(query: string): Promise<GeniusHit[]> {
+  const q = encodeURIComponent(query);
+  const res = await fetch(`${BASE}/search?q=${q}`, {
+    headers: headers(),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) {
+    console.error(`[genius] search error ${res.status}`);
+    return [];
+  }
+  const data = (await res.json()) as { response: { hits: GeniusHit[] } };
+  return data.response.hits ?? [];
+}
+
+function pickHit(hits: GeniusHit[], artist: string): GeniusHit | null {
+  // Only actual lyrics pages (URLs end in "-lyrics")
+  const lyricHits = hits.filter((h) => h.result.url.endsWith('-lyrics'));
+  // Prefer artist match, then any lyrics page, then any hit as last resort
+  return (
+    lyricHits.find((h) => artistMatches(h.result.primary_artist.name, artist)) ??
+    lyricHits[0] ??
+    hits.find((h) => artistMatches(h.result.primary_artist.name, artist)) ??
+    null
+  );
+}
+
+export async function searchSong(title: string, artist: string): Promise<GeniusSong | null> {
+  // Try "artist title", fall back to "title" alone if nothing found
+  let hit = pickHit(await geniusSearch(`${artist} ${title}`), artist);
+  if (!hit) hit = pickHit(await geniusSearch(title), artist);
   if (!hit) return null;
 
   const songId = hit.result.id;
-  const songRes = await fetch(`${BASE}/songs/${songId}?text_format=plain`, { headers: headers() });
+  const songUrl = hit.result.url;
+
+  // Fetch API details and scrape page tags in parallel
+  const [songRes, tags] = await Promise.all([
+    fetch(`${BASE}/songs/${songId}?text_format=plain`, {
+      headers: headers(),
+      signal: AbortSignal.timeout(8000),
+    }),
+    scrapeTags(songUrl),
+  ]);
+
   if (!songRes.ok) return null;
 
   const songData = (await songRes.json()) as { response: { song: GeniusApiSong } };
   const s = songData.response.song;
+
   return {
     lyrics_url: s.url,
     title: s.title ?? '',
@@ -98,6 +143,7 @@ export async function searchSong(title: string, artist: string): Promise<GeniusS
     release_date: s.release_date ?? null,
     release_year: s.release_date_components?.year ?? null,
     language: s.language ?? null,
+    tags,
     pageviews: s.stats?.pageviews ?? null,
     song_art_image_url: s.song_art_image_url ?? null,
     media: (s.media ?? []).map((m) => ({ type: m.provider, url: m.url })),

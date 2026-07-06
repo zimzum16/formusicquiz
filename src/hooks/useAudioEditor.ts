@@ -94,12 +94,45 @@ export function useAudioEditor() {
           if (!results.length) return
 
           const normalize = (s: string) => s.toLowerCase().replace(/[^a-zа-яё0-9]/gi, '')
-          const artistNorm = normalize(artist)
-          const match = results.find(r => {
-            const rNorm = normalize(r.artist)
-            return rNorm.includes(artistNorm) || artistNorm.includes(rNorm)
-          })
-          if (!match) return
+
+          const findArtistMatches = (res: typeof results, artistName: string) =>
+            res.filter(r => {
+              const rNorm = normalize(r.artist)
+              const aNorm = normalize(artistName)
+              return rNorm.includes(aNorm) || aNorm.includes(rNorm)
+            })
+
+          let artistMatches = findArtistMatches(results, artist)
+          let resolvedTitle = title
+          let resolvedArtist = artist
+
+          // Если совпадений нет и теги не были в файле — порядок в имени файла может быть
+          // "Title - Artist" вместо "Artist - Title". Пробуем поменять местами.
+          if (!artistMatches.length && !id3Tags.artist && !id3Tags.title) {
+            const swappedResults = await tracksApi.search(artist, title)
+            const swappedMatches = findArtistMatches(swappedResults, title)
+            if (swappedMatches.length) {
+              artistMatches = swappedMatches
+              resolvedTitle = artist   // первая часть имени файла оказалась тайтлом
+              resolvedArtist = title   // вторая — артистом
+              setAudioFile(prev => prev ? { ...prev, title: resolvedTitle, artist: resolvedArtist } : prev)
+            }
+          }
+
+          if (!artistMatches.length) return
+
+          const COMPILATION_RE = /greatest hits|best of|collection|anthology|compilation|platinum|hits|essential|сборник/i
+          let match = artistMatches[0]
+          if (id3Tags.album) {
+            const albumNorm = normalize(id3Tags.album)
+            const albumMatch = artistMatches.find(r =>
+              normalize(r.album).includes(albumNorm) || albumNorm.includes(normalize(r.album))
+            )
+            if (albumMatch) match = albumMatch
+          } else {
+            const nonCompilation = artistMatches.find(r => !COMPILATION_RE.test(r.album))
+            if (nonCompilation) match = nonCompilation
+          }
 
           const year = match.release_date?.slice(0, 4) ?? undefined
 

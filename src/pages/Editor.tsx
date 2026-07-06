@@ -67,12 +67,6 @@ export default function Editor() {
   return (
     <div className="py-8 space-y-4">
       <div className={`${centered} space-y-4`}>
-        <div className="text-center">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-            Обрезка и редактирование
-          </h1>
-        </div>
-
         {error && (
           <div className="p-4 rounded-[14px] border border-red-500/30 bg-red-500/10">
             <p className="text-red-400 text-sm" style={{ fontFamily: 'Montserrat, sans-serif' }}>{error}</p>

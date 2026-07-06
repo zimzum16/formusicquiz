@@ -8,7 +8,6 @@ import { getTrackStats } from '../lib/setlistfm.js';
 import { findVideo } from '../lib/youtube.js';
 import { getTrackInfo as getYandexTrackInfo } from '../lib/yandex.js';
 import { getAppleMusicData } from '../lib/applemusic.js';
-import { hasCyrillic, cyrToLat, latToCyr, looksLikeKeyboardMismatch, keyboardToLatin } from '../lib/translit.js';
 import { searchTracksItunes, getTrackItunes } from '../lib/itunes.js';
 
 const router = new OpenAPIHono();
@@ -40,6 +39,7 @@ const GeniusSchema = z.object({
   release_date: z.string().nullable(),
   release_year: z.number().nullable(),
   language: z.string().nullable(),
+  tags: z.array(z.string()),
   pageviews: z.number().nullable(),
   song_art_image_url: z.string().nullable(),
   media: z.array(MediaSchema),
@@ -482,27 +482,10 @@ router.openapi(lyricsRoute, async (c) => {
 
 router.openapi(searchRoute, async (c) => {
   const { q, artist } = c.req.valid('query');
-  const isCyr = hasCyrillic(q);
-  let altQ: string | null = null;
-
-  if (isCyr) {
-    altQ = looksLikeKeyboardMismatch(q) ? keyboardToLatin(q) : cyrToLat(q);
-  } else {
-    const cyr = latToCyr(q);
-    if (cyr !== q) altQ = cyr;
-  }
 
   let merged: Awaited<ReturnType<typeof searchTracks>> = [];
   try {
-    const [a, b] = await Promise.all([
-      searchTracks(q, artist),
-      altQ ? searchTracks(altQ, artist) : Promise.resolve([]),
-    ]);
-
-    // Для кириллицы альтернативный запрос важнее (транслит или раскладка)
-    const [primary, secondary] = isCyr ? [b, a] : [a, b];
-    const seen = new Set(primary.map(t => t.id));
-    merged = [...primary, ...secondary.filter(t => !seen.has(t.id))];
+    merged = await searchTracks(q, artist);
   } catch (e) {
     console.error('[search] Spotify error, falling back to iTunes:', e instanceof Error ? e.message : e);
   }
@@ -537,7 +520,7 @@ router.openapi(infoRoute, async (c) => {
 
   const [geniusResult, lastfmResult, youtubeResult, yandexResult, appleResult] =
     await Promise.allSettled([
-      withTimeout(searchSong(title, primaryArtist), 7000),
+      withTimeout(searchSong(title, primaryArtist), 14000),
       withTimeout(getTrackInfo(title, artist), 7000),
       withTimeout(findVideo(title, artist), 7000),
       withTimeout(getYandexTrackInfo(title, artist), 4000),

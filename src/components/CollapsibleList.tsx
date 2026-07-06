@@ -23,10 +23,10 @@ export function CollapsibleList<T>({ items, limit = 3, renderItem, emptyLabel }:
       {hiddenCount > 0 && (
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-left text-xs font-bold mt-0.5 transition-colors"
-          style={{ color: '#2DD4BF', fontFamily: 'Montserrat, sans-serif' }}
+          className="text-left text-[11px] font-semibold mt-1.5 transition-colors hover:text-white"
+          style={{ color: '#8a8a8a', fontFamily: 'Montserrat, sans-serif' }}
         >
-          {expanded ? 'Свернуть' : `Показать ещё (${hiddenCount})`}
+          {expanded ? '↑ Свернуть' : `+ Показать ещё (${hiddenCount})`}
         </button>
       )}
     </div>

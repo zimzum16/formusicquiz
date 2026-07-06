@@ -67,7 +67,7 @@ export function ImageSearchBlock({ audioFile, fillHeight }: ImageSearchBlockProp
           <button
             key={key}
             type="button"
-            className="flex items-center transition-opacity hover:opacity-80 focus-visible:outline-none"
+            className="flex items-center justify-center transition-opacity hover:opacity-80 focus-visible:outline-none"
             style={{ gap: '10px', padding: '8px 18px', borderRadius: '14px', background: bg, border: `1px solid ${border}`, cursor: 'pointer', whiteSpace: 'nowrap' }}
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); openUrlInNewTab(urls[key]) }}
             onMouseDown={(e) => e.stopPropagation()}

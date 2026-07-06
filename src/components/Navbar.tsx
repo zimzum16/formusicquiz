@@ -14,15 +14,25 @@ export default function Navbar({ currentPage, navigate }: NavbarProps) {
         className="flex items-center gap-2.5"
       >
         <div className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center flex-shrink-0"
-          style={{ background: 'linear-gradient(150deg,#3ad0c4,#2b8af0)', boxShadow: '0 2px 10px rgba(43,138,240,.45)' }}>
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-            <path d="M9 18V6l10-2v10" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="6.5" cy="18" r="2.6" fill="#fff" />
-            <circle cx="16.5" cy="14" r="2.6" fill="#fff" />
+          style={{ background: '#0c0d10', border: '1px solid rgba(255,255,255,.09)', boxShadow: '0 0 0 1px rgba(45,212,191,.12), inset 0 1px 0 rgba(255,255,255,.06)' }}>
+          <svg width="21" height="14" viewBox="0 0 60 40" fill="none">
+            <rect x="1"  y="12" width="3.5" height="16" rx="1.75" fill="rgba(255,255,255,0.2)"/>
+            <rect x="7"  y="7"  width="3.5" height="26" rx="1.75" fill="rgba(255,255,255,0.2)"/>
+            <rect x="13" y="14" width="3.5" height="12" rx="1.75" fill="rgba(255,255,255,0.2)"/>
+            <line x1="19.5" y1="0" x2="19.5" y2="40" stroke="#2DD4BF" strokeWidth="1.5" strokeDasharray="3 2" opacity=".85"/>
+            <g transform="translate(0,-6)">
+              <rect x="21" y="11" width="3.5" height="24" rx="1.75" fill="#2DD4BF"/>
+              <rect x="27" y="5"  width="3.5" height="36" rx="1.75" fill="#2DD4BF"/>
+              <rect x="33" y="10" width="3.5" height="26" rx="1.75" fill="#2DD4BF"/>
+              <rect x="39" y="14" width="3.5" height="18" rx="1.75" fill="#2DD4BF" opacity=".8"/>
+            </g>
+            <line x1="45.5" y1="0" x2="45.5" y2="40" stroke="#2DD4BF" strokeWidth="1.5" strokeDasharray="3 2" opacity=".85"/>
+            <rect x="47" y="15" width="3.5" height="10" rx="1.75" fill="rgba(255,255,255,0.2)"/>
+            <rect x="53" y="10" width="3.5" height="20" rx="1.75" fill="rgba(255,255,255,0.2)"/>
           </svg>
         </div>
-        <span className="font-extrabold text-[18px] text-white tracking-[-0.01em]" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-          Trackslice
+        <span className="font-extrabold text-[17px] tracking-[-0.025em]" style={{ fontFamily: 'Montserrat, sans-serif', color: '#fff' }}>
+          track<span style={{ color: '#2DD4BF' }}>slice</span>
         </span>
       </button>
 

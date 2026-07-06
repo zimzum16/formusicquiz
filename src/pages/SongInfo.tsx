@@ -14,6 +14,100 @@ function fmtNum(n: number) {
   return String(n);
 }
 
+const GENIUS_COUNTRY: Record<string, { flag: string; ru: string }> = {
+  // English names
+  'USA': { flag: '🇺🇸', ru: 'США' },
+  'Canada': { flag: '🇨🇦', ru: 'Канада' },
+  'UK': { flag: '🇬🇧', ru: 'Великобритания' },
+  'England': { flag: '🇬🇧', ru: 'Великобритания' },
+  'Australia': { flag: '🇦🇺', ru: 'Австралия' },
+  'France': { flag: '🇫🇷', ru: 'Франция' },
+  'Germany': { flag: '🇩🇪', ru: 'Германия' },
+  'Spain': { flag: '🇪🇸', ru: 'Испания' },
+  'Italy': { flag: '🇮🇹', ru: 'Италия' },
+  'Sweden': { flag: '🇸🇪', ru: 'Швеция' },
+  'Norway': { flag: '🇳🇴', ru: 'Норвегия' },
+  'Denmark': { flag: '🇩🇰', ru: 'Дания' },
+  'Netherlands': { flag: '🇳🇱', ru: 'Нидерланды' },
+  'Belgium': { flag: '🇧🇪', ru: 'Бельгия' },
+  'Switzerland': { flag: '🇨🇭', ru: 'Швейцария' },
+  'Austria': { flag: '🇦🇹', ru: 'Австрия' },
+  'Finland': { flag: '🇫🇮', ru: 'Финляндия' },
+  'Iceland': { flag: '🇮🇸', ru: 'Исландия' },
+  'Ireland': { flag: '🇮🇪', ru: 'Ирландия' },
+  'Poland': { flag: '🇵🇱', ru: 'Польша' },
+  'Russia': { flag: '🇷🇺', ru: 'Россия' },
+  'Ukraine': { flag: '🇺🇦', ru: 'Украина' },
+  'Czech Republic': { flag: '🇨🇿', ru: 'Чехия' },
+  'Hungary': { flag: '🇭🇺', ru: 'Венгрия' },
+  'Romania': { flag: '🇷🇴', ru: 'Румыния' },
+  'Greece': { flag: '🇬🇷', ru: 'Греция' },
+  'Turkey': { flag: '🇹🇷', ru: 'Турция' },
+  'Portugal': { flag: '🇵🇹', ru: 'Португалия' },
+  'Japan': { flag: '🇯🇵', ru: 'Япония' },
+  'South Korea': { flag: '🇰🇷', ru: 'Южная Корея' },
+  'China': { flag: '🇨🇳', ru: 'Китай' },
+  'India': { flag: '🇮🇳', ru: 'Индия' },
+  'Israel': { flag: '🇮🇱', ru: 'Израиль' },
+  'Egypt': { flag: '🇪🇬', ru: 'Египет' },
+  'Nigeria': { flag: '🇳🇬', ru: 'Нигерия' },
+  'Ghana': { flag: '🇬🇭', ru: 'Гана' },
+  'South Africa': { flag: '🇿🇦', ru: 'ЮАР' },
+  'Kenya': { flag: '🇰🇪', ru: 'Кения' },
+  'Senegal': { flag: '🇸🇳', ru: 'Сенегал' },
+  'Jamaica': { flag: '🇯🇲', ru: 'Ямайка' },
+  'Trinidad & Tobago': { flag: '🇹🇹', ru: 'Тринидад и Тобаго' },
+  'Puerto Rico': { flag: '🇵🇷', ru: 'Пуэрто-Рико' },
+  'Cuba': { flag: '🇨🇺', ru: 'Куба' },
+  'Haiti': { flag: '🇭🇹', ru: 'Гаити' },
+  'Dominican Republic': { flag: '🇩🇴', ru: 'Доминиканская Республика' },
+  'Panama': { flag: '🇵🇦', ru: 'Панама' },
+  'Brazil': { flag: '🇧🇷', ru: 'Бразилия' },
+  'Argentina': { flag: '🇦🇷', ru: 'Аргентина' },
+  'Colombia': { flag: '🇨🇴', ru: 'Колумбия' },
+  'Chile': { flag: '🇨🇱', ru: 'Чили' },
+  'Peru': { flag: '🇵🇪', ru: 'Перу' },
+  'Venezuela': { flag: '🇻🇪', ru: 'Венесуэла' },
+  'Ecuador': { flag: '🇪🇨', ru: 'Эквадор' },
+  'Mexico': { flag: '🇲🇽', ru: 'Мексика' },
+  'New Zealand': { flag: '🇳🇿', ru: 'Новая Зеландия' },
+  // Native language names (Genius sometimes uses them)
+  'Deutschland': { flag: '🇩🇪', ru: 'Германия' },
+  'België/Belgique': { flag: '🇧🇪', ru: 'Бельгия' },
+  'Österreich': { flag: '🇦🇹', ru: 'Австрия' },
+  'Schweiz/Suisse': { flag: '🇨🇭', ru: 'Швейцария' },
+  'España': { flag: '🇪🇸', ru: 'Испания' },
+  'Italia': { flag: '🇮🇹', ru: 'Италия' },
+  'Brasil': { flag: '🇧🇷', ru: 'Бразилия' },
+  'México': { flag: '🇲🇽', ru: 'Мексика' },
+  'Sverige': { flag: '🇸🇪', ru: 'Швеция' },
+  'Norge': { flag: '🇳🇴', ru: 'Норвегия' },
+  'Danmark': { flag: '🇩🇰', ru: 'Дания' },
+  'Nederland': { flag: '🇳🇱', ru: 'Нидерланды' },
+  'Suomi': { flag: '🇫🇮', ru: 'Финляндия' },
+  'Suomi/Finland': { flag: '🇫🇮', ru: 'Финляндия' },
+  'Ísland': { flag: '🇮🇸', ru: 'Исландия' },
+  'Polska': { flag: '🇵🇱', ru: 'Польша' },
+  'Россия': { flag: '🇷🇺', ru: 'Россия' },
+  'Україна': { flag: '🇺🇦', ru: 'Украина' },
+};
+
+function getCountriesFromTags(tags: string[]): { flag: string; ru: string }[] {
+  const seen = new Set<string>();
+  const result: { flag: string; ru: string }[] = [];
+  for (const tag of tags) {
+    const entry = GENIUS_COUNTRY[tag] ?? (() => {
+      const m = tag.match(/\(([^)]+)\)$/);
+      return m ? GENIUS_COUNTRY[m[1]] : undefined;
+    })();
+    if (entry && !seen.has(entry.ru)) {
+      seen.add(entry.ru);
+      result.push(entry);
+    }
+  }
+  return result;
+}
+
 const MONO: React.CSSProperties = { fontFamily: 'JetBrains Mono, monospace' };
 const SANS: React.CSSProperties = { fontFamily: 'Montserrat, sans-serif' };
 
@@ -70,6 +164,20 @@ function StripCard({ children }: { children: React.ReactNode }) {
   );
 }
 
+function ExternalLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="text-[11px] font-bold transition-opacity hover:opacity-80"
+      style={{ color: '#2DD4BF', ...SANS }}
+    >
+      {children}
+    </a>
+  );
+}
+
 function ServiceLogo({ icon, name, link, linkLabel }: { icon: React.ReactNode; name: string; link?: string; linkLabel?: string }) {
   return (
     <div className="flex-shrink-0 w-[140px] flex items-center gap-2.5 border-r border-white/[0.08] pr-4 mr-2">
@@ -77,15 +185,7 @@ function ServiceLogo({ icon, name, link, linkLabel }: { icon: React.ReactNode; n
       <div>
         <div className="text-[12px] font-bold text-white" style={SANS}>{name}</div>
         {link && (
-          <a
-            href={link}
-            target="_blank"
-            rel="noreferrer"
-            className="text-[11px] font-bold transition-opacity hover:opacity-80"
-            style={{ color: '#2DD4BF', ...SANS }}
-          >
-            {linkLabel ?? 'перейти →'}
-          </a>
+          <ExternalLink href={link}>{linkLabel ?? '→ Открыть'}</ExternalLink>
         )}
       </div>
     </div>
@@ -389,15 +489,32 @@ export default function SongInfo() {
                   )}
                   {(() => {
                     const compact: { label: string; value: React.ReactNode }[] = [];
-                    if (genius.release_date || genius.release_year)
-                      compact.push({ label: 'Дата выхода', value: genius.release_date ?? String(genius.release_year) });
-                    if (genius.language)
-                      compact.push({ label: 'Язык', value: genius.language });
+                    if (genius.release_date || genius.release_year) {
+                      const fmtDate = (d: string) => {
+                        const [y, m, day] = d.split('-');
+                        if (!m) return d;
+                        return day ? `${day}.${m}.${y}` : `${m}.${y}`;
+                      };
+                      compact.push({ label: 'Дата выхода', value: genius.release_date ? fmtDate(genius.release_date) : String(genius.release_year) });
+                    }
+                    const countries = getCountriesFromTags(genius.tags);
+                    if (countries.length) compact.push({ label: 'Страна', value: countries.map(c => `${c.flag} ${c.ru}`).join(' · ') });
+                    compact.push({ label: 'Текст песни', value: <ExternalLink href={genius.lyrics_url}>→ Открыть</ExternalLink> });
                     if (genius.pageviews !== null)
-                      compact.push({ label: 'Просмотры', value: fmtNum(genius.pageviews) });
-                    compact.push({ label: 'Текст песни', value: <a href={genius.lyrics_url} target="_blank" rel="noreferrer" className="hover:opacity-70 transition-opacity" style={{ color: '#2DD4BF' }}>Открыть ↗</a> });
+                      compact.push({ label: 'Просмотры текста', value: fmtNum(genius.pageviews) });
                     return compact.length > 0 ? <MetaCompact items={compact} /> : null;
                   })()}
+                  {genius.tags.length > 0 && (
+                    <div className="px-4 py-3 flex flex-wrap gap-1.5 border-t border-white/[0.08]">
+                      {genius.tags.map((tag) => (
+                        <span key={tag}
+                          className="text-[11px] font-bold px-2.5 py-1 rounded-full"
+                          style={{ background: 'rgba(245,158,66,.14)', color: '#f0a85a', ...SANS }}>
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Relations */}
@@ -443,10 +560,10 @@ export default function SongInfo() {
                 <ServiceLogo
                   name="Last.fm"
                   link={info.lastfm.url}
-                  linkLabel="перейти →"
+                  linkLabel="→ Открыть"
                   icon={
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="#D51007">
-                      <path d="M10.599 16.8l-.933-2.533s-1.533 1.733-3.8 1.733c-2 0-3.466-1.733-3.466-4.533 0-3.6 1.8-4.8 3.533-4.8 2.533 0 3.333 1.667 4 3.8l.933 2.933c.933 2.8 2.667 4.533 7.6 4.533 3.533 0 5.933-1.067 5.933-3.933 0-2.267-1.333-3.467-3.733-4l-1.8-.4c-1.267-.267-1.6-.8-1.6-1.6 0-.933.733-1.467 1.933-1.467 1.333 0 2 .5 2.133 1.733l2.667-.333c-.267-2.4-1.867-3.4-4.667-3.4-2.4 0-4.667 1-4.667 3.733 0 1.733.8 2.933 3.2 3.533l1.867.467c1.467.333 2 .933 2 1.8 0 1.067-.933 1.6-3.133 1.6-3.067 0-4.267-1.6-5-3.733l-.933-2.933C12.133 7.2 10.399 5.067 6.466 5.067 2.733 5.067 0 7.467 0 11.467 0 15.333 2.267 17.8 6.266 17.8c2.8 0 4.333-1 4.333-1z" />
+                      <path d="M10.584 17.21l-.88-2.392s-1.43 1.594-3.573 1.594c-1.897 0-3.244-1.649-3.244-4.288 0-3.382 1.704-4.591 3.381-4.591 2.42 0 3.189 1.567 3.849 3.574l.88 2.749c.88 2.666 2.529 4.81 7.285 4.81 3.409 0 5.718-1.044 5.718-3.793 0-2.227-1.265-3.381-3.63-3.931l-1.758-.385c-1.21-.275-1.567-.77-1.567-1.595 0-.934.742-1.484 1.952-1.484 1.32 0 2.034.495 2.144 1.677l2.749-.33c-.22-2.474-1.924-3.492-4.729-3.492-2.474 0-4.893.935-4.893 3.932 0 1.87.907 3.051 3.189 3.601l1.87.44c1.402.33 1.869.907 1.869 1.704 0 1.017-.99 1.43-2.86 1.43-2.776 0-3.93-1.457-4.59-3.464l-.907-2.75c-1.155-3.573-2.997-4.893-6.653-4.893C2.144 5.333 0 7.89 0 12.233c0 4.18 2.144 6.434 5.993 6.434 3.106 0 4.591-1.457 4.591-1.457z" />
                     </svg>
                   }
                 />
@@ -473,7 +590,7 @@ export default function SongInfo() {
               <ServiceLogo
                 name="YouTube"
                 link={info.youtube.url || info.youtube.search_url}
-                linkLabel={info.youtube.video_id ? 'смотреть →' : 'найти →'}
+                linkLabel={info.youtube.video_id ? '→ Смотреть' : '→ Найти'}
                 icon={
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="#FF0000">
                     <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z" />
@@ -499,14 +616,13 @@ export default function SongInfo() {
                 <ServiceLogo
                   name="Setlist.fm"
                   link={setlistfm?.url}
-                  linkLabel="перейти →"
+                  linkLabel="→ Открыть"
                   icon={
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#8a8a8a">
-                      <rect x="3" y="5" width="14" height="2" rx="1" />
-                      <rect x="3" y="10" width="10" height="2" rx="1" />
-                      <rect x="3" y="15" width="12" height="2" rx="1" />
-                      <circle cx="19" cy="16" r="3" fill="none" stroke="#2DD4BF" strokeWidth="1.5" />
-                      <path d="M19 13v3l2 1" stroke="#2DD4BF" strokeWidth="1.5" strokeLinecap="round" />
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF6C00" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" fill="rgba(239,108,0,0.15)" />
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                      <line x1="12" y1="19" x2="12" y2="22" />
+                      <line x1="9" y1="22" x2="15" y2="22" />
                     </svg>
                   }
                 />
@@ -545,14 +661,15 @@ export default function SongInfo() {
                 rel="noreferrer"
                 className="flex-1 flex items-center gap-2.5 border-r border-white/[0.08] pr-4 hover:opacity-80 transition-opacity min-w-[130px]"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#FC3F1D">
-                  <path d="M15.12 21H12.6l-4.2-7.5H6.9V21H4.5V3h4.68c3.54 0 5.58 1.8 5.58 5.04 0 2.4-1.2 4.08-3.24 4.8L15.12 21zm-5.94-9.54c2.1 0 3.3-.96 3.3-2.88S11.28 5.7 9.18 5.7H6.9v5.76h2.28z" />
+                <svg width="18" height="18" viewBox="0 0 48 48">
+                  <path d="M24 48C37.2548 48 48 37.2548 48 24C48 10.7452 37.2548 0 24 0C10.7452 0 0 10.7452 0 24C0 37.2548 10.7452 48 24 48Z" fill="#FFBC0D" />
+                  <path d="M42.3995 19.3967L42.2975 18.6445L36.1353 17.2059L39.3184 12.4823L38.9423 11.9702L33.9785 14.3989L34.5267 7.7926L33.9785 7.52062L30.8974 12.8244L27.2702 4.84961H26.586L27.4742 12.6544L18.403 5.43183L17.6167 5.63795L24.5992 14.3989L10.7363 9.77939L10.0861 10.4976L22.4764 17.514L5.4304 18.9526L5.25829 19.9789L22.9906 21.8956L8.16941 34.0139L8.85363 34.9383L26.4139 25.3528L22.9566 42.1608H24.017L30.7954 26.3473L34.9028 38.7036L35.6211 38.1554L34.0805 25.7651L40.3447 32.8495L40.723 32.1313L36.0673 23.3682L42.6736 25.6971L42.7416 24.9767L37.2317 20.5612L42.3995 19.3967Z" fill="#1A1A1A" />
                 </svg>
                 <div>
                   <div className="text-[12px] font-bold text-white" style={SANS}>Яндекс Музыка</div>
-                  <div className="text-[11px] font-bold" style={{ color: '#2DD4BF', ...SANS }}>
+                  <span className="text-[11px] font-bold" style={{ color: '#2DD4BF', ...SANS }}>
                     {info.yandex.url ? '→ Открыть' : '→ Найти'}
-                  </div>
+                  </span>
                 </div>
               </a>
 
@@ -577,7 +694,7 @@ export default function SongInfo() {
                     </svg>
                     <div>
                       <div className="text-[12px] font-bold text-white" style={SANS}>Apple Music</div>
-                      <div className="text-[11px] font-bold" style={{ color: '#2DD4BF', ...SANS }}>{appleLabel}</div>
+                      <span className="text-[11px] font-bold" style={{ color: '#2DD4BF', ...SANS }}>{appleLabel}</span>
                     </div>
                   </a>
                 );
@@ -601,9 +718,9 @@ export default function SongInfo() {
                     </svg>
                     <div>
                       <div className="text-[12px] font-bold text-white" style={SANS}>Spotify</div>
-                      <div className="text-[11px] font-bold" style={{ color: '#2DD4BF', ...SANS }}>
+                      <span className="text-[11px] font-bold" style={{ color: '#2DD4BF', ...SANS }}>
                         {isItunes ? '→ Найти' : '→ Открыть'}
-                      </div>
+                      </span>
                     </div>
                   </a>
                 );

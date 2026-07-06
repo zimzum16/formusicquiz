@@ -41,6 +41,7 @@ export interface GeniusSong {
   release_date: string | null;
   release_year: number | null;
   language: string | null;
+  tags: string[];
   pageviews: number | null;
   song_art_image_url: string | null;
   media: GeniusMedia[];

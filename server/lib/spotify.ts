@@ -8,32 +8,40 @@ interface TokenCache {
 
 let tokenCache: TokenCache | null = null;
 
-async function getAppToken(): Promise<string> {
+async function getAppToken(): Promise<string | null> {
   if (tokenCache && Date.now() < tokenCache.expiresAt) return tokenCache.token;
 
-  const clientId = process.env.SPOTIFY_CLIENT_ID!;
-  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET!;
-  const creds = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const clientId = process.env.SPOTIFY_CLIENT_ID;
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
 
-  const res = await fetch(TOKEN_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${creds}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: 'grant_type=client_credentials',
-  });
+  try {
+    const creds = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    const res = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${creds}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials',
+      signal: AbortSignal.timeout(8000),
+    });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Spotify token error ${res.status}: ${text.slice(0, 200)}`);
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`[spotify] token error ${res.status}: ${text.slice(0, 200)}`);
+      return null;
+    }
+    const data = (await res.json()) as { access_token: string; expires_in: number };
+    tokenCache = {
+      token: data.access_token,
+      expiresAt: Date.now() + (data.expires_in - 60) * 1000,
+    };
+    return tokenCache.token;
+  } catch (e) {
+    console.error('[spotify] token fetch failed:', e instanceof Error ? e.message : e);
+    return null;
   }
-  const data = (await res.json()) as { access_token: string; expires_in: number };
-  tokenCache = {
-    token: data.access_token,
-    expiresAt: Date.now() + (data.expires_in - 60) * 1000,
-  };
-  return tokenCache.token;
 }
 
 export interface SpotifyTrack {
@@ -57,6 +65,7 @@ export interface SpotifyArtist {
 
 export async function searchTracks(query: string, artist?: string): Promise<SpotifyTrack[]> {
   const token = await getAppToken();
+  if (!token) return [];
   const q = artist ? `track:${query} artist:${artist}` : query;
   const url = `${BASE}/search?q=${encodeURIComponent(q)}&type=track&limit=10&market=US`;
 
@@ -73,6 +82,7 @@ export async function searchTracks(query: string, artist?: string): Promise<Spot
 
 export async function getTrack(id: string): Promise<SpotifyTrack | null> {
   const token = await getAppToken();
+  if (!token) return null;
   const res = await fetch(`${BASE}/tracks/${id}?market=US`, {
     headers: { Authorization: `Bearer ${token}` },
   });
