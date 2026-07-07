@@ -67,28 +67,62 @@ function artistMatches(resultArtist: string, searchArtist: string): boolean {
   return a.includes(b) || b.includes(a);
 }
 
-// Tags are server-rendered in the page HTML but not returned by the API (always null).
-// Scrape them directly from the song page — no JS needed, no proxy required.
 async function scrapeTags(lyricsUrl: string): Promise<string[]> {
   const decode = (s: string) =>
     s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 
-  try {
-    const res = await fetch(lyricsUrl, {
-      headers: PAGE_HEADERS,
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!res.ok) return [];
-    const html = await res.text();
+  const fetchHtml = async (): Promise<string> => {
+    const scraperKeys = [
+      ...(process.env.SCRAPERAPI_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean),
+      ...(process.env.SCRAPERAPI_KEY ? [process.env.SCRAPERAPI_KEY] : []),
+    ];
+    for (const key of scraperKeys) {
+      try {
+        const res = await fetch(`http://api.scraperapi.com?api_key=${key}&url=${encodeURIComponent(lyricsUrl)}`, { signal: AbortSignal.timeout(12000) });
+        console.log('[genius] scrapeTags scraperapi status:', res.status);
+        if (res.ok) return res.text();
+      } catch { /* try next */ }
+    }
+    const zenrowsKeys = (process.env.ZENROWS_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean);
+    for (const key of zenrowsKeys) {
+      try {
+        const res = await fetch(`https://api.zenrows.com/v1/?apikey=${key}&url=${encodeURIComponent(lyricsUrl)}&antibot=true`, { signal: AbortSignal.timeout(12000) });
+        console.log('[genius] scrapeTags zenrows status:', res.status);
+        if (res.ok) return res.text();
+      } catch { /* try next */ }
+    }
+    const res = await fetch(lyricsUrl, { headers: PAGE_HEADERS, signal: AbortSignal.timeout(10000) });
+    console.log('[genius] scrapeTags direct status:', res.status);
+    if (!res.ok) return '';
+    return res.text();
+  };
 
-    // Primary: anchor tags rendered server-side
+  try {
+    const html = await fetchHtml();
+    if (!html) return [];
+
+    // Pattern 1: anchor tags rendered server-side
     const anchorMatches = [...html.matchAll(/href="https:\/\/genius\.com\/tags\/[^"]+\"[^>]*>([^<]+)<\/a>/g)];
     if (anchorMatches.length > 0) return anchorMatches.map((m) => decode(m[1]));
 
-    // Fallback: embedded JSON (structure varies by page version)
+    // Pattern 2: __NEXT_DATA__ JSON (Next.js Genius pages)
+    const nextDataMatch = html.match(/<script[^>]+id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+    if (nextDataMatch) {
+      try {
+        const json = JSON.parse(nextDataMatch[1]);
+        const song = json?.props?.pageProps?.songPage?.song ?? json?.props?.pageProps?.song;
+        if (Array.isArray(song?.tags) && song.tags.length > 0) {
+          return (song.tags as Array<{ name: string }>).map(t => t.name).filter(Boolean);
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Pattern 3: legacy embedded JSON
     const jsonMatches = [...html.matchAll(/"url":"https:\/\/genius\.com\/tags\/[^"]+","primary":[^,]+,"name":"([^"]+)"/g)];
+    console.log('[genius] scrapeTags patterns matched: anchor=0 nextData=0 legacy=' + jsonMatches.length);
     return jsonMatches.map((m) => decode(m[1]));
-  } catch {
+  } catch (e) {
+    console.error('[genius] scrapeTags error:', e);
     return [];
   }
 }
