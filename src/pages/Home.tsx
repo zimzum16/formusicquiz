@@ -139,7 +139,7 @@ export default function Home({ navigate }: HomeProps) {
                   color: '#2DD4BF',
                 }}>track</span>
               </div>
-              <h2 style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-.03em', color: '#fff', marginBottom: 8, lineHeight: 1.2 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-.03em', color: '#aaa', marginBottom: 8, lineHeight: 1.2 }}>
                 исследуй песню
               </h2>
               <p style={{ fontSize: 13, color: '#999', fontWeight: 500, lineHeight: 1.6 }}>
@@ -182,7 +182,7 @@ export default function Home({ navigate }: HomeProps) {
                   color: '#2DD4BF',
                 }}>slicer</span>
               </div>
-              <h2 style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-.03em', color: '#fff', marginBottom: 8, lineHeight: 1.2, marginTop: 8 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-.03em', color: '#aaa', marginBottom: 8, lineHeight: 1.2, marginTop: 8 }}>
                 вырежи фрагменты<br />и скачай
               </h2>
               <p style={{ fontSize: 13, color: '#999', fontWeight: 500, lineHeight: 1.6 }}>
