@@ -154,6 +154,18 @@ function getCountriesFromTags(tags: string[]): { flag: string; ru: string }[] {
   return result;
 }
 
+// Regional Indicator emoji → ISO alpha-2 code: 🇷🇺 → 'ru'
+const flagEmojiToIso = (flag: string) =>
+  [...flag].map(c => String.fromCharCode(c.codePointAt(0)! - 0x1F1E6 + 65)).join('').toLowerCase();
+
+const FlagImg = ({ emoji }: { emoji: string }) => (
+  <img
+    src={`https://flagcdn.com/16x12/${flagEmojiToIso(emoji)}.png`}
+    width={16} height={12}
+    style={{ display: 'inline', verticalAlign: 'middle', marginRight: 3 }}
+  />
+);
+
 const MONO: React.CSSProperties = { fontFamily: 'JetBrains Mono, monospace' };
 const SANS: React.CSSProperties = { fontFamily: 'Montserrat, sans-serif' };
 
@@ -549,7 +561,7 @@ export default function SongInfo() {
                         {countries.map((c, i) => (
                           <span key={i} style={{ whiteSpace: 'nowrap' }}>
                             {i > 0 && <span className="text-white/30 mx-0.5">·</span>}
-                            <span style={{ fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif' }}>{c.flag}</span> {c.ru}
+                            <FlagImg emoji={c.flag} />{c.ru}
                           </span>
                         ))}
                       </span>
