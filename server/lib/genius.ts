@@ -191,7 +191,7 @@ export async function searchSong(title: string, artist: string): Promise<GeniusS
     release_date: s.release_date ?? null,
     release_year: s.release_date_components?.year ?? null,
     language: s.language ?? null,
-    tags,
+    tags: (s.tags && s.tags.length > 0) ? s.tags.map(t => t.name) : tags,
     pageviews: s.stats?.pageviews ?? null,
     song_art_image_url: s.song_art_image_url ?? null,
     media: (s.media ?? []).map((m) => ({ type: m.provider, url: m.url })),
@@ -224,6 +224,7 @@ interface GeniusApiSong {
   writer_artists?: { name: string; url: string }[];
   producer_artists?: { name: string; url: string }[];
   featured_artists?: { name: string; url: string }[];
+  tags?: Array<{ id: number; name: string }>;
   song_relationships?: {
     relationship_type: string;
     songs: { title: string; primary_artist: { name: string }; url: string }[];

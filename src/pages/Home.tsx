@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Page } from '../App';
 
 interface HomeProps {
@@ -48,24 +49,29 @@ const SmallWaveformIcon = () => (
   </svg>
 );
 
-const SongInfoPreview = () => (
+const SongInfoPreview = ({ onClick }: { onClick: () => void }) => (
   <img
     src="/preview-song-info.png"
-    alt="О песне"
-    style={{ width: '100%', borderRadius: 14, display: 'block' }}
+    alt="track"
+    onClick={e => { e.stopPropagation(); onClick(); }}
+    style={{ width: '100%', borderRadius: 14, display: 'block', cursor: 'zoom-in' }}
   />
 );
 
-const EditorPreview = () => (
+const EditorPreview = ({ onClick }: { onClick: () => void }) => (
   <img
     src="/preview-editor.png"
-    alt="Редактор"
-    style={{ width: '100%', borderRadius: 14, display: 'block' }}
+    alt="slicer"
+    onClick={e => { e.stopPropagation(); onClick(); }}
+    style={{ width: '100%', borderRadius: 14, display: 'block', cursor: 'zoom-in' }}
   />
 );
 
 export default function Home({ navigate }: HomeProps) {
+  const [lightbox, setLightbox] = useState<string | null>(null);
+
   return (
+    <>
     <main style={{ fontFamily: 'Montserrat, sans-serif', color: '#fff' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '80px 32px 120px' }}>
 
@@ -87,23 +93,23 @@ export default function Home({ navigate }: HomeProps) {
             <WaveformIcon size={46} />
           </div>
 
-          <div style={{ fontSize: 40, fontWeight: 900, letterSpacing: '-.05em', lineHeight: 1 }}>
+          <div style={{ fontSize: 46, fontWeight: 900, letterSpacing: '-.05em', lineHeight: 1 }}>
             track<span style={{ color: '#2DD4BF' }}>slice</span>
           </div>
 
           <div style={{
             fontFamily: 'Montserrat, sans-serif',
-            fontSize: 11, color: '#3a3a3a',
+            fontSize: 11, color: '#888',
             letterSpacing: '.2em', textTransform: 'uppercase',
           }}>
-            cut · listen · discover
+            discover · cut · download
           </div>
         </div>
 
         {/* Two cards */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
 
-          {/* О песне */}
+          {/* track */}
           <div
             onClick={() => navigate('song-info')}
             style={{
@@ -116,8 +122,8 @@ export default function Home({ navigate }: HomeProps) {
             onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(45,212,191,.25)')}
             onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)')}
           >
-            <div style={{ padding: '32px 32px 24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <div style={{ padding: '32px 32px 24px', textAlign: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 }}>
                 <div style={{
                   width: 28, height: 28, borderRadius: 8,
                   background: 'rgba(45,212,191,.12)',
@@ -128,24 +134,24 @@ export default function Home({ navigate }: HomeProps) {
                 </div>
                 <span style={{
                   fontFamily: 'Montserrat, sans-serif',
-                  fontSize: 10, fontWeight: 700,
+                  fontSize: 13, fontWeight: 700,
                   letterSpacing: '.16em', textTransform: 'uppercase',
                   color: '#2DD4BF',
-                }}>О песне</span>
+                }}>track</span>
               </div>
-              <h2 style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-.03em', color: '#fff', marginBottom: 8, lineHeight: 1.2 }}>
-                Всё о песне
+              <h2 style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-.03em', color: '#fff', marginBottom: 8, lineHeight: 1.2 }}>
+                исследуй песню
               </h2>
-              <p style={{ fontSize: 13, color: '#555', fontWeight: 500, lineHeight: 1.6 }}>
-                Текст, аккорды, история создания, BPM, тональность — любая информация о треке в одном месте.
+              <p style={{ fontSize: 13, color: '#999', fontWeight: 500, lineHeight: 1.6 }}>
+                Узнай автора и продюсера, читай текст песни, смотри кто сделал кавер или взял сэмпл, количество прослушиваний и просмотров на разных сервисах и ссылки.
               </p>
             </div>
             <div style={{ padding: '0 20px 20px', flex: 1 }}>
-              <SongInfoPreview />
+              <SongInfoPreview onClick={() => setLightbox('/preview-song-info.png')} />
             </div>
           </div>
 
-          {/* Редактор */}
+          {/* slicer */}
           <div
             onClick={() => navigate('editor')}
             style={{
@@ -158,8 +164,8 @@ export default function Home({ navigate }: HomeProps) {
             onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(45,212,191,.25)')}
             onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)')}
           >
-            <div style={{ padding: '32px 32px 24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <div style={{ padding: '32px 32px 24px', textAlign: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 }}>
                 <div style={{
                   width: 28, height: 28, borderRadius: 8,
                   background: 'rgba(45,212,191,.12)',
@@ -171,25 +177,44 @@ export default function Home({ navigate }: HomeProps) {
                 </div>
                 <span style={{
                   fontFamily: 'Montserrat, sans-serif',
-                  fontSize: 10, fontWeight: 700,
+                  fontSize: 13, fontWeight: 700,
                   letterSpacing: '.16em', textTransform: 'uppercase',
                   color: '#2DD4BF',
-                }}>Редактор</span>
+                }}>slicer</span>
               </div>
-              <h2 style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-.03em', color: '#fff', marginBottom: 8, lineHeight: 1.2, marginTop: 8 }}>
-                Вырежи фрагмент
+              <h2 style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-.03em', color: '#fff', marginBottom: 8, lineHeight: 1.2, marginTop: 8 }}>
+                вырежи фрагменты<br />и скачай
               </h2>
-              <p style={{ fontSize: 13, color: '#555', fontWeight: 500, lineHeight: 1.6 }}>
-                Отметь начало и конец — получи нужный кусок трека. Без лишних шагов, прямо в приложении.
+              <p style={{ fontSize: 13, color: '#999', fontWeight: 500, lineHeight: 1.6 }}>
+                Загрузи файл, выбери начало и конец фрагментов, обрежь и скачай. Посмотри текст песни и найди фото исполнителя.
               </p>
             </div>
             <div style={{ padding: '0 20px 20px', flex: 1 }}>
-              <EditorPreview />
+              <EditorPreview onClick={() => setLightbox('/preview-editor.png')} />
             </div>
           </div>
 
         </div>
       </div>
     </main>
+
+    {lightbox && (
+      <div
+        onClick={() => setLightbox(null)}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(0,0,0,.85)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'zoom-out', padding: 32,
+        }}
+      >
+        <img
+          src={lightbox}
+          alt=""
+          style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 16, boxShadow: '0 32px 80px rgba(0,0,0,.8)' }}
+        />
+      </div>
+    )}
+    </>
   );
 }

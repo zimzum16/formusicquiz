@@ -544,7 +544,16 @@ export default function SongInfo() {
                       compact.push({ label: 'Дата выхода', value: genius.release_date ? fmtDate(genius.release_date) : String(genius.release_year) });
                     }
                     const countries = getCountriesFromTags(genius.tags);
-                    if (countries.length) compact.push({ label: 'Страна', value: countries.map(c => `${c.flag} ${c.ru}`).join(' · ') });
+                    if (countries.length) compact.push({ label: 'Страна', value: (
+                      <span className="flex flex-wrap justify-center gap-x-1.5">
+                        {countries.map((c, i) => (
+                          <span key={i} style={{ whiteSpace: 'nowrap' }}>
+                            {i > 0 && <span className="text-white/30 mx-0.5">·</span>}
+                            {c.flag} {c.ru}
+                          </span>
+                        ))}
+                      </span>
+                    ) });
                     compact.push({ label: 'Текст песни', value: <ExternalLink href={genius.lyrics_url}>→ Открыть</ExternalLink> });
                     if (genius.pageviews !== null)
                       compact.push({ label: 'Просмотры текста', value: fmtNum(genius.pageviews) });

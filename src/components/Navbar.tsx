@@ -48,7 +48,7 @@ export default function Navbar({ currentPage, navigate }: NavbarProps) {
             boxShadow: currentPage === 'song-info' ? '0 0 14px rgba(45,212,191,.4)' : 'none',
           }}
         >
-          О песне
+          track
         </button>
         <button
           onClick={() => navigate('editor')}
@@ -61,7 +61,7 @@ export default function Navbar({ currentPage, navigate }: NavbarProps) {
             boxShadow: currentPage === 'editor' ? '0 0 14px rgba(45,212,191,.4)' : 'none',
           }}
         >
-          Редактор
+          slicer
         </button>
       </nav>
       </div>
