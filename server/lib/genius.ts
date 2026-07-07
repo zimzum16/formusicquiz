@@ -72,6 +72,14 @@ async function scrapeTags(lyricsUrl: string): Promise<string[]> {
     s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 
   const fetchHtml = async (): Promise<string> => {
+    // Try direct first — free, works when VPS IP isn't blocked
+    try {
+      const res = await fetch(lyricsUrl, { headers: PAGE_HEADERS, signal: AbortSignal.timeout(10000) });
+      console.log('[genius] scrapeTags direct status:', res.status);
+      if (res.ok) return res.text();
+    } catch { /* blocked, fall through to proxy */ }
+
+    // Fall back to proxy only when direct is blocked
     const scraperKeys = [
       ...(process.env.SCRAPERAPI_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean),
       ...(process.env.SCRAPERAPI_KEY ? [process.env.SCRAPERAPI_KEY] : []),
@@ -91,10 +99,7 @@ async function scrapeTags(lyricsUrl: string): Promise<string[]> {
         if (res.ok) return res.text();
       } catch { /* try next */ }
     }
-    const res = await fetch(lyricsUrl, { headers: PAGE_HEADERS, signal: AbortSignal.timeout(10000) });
-    console.log('[genius] scrapeTags direct status:', res.status);
-    if (!res.ok) return '';
-    return res.text();
+    return '';
   };
 
   try {
