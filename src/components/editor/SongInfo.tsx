@@ -14,7 +14,7 @@ function parseFeat(raw: string): { cleanTitle: string; feat: string | null } {
 }
 
 export function SongInfo({ audioFile }: SongInfoProps) {
-  const { artist, title: rawTitle, album, coverArt, year, genre, geniusUrl } = audioFile
+  const { artist, title: rawTitle, album, coverArt, year, geniusUrl } = audioFile
   const { cleanTitle: title, feat } = parseFeat(rawTitle)
 
   const chips = (
@@ -40,9 +40,6 @@ export function SongInfo({ audioFile }: SongInfoProps) {
       className="inline-flex items-center gap-[6px] font-bold hover:opacity-80 transition-opacity"
       style={{ fontSize: '14px', color: '#2DD4BF', textDecoration: 'none', ...SANS }}
     >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="#2DD4BF">
-        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.77 17.4c-2.714 0-4.714-2.057-4.714-4.8 0-2.743 2-4.8 4.714-4.8 1.257 0 2.286.457 3.086 1.257l-1.257 1.257c-.457-.457-1.029-.686-1.829-.686-1.543 0-2.743 1.2-2.743 2.972s1.2 2.972 2.743 2.972c1.714 0 2.4-.857 2.514-1.8H12.77v-1.714h4.457c.057.343.086.686.086 1.086 0 2.914-1.829 4.257-4.543 4.257z" />
-      </svg>
       Текст песни
     </a>
   ) : null

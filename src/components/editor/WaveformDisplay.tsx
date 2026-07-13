@@ -8,12 +8,14 @@ import type { SongMarker, SectionType } from '../../lib/songStructure'
 const MIN_TRIM_DURATION = 0.05
 
 const MARKER_LINE_COLORS: Record<SectionType, string> = {
-  intro:   'rgba(96,165,250,0.7)',
-  outro:   'rgba(96,165,250,0.7)',
-  verse:   'rgba(52,211,153,0.7)',
-  chorus:  'rgba(192,132,252,0.7)',
-  bridge:  'rgba(251,146,60,0.7)',
-  unknown: 'rgba(156,163,175,0.5)',
+  intro:        'rgba(96,165,250,0.7)',
+  outro:        'rgba(96,165,250,0.7)',
+  verse:        'rgba(52,211,153,0.7)',
+  'pre-chorus': 'rgba(6,182,212,0.7)',
+  chorus:       'rgba(192,132,252,0.7)',
+  'post-chorus':'rgba(236,72,153,0.7)',
+  bridge:       'rgba(251,146,60,0.7)',
+  unknown:      'rgba(156,163,175,0.5)',
 }
 
 const DEFAULT_PLAYBACK_VOLUME = 0.3

@@ -9,30 +9,36 @@ interface SongStructurePanelProps {
 }
 
 const SECTION_BG: Record<SectionType, string> = {
-  intro:   'bg-blue-500',
-  outro:   'bg-blue-400',
-  verse:   'bg-emerald-500',
-  chorus:  'bg-purple-500',
-  bridge:  'bg-orange-500',
-  unknown: 'bg-neutral-500',
+  intro:        'bg-blue-500',
+  outro:        'bg-blue-400',
+  verse:        'bg-emerald-500',
+  'pre-chorus': 'bg-cyan-500',
+  chorus:       'bg-purple-500',
+  'post-chorus':'bg-pink-500',
+  bridge:       'bg-orange-500',
+  unknown:      'bg-neutral-500',
 }
 
 const SECTION_DOT: Record<SectionType, string> = {
-  intro:   'bg-blue-400',
-  outro:   'bg-blue-400',
-  verse:   'bg-emerald-400',
-  chorus:  'bg-purple-400',
-  bridge:  'bg-orange-400',
-  unknown: 'bg-neutral-500',
+  intro:        'bg-blue-400',
+  outro:        'bg-blue-400',
+  verse:        'bg-emerald-400',
+  'pre-chorus': 'bg-cyan-400',
+  chorus:       'bg-purple-400',
+  'post-chorus':'bg-pink-400',
+  bridge:       'bg-orange-400',
+  unknown:      'bg-neutral-500',
 }
 
 const TYPE_LABEL: Record<SectionType, string> = {
-  intro:   'Интро',
-  outro:   'Аутро',
-  verse:   'Куплет',
-  chorus:  'Припев',
-  bridge:  'Бридж',
-  unknown: 'Неизвестно',
+  intro:        'Интро',
+  outro:        'Аутро',
+  verse:        'Куплет',
+  'pre-chorus': 'Пред-припев',
+  chorus:       'Припев',
+  'post-chorus':'Пост-припев',
+  bridge:       'Бридж',
+  unknown:      'Неизвестно',
 }
 
 export function SongStructurePanel({ markers, isAnalyzing, onApplySegment, duration }: SongStructurePanelProps) {

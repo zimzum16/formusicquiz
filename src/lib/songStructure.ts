@@ -1,4 +1,4 @@
-export type SectionType = 'intro' | 'verse' | 'chorus' | 'bridge' | 'outro' | 'unknown'
+export type SectionType = 'intro' | 'verse' | 'pre-chorus' | 'chorus' | 'post-chorus' | 'bridge' | 'outro' | 'unknown'
 
 export interface SongMarker {
   start: number

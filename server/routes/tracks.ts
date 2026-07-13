@@ -117,7 +117,7 @@ const ErrorSchema = z.object({ error: z.string() });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-type SectionType = 'intro' | 'verse' | 'chorus' | 'bridge' | 'outro' | 'unknown';
+type SectionType = 'intro' | 'verse' | 'pre-chorus' | 'chorus' | 'post-chorus' | 'bridge' | 'outro' | 'unknown';
 
 interface GeniusLyricsSection {
   type: SectionType;
@@ -132,8 +132,8 @@ function mapSectionType(name: string): SectionType {
   if (/intro|интро/.test(lower)) return 'intro';
   if (/outro|аутро|coda/.test(lower)) return 'outro';
   // pre/post-chorus checked before chorus to avoid partial match
-  if (/pre-chorus|pre chorus|пред.припев/.test(lower)) return 'unknown';
-  if (/post-chorus|post chorus|пост.припев/.test(lower)) return 'unknown';
+  if (/pre-chorus|pre chorus|пред.припев/.test(lower)) return 'pre-chorus';
+  if (/post-chorus|post chorus|пост.припев/.test(lower)) return 'post-chorus';
   if (/chorus|припев|refrain|hook/.test(lower)) return 'chorus';
   return 'unknown';
 }
