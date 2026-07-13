@@ -85,97 +85,7 @@ export function useAudioEditor() {
         genre: id3Tags.genre,
       })
 
-      // Анализ структуры и Spotify запускаем параллельно
       const hasId3Tags = !!(id3Tags.artist && id3Tags.title)
-      setIsAnalyzingStructure(true)
-      analyzeSongStructure(title, artist, audioBuffer.duration, (gTitle, gArtist) => {
-        // Обновляем title/artist из Genius только если ID3-тегов не было —
-        // иначе Genius-каноническое имя перезапишет корректные теги другим форматом
-        if (!hasId3Tags && (gTitle !== title || gArtist !== artist)) {
-          setAudioFile(prev => prev ? { ...prev, title: gTitle, artist: gArtist } : prev)
-        }
-      })
-        .then((analysis: SongAnalysis) => { setSongMarkers(analysis.markers) })
-        .finally(() => setIsAnalyzingStructure(false))
-
-      // Фоновое обогащение из Spotify — только обложка, альбом, год
-      void (async () => {
-        try {
-          // Не посылаем placeholder-исполнителя в API — он не совпадёт ни с чем и обнулит iTunes-результаты
-          const searchArtist = artist === 'Неизвестный исполнитель' ? undefined : artist
-          const results = await tracksApi.search(title, searchArtist)
-          if (!results.length) return
-
-          const normalize = (s: string) => s.toLowerCase().replace(/[^a-zа-яё0-9]/gi, '')
-
-          const findArtistMatches = (res: typeof results, artistName: string) =>
-            res.filter(r => {
-              const rNorm = normalize(r.artist)
-              const aNorm = normalize(artistName)
-              return rNorm.includes(aNorm) || aNorm.includes(rNorm)
-            })
-
-          let artistMatches = artist === 'Неизвестный исполнитель' ? [] : findArtistMatches(results, artist)
-          let resolvedTitle = title
-          let resolvedArtist = artist
-
-          // Если совпадений нет и теги не были в файле — порядок в имени файла может быть
-          // "Title - Artist" вместо "Artist - Title". Пробуем поменять местами.
-          if (!artistMatches.length && !id3Tags.artist && !id3Tags.title) {
-            const swappedResults = await tracksApi.search(artist, title)
-            const swappedMatches = findArtistMatches(swappedResults, title)
-            if (swappedMatches.length) {
-              artistMatches = swappedMatches
-              resolvedTitle = artist   // первая часть имени файла оказалась тайтлом
-              resolvedArtist = title   // вторая — артистом
-              setAudioFile(prev => prev ? { ...prev, title: resolvedTitle, artist: resolvedArtist } : prev)
-            }
-          }
-
-          // Фолбэк: исполнитель мог быть в другой раскладке (кириллица в ID3 vs латиница в Spotify).
-          // Ищем хотя бы по совпадению названия трека.
-          if (!artistMatches.length) {
-            const titleNorm = normalize(resolvedTitle)
-            const byTitle = results.find(r => {
-              const rn = normalize(r.title)
-              return rn === titleNorm || rn.includes(titleNorm) || titleNorm.includes(rn)
-            })
-            if (byTitle) artistMatches = [byTitle]
-          }
-
-          if (!artistMatches.length) return
-
-          const COMPILATION_RE = /greatest hits|best of|collection|anthology|compilation|platinum|hits|essential|сборник/i
-          let match = artistMatches[0]
-          if (id3Tags.album) {
-            const albumNorm = normalize(id3Tags.album)
-            const albumMatch = artistMatches.find(r =>
-              normalize(r.album).includes(albumNorm) || albumNorm.includes(normalize(r.album))
-            )
-            if (albumMatch) match = albumMatch
-          } else {
-            const nonCompilation = artistMatches.find(r => !COMPILATION_RE.test(r.album))
-            if (nonCompilation) match = nonCompilation
-          }
-
-          const year = match.release_date?.slice(0, 4) ?? undefined
-
-          setAudioFile(prev => prev ? {
-            ...prev,
-            coverArt: match.cover_url ?? prev.coverArt,
-            album: match.album || prev.album,
-            year: year || prev.year,
-          } : prev)
-
-          const info = await tracksApi.getInfo(match.id)
-          const geniusUrl = info.genius?.lyrics_url ?? undefined
-          if (geniusUrl) {
-            setAudioFile(prev => prev ? { ...prev, geniusUrl } : prev)
-          }
-        } catch {
-          // Тихая ошибка — данные из ID3 остаются
-        }
-      })()
 
       const defaultSegment: TrimSegment = {
         id: crypto.randomUUID(),
@@ -186,9 +96,97 @@ export function useAudioEditor() {
         fadeInDuration: 1,
         fadeOutDuration: 1,
       }
-
       setSegments([defaultSegment])
       setProcessedFiles([])
+
+      // Сначала Spotify/iTunes (подтверждаем title/artist), затем Genius с правильными данными
+      void (async () => {
+        let confirmedTitle = title
+        let confirmedArtist = artist
+        let spotifyFound = false
+
+        try {
+          const searchArtist = artist === 'Неизвестный исполнитель' ? undefined : artist
+          const results = await tracksApi.search(title, searchArtist)
+
+          if (results.length) {
+            const normalize = (s: string) => s.toLowerCase().replace(/[^a-zа-яё0-9]/gi, '')
+
+            const findArtistMatches = (res: typeof results, artistName: string) =>
+              res.filter(r => {
+                const rNorm = normalize(r.artist)
+                const aNorm = normalize(artistName)
+                return rNorm.includes(aNorm) || aNorm.includes(rNorm)
+              })
+
+            let artistMatches = artist === 'Неизвестный исполнитель' ? [] : findArtistMatches(results, artist)
+
+            // Если совпадений нет и теги не были в файле — порядок мог быть "Title - Artist"
+            if (!artistMatches.length && !id3Tags.artist && !id3Tags.title) {
+              const swappedResults = await tracksApi.search(artist, title)
+              const swappedMatches = findArtistMatches(swappedResults, title)
+              if (swappedMatches.length) {
+                artistMatches = swappedMatches
+                confirmedTitle = artist
+                confirmedArtist = title
+                setAudioFile(prev => prev ? { ...prev, title: confirmedTitle, artist: confirmedArtist } : prev)
+              }
+            }
+
+            // Фолбэк: ищем хотя бы по названию трека
+            if (!artistMatches.length) {
+              const titleNorm = normalize(confirmedTitle)
+              const byTitle = results.find(r => {
+                const rn = normalize(r.title)
+                return rn === titleNorm || rn.includes(titleNorm) || titleNorm.includes(rn)
+              })
+              if (byTitle) artistMatches = [byTitle]
+            }
+
+            if (artistMatches.length) {
+              const COMPILATION_RE = /greatest hits|best of|collection|anthology|compilation|platinum|hits|essential|сборник/i
+              let match = artistMatches[0]
+              if (id3Tags.album) {
+                const albumNorm = normalize(id3Tags.album)
+                const albumMatch = artistMatches.find(r =>
+                  normalize(r.album).includes(albumNorm) || albumNorm.includes(normalize(r.album))
+                )
+                if (albumMatch) match = albumMatch
+              } else {
+                const nonCompilation = artistMatches.find(r => !COMPILATION_RE.test(r.album))
+                if (nonCompilation) match = nonCompilation
+              }
+
+              const year = match.release_date?.slice(0, 4) ?? undefined
+              setAudioFile(prev => prev ? {
+                ...prev,
+                coverArt: match.cover_url ?? prev.coverArt,
+                album: match.album || prev.album,
+                year: year || prev.year,
+              } : prev)
+              spotifyFound = true
+            }
+          }
+        } catch {
+          // тихая ошибка — продолжаем с оригинальными значениями
+        }
+
+        // Запускаем Genius с подтверждёнными данными от Spotify/iTunes
+        setIsAnalyzingStructure(true)
+        analyzeSongStructure(confirmedTitle, confirmedArtist, audioBuffer.duration, (gTitle, gArtist) => {
+          // Обновляем title/artist только если Spotify не нашёл совпадений и не было ID3-тегов
+          if (!hasId3Tags && !spotifyFound && (gTitle !== confirmedTitle || gArtist !== confirmedArtist)) {
+            setAudioFile(prev => prev ? { ...prev, title: gTitle, artist: gArtist } : prev)
+          }
+        })
+          .then((analysis: SongAnalysis) => {
+            setSongMarkers(analysis.markers)
+            if (analysis.geniusUrl) {
+              setAudioFile(prev => prev ? { ...prev, geniusUrl: analysis.geniusUrl } : prev)
+            }
+          })
+          .finally(() => setIsAnalyzingStructure(false))
+      })()
     } catch (err) {
       setError('Ошибка при загрузке файла. Убедитесь, что это корректный MP3 файл.')
       console.error('File upload error:', err)

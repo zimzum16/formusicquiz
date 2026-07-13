@@ -11,6 +11,7 @@ export interface SongAnalysis {
   markers: SongMarker[]
   title: string
   artist: string
+  geniusUrl?: string
 }
 
 interface LrcLine { time: number; text: string }
@@ -27,6 +28,7 @@ interface GeniusResult {
   sections: GeniusSection[]
   title: string
   artist: string
+  url?: string
 }
 
 async function fetchGeniusSections(title: string, artist: string): Promise<GeniusResult> {
@@ -35,7 +37,7 @@ async function fetchGeniusSections(title: string, artist: string): Promise<Geniu
     const res = await fetch(`${BASE}/api/tracks/lyrics?${params}`)
     if (!res.ok) return { sections: [], title: '', artist: '' }
     const data: GeniusResult = await res.json()
-    return { sections: data.sections ?? [], title: data.title ?? '', artist: data.artist ?? '' }
+    return { sections: data.sections ?? [], title: data.title ?? '', artist: data.artist ?? '', url: data.url }
   } catch {
     return { sections: [], title: '', artist: '' }
   }
@@ -229,14 +231,14 @@ export async function analyzeSongStructure(
 
   const [genius, lrcLines] = await Promise.all([geniusPromise, lrcPromise])
 
-  if (genius.sections.length === 0) return { markers: [], title: genius.resolvedTitle, artist: genius.resolvedArtist }
+  if (genius.sections.length === 0) return { markers: [], title: genius.resolvedTitle, artist: genius.resolvedArtist, geniusUrl: genius.url }
 
   // Если LRC не нашёлся с исходным title — retry с очищенным названием из Genius
   const lines = lrcLines.length === 0 && genius.resolvedTitle !== title
     ? await fetchLrcLines(genius.resolvedTitle, genius.resolvedArtist)
     : lrcLines
 
-  if (lines.length === 0) return { markers: [], title: genius.resolvedTitle, artist: genius.resolvedArtist }
+  if (lines.length === 0) return { markers: [], title: genius.resolvedTitle, artist: genius.resolvedArtist, geniusUrl: genius.url }
 
-  return { markers: alignSections(genius.sections, lines, duration), title: genius.resolvedTitle, artist: genius.resolvedArtist }
+  return { markers: alignSections(genius.sections, lines, duration), title: genius.resolvedTitle, artist: genius.resolvedArtist, geniusUrl: genius.url }
 }

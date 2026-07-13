@@ -294,6 +294,9 @@ const lyricsRoute = createRoute({
               label: z.string(),
               lines: z.array(z.string()),
             })),
+            title: z.string().optional(),
+            artist: z.string().optional(),
+            url: z.string().optional(),
           }),
         },
       },
@@ -420,8 +423,8 @@ router.openapi(lyricsRoute, async (c) => {
     return c.json({ sections: [] }, 200);
   }
 
-  const cachedByUrl = await cacheGet<{ sections: GeniusLyricsSection[] }>(lyricsUrl);
-  if (cachedByUrl) return c.json(cachedByUrl, 200);
+  const cachedByUrl = await cacheGet<{ sections: GeniusLyricsSection[]; title?: string; artist?: string; url?: string }>(lyricsUrl);
+  if (cachedByUrl) return c.json({ ...cachedByUrl, url: lyricsUrl }, 200);
 
   try {
     const scraperapiKeys = [
@@ -468,7 +471,7 @@ router.openapi(lyricsRoute, async (c) => {
     console.log('[lyrics] html length:', html.length, 'has container:', html.includes('data-lyrics-container'));
     const sections = parseGeniusLyrics(html);
     console.log('[lyrics] parsed sections:', sections.length);
-    const data = { sections, title: geniusTitle, artist: geniusArtist };
+    const data = { sections, title: geniusTitle, artist: geniusArtist, url: lyricsUrl };
     await cacheSet(lyricsUrl, data);
     if (!('url' in query)) {
       await cacheSet(`ta:${query.title}|${query.artist}`, data);
