@@ -289,6 +289,7 @@ export default function SongInfo() {
       audio.pause();
       setIsPlaying(false);
     } else {
+      audio.volume = 0.5;
       audio.play();
       setIsPlaying(true);
     }
@@ -369,7 +370,7 @@ export default function SongInfo() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder="Исполнитель и название песни…"
+            placeholder="Исполнитель или название песни…"
             className="w-full pl-10 pr-9 py-3.5 rounded-[14px] border border-white/[0.1] bg-white/[0.07] text-white placeholder-[#8a8a8a] focus:outline-none focus:ring-1 focus:ring-[#2DD4BF] focus:border-[#2DD4BF] text-[14px] font-medium transition"
             style={SANS}
           />
@@ -432,14 +433,14 @@ export default function SongInfo() {
         <div className="mt-16 flex flex-col items-center gap-4 text-[#8a8a8a]">
           <div className="animate-spin w-14 h-14" style={{ animationDuration: '1.8s' }}>
             <svg viewBox="0 0 56 56" fill="none">
-              <circle cx="28" cy="28" r="28" fill="#1a1a1a" />
-              <circle cx="28" cy="28" r="24" stroke="#2a2a2a" strokeWidth="0.8" fill="none" />
-              <circle cx="28" cy="28" r="20" stroke="#2a2a2a" strokeWidth="0.8" fill="none" />
-              <circle cx="28" cy="28" r="16" stroke="#2a2a2a" strokeWidth="0.8" fill="none" />
-              <circle cx="28" cy="28" r="12" stroke="#2a2a2a" strokeWidth="0.8" fill="none" />
+              <circle cx="28" cy="28" r="28" fill="#0f3d38" />
+              <circle cx="28" cy="28" r="24" stroke="#2DD4BF" strokeWidth="0.8" fill="none" strokeOpacity="0.4" />
+              <circle cx="28" cy="28" r="20" stroke="#2DD4BF" strokeWidth="0.8" fill="none" strokeOpacity="0.4" />
+              <circle cx="28" cy="28" r="16" stroke="#2DD4BF" strokeWidth="0.8" fill="none" strokeOpacity="0.4" />
+              <circle cx="28" cy="28" r="12" stroke="#2DD4BF" strokeWidth="0.8" fill="none" strokeOpacity="0.4" />
               <circle cx="28" cy="28" r="9" fill="#2DD4BF" />
               <circle cx="28" cy="28" r="5" fill="#b2f5ef" />
-              <circle cx="28" cy="28" r="2" fill="#1a1a1a" />
+              <circle cx="28" cy="28" r="2" fill="#0f3d38" />
             </svg>
           </div>
           <span className="text-sm font-medium" style={SANS}>Загружаем данные…</span>
@@ -658,11 +659,7 @@ export default function SongInfo() {
                 name="YouTube"
                 link={info.youtube.url || info.youtube.search_url}
                 linkLabel={info.youtube.video_id ? '→ Смотреть' : '→ Найти'}
-                icon={
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#FF0000">
-                    <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z" />
-                  </svg>
-                }
+                icon={<img src="/youtube-icon3.png" width={20} height={20} alt="" aria-hidden />}
               />
               <div className="flex flex-wrap items-center gap-0">
                 {info.youtube.view_count !== null && (

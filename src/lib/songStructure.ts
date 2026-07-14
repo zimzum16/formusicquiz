@@ -31,13 +31,29 @@ interface GeniusResult {
   url?: string
 }
 
+function inferTypeFromLabel(label: string): SectionType {
+  const l = label.toLowerCase()
+  if (/пост.припев|post.chorus/.test(l)) return 'post-chorus'
+  if (/пред.припев|pre.chorus/.test(l)) return 'pre-chorus'
+  if (/куплет|verse/.test(l)) return 'verse'
+  if (/припев|chorus|refrain|hook/.test(l)) return 'chorus'
+  if (/бридж|bridge/.test(l)) return 'bridge'
+  if (/интро|intro/.test(l)) return 'intro'
+  if (/аутро|outro/.test(l)) return 'outro'
+  return 'unknown'
+}
+
 async function fetchGeniusSections(title: string, artist: string): Promise<GeniusResult> {
   try {
     const params = new URLSearchParams({ title, artist })
     const res = await fetch(`${BASE}/api/tracks/lyrics?${params}`)
     if (!res.ok) return { sections: [], title: '', artist: '' }
     const data: GeniusResult = await res.json()
-    return { sections: data.sections ?? [], title: data.title ?? '', artist: data.artist ?? '', url: data.url }
+    const sections = (data.sections ?? []).map(s => ({
+      ...s,
+      type: s.type === 'unknown' ? inferTypeFromLabel(s.label) : s.type,
+    }))
+    return { sections, title: data.title ?? '', artist: data.artist ?? '', url: data.url }
   } catch {
     return { sections: [], title: '', artist: '' }
   }

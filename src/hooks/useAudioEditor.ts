@@ -158,11 +158,19 @@ export function useAudioEditor() {
               }
 
               const year = match.release_date?.slice(0, 4) ?? undefined
+
+              // Если не было ID3-тегов — title/artist из Spotify надёжнее чем из имени файла
+              if (!hasId3Tags) {
+                confirmedTitle = match.title
+                confirmedArtist = match.artist.split(',')[0].trim()
+              }
+
               setAudioFile(prev => prev ? {
                 ...prev,
                 coverArt: match.cover_url ?? prev.coverArt,
                 album: match.album || prev.album,
                 year: year || prev.year,
+                ...(!hasId3Tags && { title: confirmedTitle, artist: confirmedArtist }),
               } : prev)
               spotifyFound = true
             }

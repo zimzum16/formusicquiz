@@ -15,15 +15,15 @@ const ITEMS = [
     color: '#fff',
     bg: 'rgba(255,255,255,.05)',
     border: 'rgba(255,255,255,.1)',
-    favicon: 'https://www.google.com/favicon.ico',
+    favicon: '/google-icon2.png',
   },
   {
     key: 'yandex',
-    label: 'Яндекс',
+    label: 'Yandex',
     color: '#FC3F1D',
     bg: 'rgba(252,63,29,.08)',
     border: 'rgba(252,63,29,.22)',
-    favicon: 'https://yandex.ru/favicon.ico',
+    favicon: '/yandex-icon.png',
   },
   {
     key: 'ddg',
@@ -31,7 +31,7 @@ const ITEMS = [
     color: '#DE5833',
     bg: 'rgba(222,88,51,.08)',
     border: 'rgba(222,88,51,.22)',
-    favicon: 'https://duckduckgo.com/favicon.ico',
+    favicon: '/ddg-icon.png',
   },
   {
     key: 'bing',
