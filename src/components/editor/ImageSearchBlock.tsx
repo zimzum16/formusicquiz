@@ -39,7 +39,7 @@ const ITEMS = [
     color: '#0078D4',
     bg: 'rgba(0,120,212,.08)',
     border: 'rgba(0,120,212,.22)',
-    favicon: 'https://www.bing.com/favicon.ico',
+    favicon: '/bing-icon.png',
   },
 ] as const
 

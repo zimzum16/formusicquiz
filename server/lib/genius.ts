@@ -79,25 +79,35 @@ async function scrapeTags(lyricsUrl: string): Promise<string[]> {
       if (res.ok) return res.text();
     } catch { /* blocked, fall through to proxy */ }
 
-    // Fall back to proxy only when direct is blocked
+    // ScraperAPI keys — sequential (keys have separate quotas)
     const scraperKeys = [
       ...(process.env.SCRAPERAPI_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean),
       ...(process.env.SCRAPERAPI_KEY ? [process.env.SCRAPERAPI_KEY] : []),
     ];
     for (const key of scraperKeys) {
       try {
-        const res = await fetch(`http://api.scraperapi.com?api_key=${key}&url=${encodeURIComponent(lyricsUrl)}`, { signal: AbortSignal.timeout(12000) });
+        const res = await fetch(`http://api.scraperapi.com?api_key=${key}&url=${encodeURIComponent(lyricsUrl)}`, { signal: AbortSignal.timeout(9000) });
         console.log('[genius] scrapeTags scraperapi status:', res.status);
         if (res.ok) return res.text();
       } catch { /* try next */ }
     }
+
+    // ZenRows keys — parallel: whichever responds first wins, failed key is skipped
     const zenrowsKeys = (process.env.ZENROWS_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean);
-    for (const key of zenrowsKeys) {
+    if (zenrowsKeys.length > 0) {
       try {
-        const res = await fetch(`https://api.zenrows.com/v1/?apikey=${key}&url=${encodeURIComponent(lyricsUrl)}&antibot=true`, { signal: AbortSignal.timeout(12000) });
-        console.log('[genius] scrapeTags zenrows status:', res.status);
-        if (res.ok) return res.text();
-      } catch { /* try next */ }
+        const html = await Promise.any(
+          zenrowsKeys.map(key =>
+            fetch(`https://api.zenrows.com/v1/?apikey=${key}&url=${encodeURIComponent(lyricsUrl)}&antibot=true`, { signal: AbortSignal.timeout(9000) })
+              .then(res => {
+                console.log('[genius] scrapeTags zenrows status:', res.status, `(key ...${key.slice(-6)})`);
+                if (!res.ok) return Promise.reject(new Error(`zenrows ${res.status}`));
+                return res.text();
+              })
+          )
+        );
+        if (html) return html;
+      } catch { /* all ZenRows keys failed */ }
     }
     return '';
   };
@@ -175,7 +185,10 @@ export async function searchSong(title: string, artist: string): Promise<GeniusS
       headers: headers(),
       signal: AbortSignal.timeout(8000),
     }),
-    scrapeTags(songUrl),
+    Promise.race([
+      scrapeTags(songUrl),
+      new Promise<string[]>(resolve => setTimeout(() => resolve([]), 10000)),
+    ]),
   ]);
 
   if (!songRes.ok) return null;
