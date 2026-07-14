@@ -3,7 +3,6 @@ import { useState, useRef } from 'react'
 interface FileUploadProps {
   onFileUpload: (file: File) => void
   uploadProgress: number
-  hasFile: boolean
   onReset?: () => void
 }
 

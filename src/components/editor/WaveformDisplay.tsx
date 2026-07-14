@@ -241,7 +241,7 @@ export function WaveformDisplay({
     if (rect.width < 1 || rect.height < 1) return
     canvas.width = rect.width * dpr
     canvas.height = rect.height * dpr
-    drawWaveform(canvas, buffer, false, trimRange ?? null, trimFade ?? null)
+    drawWaveform(canvas, buffer, trimRange ?? null, trimFade ?? null)
 
   }, [trimRange, trimFade])
 

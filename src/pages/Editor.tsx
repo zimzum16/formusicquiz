@@ -76,7 +76,6 @@ export default function Editor() {
         <FileUpload
           onFileUpload={handleFileUpload}
           uploadProgress={uploadProgress}
-          hasFile={!!audioFile}
           onReset={reset}
         />
 

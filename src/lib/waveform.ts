@@ -19,7 +19,6 @@ export function fadeEnvelopeMultiplier(
 export function drawWaveform(
   canvas: HTMLCanvasElement,
   audioBuffer: AudioBuffer,
-  _isDark: boolean,
   trimRange?: { startTime: number; endTime: number } | null,
   trimFade?: { fadeIn: boolean; fadeOut: boolean; fadeInDuration: number; fadeOutDuration: number } | null
 ) {
