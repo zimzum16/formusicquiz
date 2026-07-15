@@ -78,9 +78,25 @@ export async function getTrackInfo(title: string, artist: string): Promise<Yande
     if (!track) return { url: null, search_url, likes_count: null, play_count: null, chart: null };
 
     const trackId = Number(track.id);
+    const albumId = Number(track.albums?.[0]?.id);
     const url = `https://music.yandex.ru/track/${trackId}`;
-    const likes_count = typeof track.likesCount === 'number' ? track.likesCount : null;
     const play_count = typeof track.playCount === 'number' ? track.playCount : null;
+
+    // POST /tracks даёт полные данные включая likesCount
+    let likes_count: number | null = typeof track.likesCount === 'number' ? track.likesCount : null;
+    if (likes_count === null && trackId) {
+      const trackKey = albumId ? `${trackId}:${albumId}` : String(trackId);
+      const detailResp = await fetch(`${YANDEX_API}/tracks`, {
+        method: 'POST',
+        headers: { ...getHeaders(), 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `track-ids=${trackKey}`,
+      });
+      if (detailResp.ok) {
+        const detailJson = await detailResp.json() as any;
+        const detail = detailJson?.result?.[0];
+        if (typeof detail?.likesCount === 'number') likes_count = detail.likesCount;
+      }
+    }
 
     const chartEntries = await fetchChart();
     const entry = chartEntries.find((e) => e.track_id === trackId);

@@ -43,7 +43,7 @@ export const en: Translations = {
   link_open: '→ Open',
   link_watch: '→ Watch',
   link_find: '→ Find',
-  link_chart: '→ Chart',
+  link_chart: 'Chart',
 
   // SongInfo page — stats
   stat_listeners: 'Listeners',

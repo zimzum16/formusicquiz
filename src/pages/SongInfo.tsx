@@ -132,7 +132,6 @@ const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
 const GENIUS_COUNTRY_NORM = Object.fromEntries(
   Object.entries(GENIUS_COUNTRY).map(([k, v]) => [norm(k), v])
 );
-const lookupCountry = (s: string) => GENIUS_COUNTRY[s] ?? GENIUS_COUNTRY_NORM[norm(s)];
 
 function lookupCountryWithKey(s: string): { flag: string; ru: string; en: string } | undefined {
   if (GENIUS_COUNTRY[s]) return { en: s, ...GENIUS_COUNTRY[s] };
@@ -729,48 +728,66 @@ export default function SongInfo() {
             {/* Compact row: Yandex + Apple + Spotify */}
             <StripCard>
               {/* Yandex */}
-              <a
-                href={info.yandex.url ?? info.yandex.search_url}
-                target="_blank"
-                rel="noreferrer"
-                className="flex-1 flex items-center gap-2.5 border-r border-white/[0.08] pr-4 hover:opacity-80 transition-opacity min-w-[130px]"
-              >
-                <svg width="18" height="18" viewBox="0 0 48 48">
-                  <path d="M24 48C37.2548 48 48 37.2548 48 24C48 10.7452 37.2548 0 24 0C10.7452 0 0 10.7452 0 24C0 37.2548 10.7452 48 24 48Z" fill="#FFBC0D" />
-                  <path d="M42.3995 19.3967L42.2975 18.6445L36.1353 17.2059L39.3184 12.4823L38.9423 11.9702L33.9785 14.3989L34.5267 7.7926L33.9785 7.52062L30.8974 12.8244L27.2702 4.84961H26.586L27.4742 12.6544L18.403 5.43183L17.6167 5.63795L24.5992 14.3989L10.7363 9.77939L10.0861 10.4976L22.4764 17.514L5.4304 18.9526L5.25829 19.9789L22.9906 21.8956L8.16941 34.0139L8.85363 34.9383L26.4139 25.3528L22.9566 42.1608H24.017L30.7954 26.3473L34.9028 38.7036L35.6211 38.1554L34.0805 25.7651L40.3447 32.8495L40.723 32.1313L36.0673 23.3682L42.6736 25.6971L42.7416 24.9767L37.2317 20.5612L42.3995 19.3967Z" fill="#1A1A1A" />
-                </svg>
-                <div>
-                  <div className="text-[12px] font-bold text-white" style={SANS}>{t.yandex_music}</div>
-                  <span className="text-[11px] font-bold" style={{ color: '#2DD4BF', ...SANS }}>
-                    {info.yandex.url ? t.link_open : t.link_find}
-                  </span>
-                </div>
-              </a>
+              <div className="flex-1 flex items-center gap-2.5 border-r border-white/[0.08] pr-4 min-w-[130px]">
+                <a
+                  href={info.yandex.url ?? info.yandex.search_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+                >
+                  <svg width="18" height="18" viewBox="0 0 48 48">
+                    <path d="M24 48C37.2548 48 48 37.2548 48 24C48 10.7452 37.2548 0 24 0C10.7452 0 0 10.7452 0 24C0 37.2548 10.7452 48 24 48Z" fill="#FFBC0D" />
+                    <path d="M42.3995 19.3967L42.2975 18.6445L36.1353 17.2059L39.3184 12.4823L38.9423 11.9702L33.9785 14.3989L34.5267 7.7926L33.9785 7.52062L30.8974 12.8244L27.2702 4.84961H26.586L27.4742 12.6544L18.403 5.43183L17.6167 5.63795L24.5992 14.3989L10.7363 9.77939L10.0861 10.4976L22.4764 17.514L5.4304 18.9526L5.25829 19.9789L22.9906 21.8956L8.16941 34.0139L8.85363 34.9383L26.4139 25.3528L22.9566 42.1608H24.017L30.7954 26.3473L34.9028 38.7036L35.6211 38.1554L34.0805 25.7651L40.3447 32.8495L40.723 32.1313L36.0673 23.3682L42.6736 25.6971L42.7416 24.9767L37.2317 20.5612L42.3995 19.3967Z" fill="#1A1A1A" />
+                  </svg>
+                  <div>
+                    <div className="text-[12px] font-bold text-white" style={SANS}>{t.yandex_music}</div>
+                    <span className="text-[11px] font-bold" style={{ color: '#2DD4BF', ...SANS }}>
+                      {info.yandex.url ? t.link_open : t.link_find}
+                    </span>
+                  </div>
+                </a>
+                {info.yandex.likes_count != null && (
+                  <div className="ml-auto text-right">
+                    <div className="text-[11px] text-white/40" style={SANS}>лайки</div>
+                    <div className="text-[12px] font-bold text-white" style={SANS}>
+                      ♥ {info.yandex.likes_count.toLocaleString('ru-RU')}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Apple Music */}
               {(() => {
                 const isItunes = info.spotify.id.startsWith('itunes:');
                 const appleUrl = isItunes ? info.spotify.spotify_url : info.apple_music.search_url;
-                const appleLabel = isItunes
-                  ? t.link_open
-                  : info.apple_music.charts.length > 0
-                    ? `${t.link_chart}: ${info.apple_music.charts.sort((a,b)=>a.position-b.position).slice(0,2).map(c=>`${COUNTRY_FLAG[c.country]??c.country.toUpperCase()} #${c.position}`).join(', ')}`
-                    : t.link_find;
+                const charts = isItunes ? [] : info.apple_music.charts.slice().sort((a, b) => a.position - b.position).slice(0, 2);
                 return (
-                  <a
-                    href={appleUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-1 flex items-center gap-2.5 border-r border-white/[0.08] pr-4 hover:opacity-80 transition-opacity min-w-[130px]"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
-                      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
-                    </svg>
-                    <div>
-                      <div className="text-[12px] font-bold text-white" style={SANS}>Apple Music</div>
-                      <span className="text-[11px] font-bold" style={{ color: '#2DD4BF', ...SANS }}>{appleLabel}</span>
-                    </div>
-                  </a>
+                  <div className="flex-1 flex items-center gap-2.5 border-r border-white/[0.08] pr-4 min-w-[130px] relative">
+                    <a
+                      href={appleUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" className="shrink-0">
+                        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+                      </svg>
+                      <div>
+                        <div className="text-[12px] font-bold text-white" style={SANS}>Apple Music</div>
+                        <span className="text-[11px] font-bold" style={{ color: '#2DD4BF', ...SANS }}>
+                          {isItunes ? t.link_open : t.link_find}
+                        </span>
+                      </div>
+                    </a>
+                    {charts.length > 0 && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-center pointer-events-none">
+                        <div className="text-[12px] font-bold text-white" style={SANS}>{t.link_chart}</div>
+                        <div className="text-[11px] font-bold" style={{ color: '#2DD4BF', ...SANS }}>
+                          {charts.map(c => `${COUNTRY_FLAG[c.country] ?? c.country.toUpperCase()} #${c.position}`).join(' ')}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               })()}
 

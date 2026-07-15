@@ -41,7 +41,7 @@ export const ru = {
   link_open: '→ Открыть',
   link_watch: '→ Смотреть',
   link_find: '→ Найти',
-  link_chart: '→ Чарт',
+  link_chart: 'Чарт',
 
   // SongInfo page — stats
   stat_listeners: 'Слушателей',
