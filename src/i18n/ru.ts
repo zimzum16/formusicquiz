@@ -115,6 +115,6 @@ export const ru = {
 
   // Editor — Editor page
   close: 'Закрыть',
-} as const;
+};
 
 export type Translations = typeof ru;

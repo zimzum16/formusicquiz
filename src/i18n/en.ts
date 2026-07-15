@@ -4,7 +4,7 @@ export const en: Translations = {
   // Home
   home_track_title: 'discover the track',
   home_track_desc: 'Find out the artist, producer, and songwriters. Read lyrics, see who covered or sampled it, stream counts across services, and direct links.',
-  home_slicer_title: 'cut slices &\ndownload',
+  home_slicer_title: 'cut slices & download',
   home_slicer_desc: 'Upload a file, pick start and end points, trim and download. View lyrics and find artist photos.',
 
   // SongInfo page — search

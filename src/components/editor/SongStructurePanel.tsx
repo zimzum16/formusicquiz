@@ -54,6 +54,16 @@ export function SongStructurePanel({ markers, isAnalyzing, onApplySegment, durat
     .map(m => m.type)
     .filter(t => { if (seenTypes.has(t)) return false; seenTypes.add(t); return true })
 
+  const typeCounts: Partial<Record<SectionType, number>> = {}
+  for (const m of markers) typeCounts[m.type] = (typeCounts[m.type] ?? 0) + 1
+  const typeIdx: Partial<Record<SectionType, number>> = {}
+  const barLabels = markers.map(m => {
+    typeIdx[m.type] = (typeIdx[m.type] ?? 0) + 1
+    return typeCounts[m.type]! > 1
+      ? `${TYPE_LABEL[m.type]} ${typeIdx[m.type]}`
+      : TYPE_LABEL[m.type]
+  })
+
   return (
     <div className="space-y-2">
       <div className="relative w-full overflow-hidden rounded-lg h-8">
@@ -67,9 +77,9 @@ export function SongStructurePanel({ markers, isAnalyzing, onApplySegment, durat
               width: `${((marker.end - marker.start) / duration) * 100}%`,
             }}
             onClick={() => onApplySegment(marker.start, marker.end)}
-            title={`${marker.label}: ${formatTime(marker.start)} – ${formatTime(marker.end)}`}
+            title={`${barLabels[i]}: ${formatTime(marker.start)} – ${formatTime(marker.end)}`}
           >
-            <span className="truncate leading-none">{marker.label}</span>
+            <span className="truncate leading-none">{barLabels[i]}</span>
           </button>
         ))}
       </div>

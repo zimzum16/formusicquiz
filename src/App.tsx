@@ -25,14 +25,24 @@ function App() {
         {currentPage === 'pricing' && <Pricing navigate={navigate} />}
       </div>
       <footer className="mt-auto pt-6 pb-4 flex flex-col items-center gap-2" style={{ color: 'rgba(255,255,255,.45)', fontSize: '12px', fontFamily: 'Montserrat, sans-serif' }}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <a
             href="https://trackslice.ru"
-            title="Русский"
-            style={{ opacity: lang === 'ru' ? 1 : 0.35, fontSize: 22, lineHeight: 1, transition: 'opacity .2s', textDecoration: 'none' }}
+            style={{
+              textDecoration: 'none',
+              fontFamily: 'Montserrat, sans-serif',
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              color: lang === 'ru' ? '#fff' : 'rgba(255,255,255,.35)',
+              padding: '3px 7px',
+              borderRadius: 5,
+              border: `1px solid ${lang === 'ru' ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.1)'}`,
+              transition: 'opacity .2s',
+            }}
             className="hover:opacity-80"
           >
-            🇷🇺
+            RU
           </a>
           <a
             href="https://t.me/zimzum16"
@@ -45,11 +55,21 @@ function App() {
           </a>
           <a
             href="https://en.trackslice.ru"
-            title="English"
-            style={{ opacity: lang === 'en' ? 1 : 0.35, fontSize: 22, lineHeight: 1, transition: 'opacity .2s', textDecoration: 'none' }}
+            style={{
+              textDecoration: 'none',
+              fontFamily: 'Montserrat, sans-serif',
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              color: lang === 'en' ? '#fff' : 'rgba(255,255,255,.35)',
+              padding: '3px 7px',
+              borderRadius: 5,
+              border: `1px solid ${lang === 'en' ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.1)'}`,
+              transition: 'opacity .2s',
+            }}
             className="hover:opacity-80"
           >
-            🇺🇸
+            EN
           </a>
         </div>
         <span>© {new Date().getFullYear()} ZimZum Production</span>
