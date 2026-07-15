@@ -1,4 +1,5 @@
 import type { AudioFile } from '../../types/audio'
+import { t } from '../../i18n'
 import {
   buildArtistYearImagesQuery,
   buildYandexImagesUrl,
@@ -60,7 +61,7 @@ export function ImageSearchBlock({ audioFile, fillHeight }: ImageSearchBlockProp
   return (
     <div className={fillHeight ? 'flex flex-col h-full' : ''}>
       <p className="mb-3 text-[11px] font-bold uppercase tracking-[.09em]" style={{ color: '#8a8a8a', fontFamily: 'Montserrat, sans-serif' }}>
-        Найти фото
+        {t.find_photo}
       </p>
       <div className={`grid grid-cols-2${fillHeight ? ' flex-1' : ''}`} style={{ gap: '9px', gridTemplateRows: fillHeight ? '1fr 1fr' : undefined }}>
         {ITEMS.map(({ key, label, color, bg, border, favicon }) => (
@@ -73,7 +74,7 @@ export function ImageSearchBlock({ audioFile, fillHeight }: ImageSearchBlockProp
             onMouseDown={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
             title={urls[key]}
-            aria-label={`Картинки, ${label}. ${q}`}
+            aria-label={`${t.find_photo}, ${label}. ${q}`}
           >
             <img src={favicon} width={20} height={20} alt="" aria-hidden style={{ borderRadius: '4px', flexShrink: 0 }} />
             <span style={{ fontFamily: 'Montserrat, sans-serif', fontSize: '13px', fontWeight: 700, color }}>{label}</span>

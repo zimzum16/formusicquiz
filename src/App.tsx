@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Navbar from './components/Navbar';
+import { lang } from './i18n';
 import Home from './pages/Home';
 import SongInfo from './pages/SongInfo';
 import Editor from './pages/Editor';
@@ -24,15 +25,33 @@ function App() {
         {currentPage === 'pricing' && <Pricing navigate={navigate} />}
       </div>
       <footer className="mt-auto pt-6 pb-4 flex flex-col items-center gap-2" style={{ color: 'rgba(255,255,255,.45)', fontSize: '12px', fontFamily: 'Montserrat, sans-serif' }}>
-        <a
-          href="https://t.me/zimzum16"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 transition-opacity hover:opacity-60"
-          style={{ color: 'rgba(255,255,255,.45)', textDecoration: 'none' }}
-        >
-          <img src="/tg-icon.png" width={36} height={36} alt="" aria-hidden />
-        </a>
+        <div className="flex items-center gap-3">
+          <a
+            href="https://trackslice.ru"
+            title="Русский"
+            style={{ opacity: lang === 'ru' ? 1 : 0.35, fontSize: 22, lineHeight: 1, transition: 'opacity .2s', textDecoration: 'none' }}
+            className="hover:opacity-80"
+          >
+            🇷🇺
+          </a>
+          <a
+            href="https://t.me/zimzum16"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center transition-opacity hover:opacity-60"
+            style={{ color: 'rgba(255,255,255,.45)', textDecoration: 'none', lineHeight: 0 }}
+          >
+            <img src="/tg-icon.png" width={36} height={36} alt="" aria-hidden />
+          </a>
+          <a
+            href="https://en.trackslice.ru"
+            title="English"
+            style={{ opacity: lang === 'en' ? 1 : 0.35, fontSize: 22, lineHeight: 1, transition: 'opacity .2s', textDecoration: 'none' }}
+            className="hover:opacity-80"
+          >
+            🇺🇸
+          </a>
+        </div>
         <span>© {new Date().getFullYear()} ZimZum Production</span>
       </footer>
     </div>

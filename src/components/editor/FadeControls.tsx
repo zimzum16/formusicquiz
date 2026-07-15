@@ -1,4 +1,5 @@
 import type { TrimSegment, FadeDuration } from '../../types/audio'
+import { t } from '../../i18n'
 
 const FADE_DURATIONS: FadeDuration[] = [1, 2, 3, 4]
 
@@ -58,7 +59,7 @@ export function FadeInToolbarInline({ segment, onUpdate }: ToolbarFadeProps) {
               onClick={() => onUpdate({ fadeInDuration: n })}
               className={`${CHIP_BASE} ${fadeInSec === n ? CHIP_ON : CHIP_OFF}`}
               style={{ fontFamily: 'Montserrat, sans-serif' }}
-              aria-label={`${n} с`}
+              aria-label={`${n} ${t.fade_sec}`}
             >{n}</button>
           ))}
         </div>
@@ -67,7 +68,7 @@ export function FadeInToolbarInline({ segment, onUpdate }: ToolbarFadeProps) {
         type="button"
         onClick={() => onUpdate(segment.fadeIn ? { fadeIn: false } : { fadeIn: true, fadeInDuration: fadeInSec })}
         className={`${ICON_BTN} ${segment.fadeIn ? BTN_ON : BTN_OFF}`}
-        title="Нарастание громкости"
+        title={t.fade_in_title}
         aria-pressed={segment.fadeIn}
       >
         <IconFadeIn className="h-[22px] w-[22px] sm:h-6 sm:w-6" />
@@ -84,7 +85,7 @@ export function FadeOutToolbarInline({ segment, onUpdate }: ToolbarFadeProps) {
         type="button"
         onClick={() => onUpdate(segment.fadeOut ? { fadeOut: false } : { fadeOut: true, fadeOutDuration: fadeOutSec })}
         className={`${ICON_BTN} ${segment.fadeOut ? BTN_ON : BTN_OFF}`}
-        title="Затухание громкости"
+        title={t.fade_out_title}
         aria-pressed={segment.fadeOut}
       >
         <IconFadeOut className="h-[22px] w-[22px] sm:h-6 sm:w-6" />
@@ -97,7 +98,7 @@ export function FadeOutToolbarInline({ segment, onUpdate }: ToolbarFadeProps) {
               onClick={() => onUpdate({ fadeOutDuration: n })}
               className={`${CHIP_BASE} ${fadeOutSec === n ? CHIP_ON : CHIP_OFF}`}
               style={{ fontFamily: 'Montserrat, sans-serif' }}
-              aria-label={`${n} с`}
+              aria-label={`${n} ${t.fade_sec}`}
             >{n}</button>
           ))}
         </div>
@@ -128,7 +129,7 @@ export function FadeControls({ segment, onUpdate }: FadeControlsProps) {
             <div className="w-11 h-6 bg-neutral-300 dark:bg-neutral-700 rounded-full peer-checked:bg-blue-600 transition-colors" />
             <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5" />
           </div>
-          <span className="text-sm font-medium" style={{ color: '#8a8a8a', fontFamily: 'Montserrat, sans-serif' }}>Добавить нарастание звука</span>
+          <span className="text-sm font-medium" style={{ color: '#8a8a8a', fontFamily: 'Montserrat, sans-serif' }}>{t.fade_in_add}</span>
         </label>
         {segment.fadeIn && (
           <select
@@ -136,7 +137,7 @@ export function FadeControls({ segment, onUpdate }: FadeControlsProps) {
             onChange={e => onUpdate({ fadeInDuration: parseFloat(e.target.value) as FadeDuration })}
             className="px-3 py-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            {FADE_DURATIONS.map(d => <option key={d} value={d}>{d} сек</option>)}
+            {FADE_DURATIONS.map(d => <option key={d} value={d}>{d} {t.fade_sec}</option>)}
           </select>
         )}
       </div>
@@ -152,7 +153,7 @@ export function FadeControls({ segment, onUpdate }: FadeControlsProps) {
             <div className="w-11 h-6 bg-neutral-300 dark:bg-neutral-700 rounded-full peer-checked:bg-blue-600 transition-colors" />
             <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5" />
           </div>
-          <span className="text-sm font-medium" style={{ color: '#8a8a8a', fontFamily: 'Montserrat, sans-serif' }}>Добавить затухание звука</span>
+          <span className="text-sm font-medium" style={{ color: '#8a8a8a', fontFamily: 'Montserrat, sans-serif' }}>{t.fade_out_add}</span>
         </label>
         {segment.fadeOut && (
           <select
@@ -160,7 +161,7 @@ export function FadeControls({ segment, onUpdate }: FadeControlsProps) {
             onChange={e => onUpdate({ fadeOutDuration: parseFloat(e.target.value) as FadeDuration })}
             className="px-3 py-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            {FADE_DURATIONS.map(d => <option key={d} value={d}>{d} сек</option>)}
+            {FADE_DURATIONS.map(d => <option key={d} value={d}>{d} {t.fade_sec}</option>)}
           </select>
         )}
       </div>

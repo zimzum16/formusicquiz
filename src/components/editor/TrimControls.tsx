@@ -3,6 +3,7 @@ import type { TrimSegment, AudioFile } from '../../types/audio'
 import { formatTimeDetailed, parseFlexibleTime, validateTimeRange } from '../../lib/audioUtils'
 import { FadeControls, FadeInToolbarInline, FadeOutToolbarInline } from './FadeControls'
 import { X } from 'lucide-react'
+import { t } from '../../i18n'
 
 interface TrimControlsProps {
   segment: TrimSegment
@@ -70,7 +71,7 @@ function TrimTimeFields({
 
   const startBlock = (
     <div className={colOuter}>
-      <label className={labelCl} style={LABEL_STYLE}>Начало</label>
+      <label className={labelCl} style={LABEL_STYLE}>{t.trim_start}</label>
       <input
         type="text" value={startDisplay} placeholder="00:00.0" className={inputCl}
         inputMode="decimal" autoComplete="off"
@@ -91,7 +92,7 @@ function TrimTimeFields({
 
   const endBlock = (
     <div className={colOuter}>
-      <label className={labelCl} style={LABEL_STYLE}>Конец</label>
+      <label className={labelCl} style={LABEL_STYLE}>{t.trim_end}</label>
       <input
         type="text" value={endDisplay} placeholder="00:00.0" className={inputCl}
         inputMode="decimal" autoComplete="off"
@@ -201,12 +202,12 @@ export function TrimControls({
     return (
       <div className="relative rounded-2xl overflow-hidden bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 py-5 shadow-sm">
         {canRemove && (
-          <button type="button" onClick={onRemove} className="absolute top-5 right-4 z-10 p-2 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-500 dark:text-neutral-400 transition-colors" aria-label="Удалить вариант обрезки">
+          <button type="button" onClick={onRemove} className="absolute top-5 right-4 z-10 p-2 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-500 dark:text-neutral-400 transition-colors" aria-label={t.trim_remove_aria}>
             <X size={18} />
           </button>
         )}
         <div className="px-4 space-y-4">
-          {typeof panelIndex === 'number' && <p className="pr-12 text-sm font-medium text-neutral-800 dark:text-neutral-100">Вариант {panelIndex}</p>}
+          {typeof panelIndex === 'number' && <p className="pr-12 text-sm font-medium text-neutral-800 dark:text-neutral-100">{t.trim_slice_label} {panelIndex}</p>}
           <TrimTimeFields segment={segment} handleStartTimeChange={handleStartTimeChange} handleEndTimeChange={handleEndTimeChange} error={error} size="default" />
           <FadeControls segment={segment} onUpdate={onUpdate} />
         </div>
@@ -217,7 +218,7 @@ export function TrimControls({
   return (
     <div className="p-6 rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 shadow-sm relative">
       {canRemove && (
-        <button type="button" onClick={onRemove} className="absolute top-4 right-4 p-2 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-500 dark:text-neutral-400 transition-colors" aria-label="Удалить вариант обрезки">
+        <button type="button" onClick={onRemove} className="absolute top-4 right-4 p-2 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-500 dark:text-neutral-400 transition-colors" aria-label={t.trim_remove_aria}>
           <X size={18} />
         </button>
       )}

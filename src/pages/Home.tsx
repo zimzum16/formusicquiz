@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Page } from '../App';
+import { t } from '../i18n';
 
 interface HomeProps {
   navigate: (page: Page) => void;
@@ -140,10 +141,10 @@ export default function Home({ navigate }: HomeProps) {
                 }}>track</span>
               </div>
               <h2 style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-.03em', color: '#aaa', marginBottom: 8, lineHeight: 1.2 }}>
-                исследуй песню
+                {t.home_track_title}
               </h2>
               <p style={{ fontSize: 13, color: '#999', fontWeight: 500, lineHeight: 1.6 }}>
-                Узнай автора и продюсера, читай текст песни, смотри кто сделал кавер или взял сэмпл, количество прослушиваний и просмотров на разных сервисах и ссылки.
+                {t.home_track_desc}
               </p>
             </div>
             <div style={{ padding: '0 20px 20px', flex: 1 }}>
@@ -183,10 +184,12 @@ export default function Home({ navigate }: HomeProps) {
                 }}>slicer</span>
               </div>
               <h2 style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-.03em', color: '#aaa', marginBottom: 8, lineHeight: 1.2, marginTop: 8 }}>
-                вырежи фрагменты<br />и скачай
+                {t.home_slicer_title.split('\n').map((line, i, arr) => (
+                  <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
+                ))}
               </h2>
               <p style={{ fontSize: 13, color: '#999', fontWeight: 500, lineHeight: 1.6 }}>
-                Загрузи файл, выбери начало и конец фрагментов, обрежь и скачай. Посмотри текст песни и найди фото исполнителя.
+                {t.home_slicer_desc}
               </p>
             </div>
             <div style={{ padding: '0 20px 20px', flex: 1 }}>

@@ -1,5 +1,6 @@
 import type { TrimSegment, AudioFile } from '../../types/audio'
 import { TrimControls } from './TrimControls'
+import { t } from '../../i18n'
 
 interface MultiTrimPanelProps {
   segments: TrimSegment[]
@@ -41,7 +42,7 @@ export function MultiTrimPanel({
               <line x1="12" y1="5" x2="12" y2="19" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
               <line x1="5" y1="12" x2="19" y2="12" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
             </svg>
-            Выбрать ещё фрагмент
+            {t.add_slice}
           </button>
         </div>
       ) : null}

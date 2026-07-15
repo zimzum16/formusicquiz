@@ -1,4 +1,5 @@
 import { Loader2, Scissors } from 'lucide-react'
+import { t } from '../../i18n'
 
 interface ProcessButtonProps {
   onProcess: () => void
@@ -9,8 +10,8 @@ interface ProcessButtonProps {
 
 export function ProcessButton({ onProcess, isProcessing, disabled, fragmentCount }: ProcessButtonProps) {
   const many = fragmentCount >= 2
-  const idleLabel = many ? 'Обрезать фрагменты' : 'Обрезать фрагмент'
-  const processingLabel = many ? 'Обработка фрагментов…' : 'Обработка фрагмента…'
+  const idleLabel = many ? t.trim_many : t.trim_one
+  const processingLabel = many ? t.processing_many : t.processing_one
 
   return (
     <div className="flex justify-center my-2">

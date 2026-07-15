@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import type { ProcessedAudioFile } from '../../types/audio'
+import { t } from '../../i18n'
 
 interface AudioPlayerState {
   isPlaying: boolean
@@ -138,7 +139,7 @@ export function ProcessedResults({ files }: ProcessedResultsProps) {
                 {file.name}
               </div>
               <div className="mb-[12px] text-[11px] font-bold uppercase tracking-[.09em]" style={{ color: '#8a8a8a', ...SANS }}>
-                Длительность: {fmt(file.duration)}
+                {t.duration_label}: {fmt(file.duration)}
               </div>
 
               {/* Mini player */}
@@ -148,7 +149,7 @@ export function ProcessedResults({ files }: ProcessedResultsProps) {
                   onClick={() => togglePlay(file.id)}
                   className="flex shrink-0 items-center justify-center transition-opacity hover:opacity-80"
                   style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#2DD4BF', border: 'none', cursor: 'pointer', boxShadow: '0 0 12px rgba(45,212,191,.4)' }}
-                  aria-label={st.isPlaying ? 'Пауза' : 'Воспроизвести'}
+                  aria-label={st.isPlaying ? t.pause_aria : t.play_aria}
                 >
                   {st.isPlaying ? (
                     <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden><rect x="1" y="0" width="3" height="10" fill="#06231f" /><rect x="6" y="0" width="3" height="10" fill="#06231f" /></svg>
@@ -178,7 +179,7 @@ export function ProcessedResults({ files }: ProcessedResultsProps) {
                     type="button"
                     onClick={() => toggleMute(file.id)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}
-                    aria-label={getMuted(file.id) ? 'Включить звук' : 'Выключить звук'}
+                    aria-label={getMuted(file.id) ? t.unmute_aria : t.mute_aria}
                   >
                     {getMuted(file.id) ? (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -234,7 +235,7 @@ export function ProcessedResults({ files }: ProcessedResultsProps) {
             <polyline points="7,10 12,15 17,10" stroke="#06231f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             <line x1="12" y1="15" x2="12" y2="3" stroke="#06231f" strokeWidth="2" strokeLinecap="round" />
           </svg>
-          {files.length >= 2 ? 'Скачать файлы' : 'Скачать файл'}
+          {files.length >= 2 ? t.download_many : t.download_one}
         </button>
       </div>
     </div>

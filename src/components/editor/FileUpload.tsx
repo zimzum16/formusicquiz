@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { t } from '../../i18n'
 
 interface FileUploadProps {
   onFileUpload: (file: File) => void
@@ -46,7 +47,7 @@ export function FileUpload({ onFileUpload, uploadProgress, onReset }: FileUpload
               <polyline points="17,8 12,3 7,8" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               <line x1="12" y1="3" x2="12" y2="15" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
             </svg>
-            Загрузить другой
+            {t.upload_another}
           </button>
         )}
         <input ref={fileInputRef} type="file" accept=".mp3" onChange={handleInputChange} className="hidden" />
@@ -77,11 +78,11 @@ export function FileUpload({ onFileUpload, uploadProgress, onReset }: FileUpload
         className="px-6 py-3 rounded-full text-[#06231f] font-extrabold text-[13px] uppercase tracking-[0.08em] disabled:opacity-40 transition-opacity mb-3"
         style={{ background: '#2DD4BF', ...SANS }}
       >
-        {isUploading ? 'Загрузка...' : 'Загрузить файл'}
+        {isUploading ? t.uploading : t.upload_button}
       </button>
 
-      <p className="text-[13px] text-[#8a8a8a] mb-1" style={SANS}>или перетащите файл сюда</p>
-      <p className="text-[11px] text-[#8a8a8a]/60" style={SANS}>Только .mp3, максимум 50 МБ</p>
+      <p className="text-[13px] text-[#8a8a8a] mb-1" style={SANS}>{t.upload_drag}</p>
+      <p className="text-[11px] text-[#8a8a8a]/60" style={SANS}>{t.upload_hint}</p>
 
       {isUploading && (
         <div className="mt-5 max-w-xs mx-auto">

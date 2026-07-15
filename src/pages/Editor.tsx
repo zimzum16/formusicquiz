@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
+import { t } from '../i18n'
 import { useAudioEditor } from '../hooks/useAudioEditor'
 import { AudioPlayer } from '../components/editor/AudioPlayer'
 import { WaveformDisplay } from '../components/editor/WaveformDisplay'
@@ -169,9 +170,9 @@ export default function Editor() {
                     onClick={() => removeSegment(seg1.id)}
                     className="text-sm font-medium text-[#2DD4BF] hover:opacity-70 transition-opacity"
                     style={{ fontFamily: 'Montserrat, sans-serif' }}
-                    aria-label="Закрыть второй фрагмент"
+                    aria-label={t.close}
                   >
-                    Закрыть
+                    {t.close}
                   </button>
                 }
               />

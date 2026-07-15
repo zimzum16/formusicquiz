@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { tracksApi, type SpotifyTrack, type TrackInfo } from '../lib/api';
 import { CollapsibleList } from '../components/CollapsibleList';
+import { t, lang } from '../i18n';
 
 function fmtMs(ms: number) {
   const s = Math.floor(ms / 1000);
@@ -133,22 +134,31 @@ const GENIUS_COUNTRY_NORM = Object.fromEntries(
 );
 const lookupCountry = (s: string) => GENIUS_COUNTRY[s] ?? GENIUS_COUNTRY_NORM[norm(s)];
 
-function getCountriesFromTags(tags: string[]): { flag: string; ru: string }[] {
+function lookupCountryWithKey(s: string): { flag: string; ru: string; en: string } | undefined {
+  if (GENIUS_COUNTRY[s]) return { en: s, ...GENIUS_COUNTRY[s] };
+  const normKey = norm(s);
+  const entry = GENIUS_COUNTRY_NORM[normKey];
+  if (!entry) return undefined;
+  const origKey = Object.keys(GENIUS_COUNTRY).find(k => norm(k) === normKey) ?? s;
+  return { en: origKey, ...entry };
+}
+
+function getCountriesFromTags(tags: string[]): { flag: string; name: string }[] {
   const seen = new Set<string>();
-  const result: { flag: string; ru: string }[] = [];
+  const result: { flag: string; name: string }[] = [];
   for (const tag of tags) {
-    const entry = lookupCountry(tag) ?? (() => {
+    const entry = lookupCountryWithKey(tag) ?? (() => {
       // "South Korea (대한민국)" → try inside parens, then before parens
       const inParens = tag.match(/\(([^)]+)\)$/);
-      if (inParens) { const e = lookupCountry(inParens[1]); if (e) return e; }
+      if (inParens) { const e = lookupCountryWithKey(inParens[1]); if (e) return e; }
       const beforeParens = tag.replace(/\s*\([^)]*\)$/, '').trim();
-      const e2 = lookupCountry(beforeParens); if (e2) return e2;
+      const e2 = lookupCountryWithKey(beforeParens); if (e2) return e2;
       // "Tunisian - تونسي" → try before " - "
-      return lookupCountry(tag.split(' - ')[0].trim());
+      return lookupCountryWithKey(tag.split(' - ')[0].trim());
     })();
     if (entry && !seen.has(entry.ru)) {
       seen.add(entry.ru);
-      result.push(entry);
+      result.push({ flag: entry.flag, name: lang === 'en' ? entry.en : entry.ru });
     }
   }
   return result;
@@ -243,7 +253,7 @@ function ServiceLogo({ icon, name, link, linkLabel }: { icon: React.ReactNode; n
       <div>
         <div className="text-[12px] font-bold text-white" style={SANS}>{name}</div>
         {link && (
-          <ExternalLink href={link}>{linkLabel ?? '→ Открыть'}</ExternalLink>
+          <ExternalLink href={link}>{linkLabel ?? t.link_open}</ExternalLink>
         )}
       </div>
     </div>
@@ -320,7 +330,7 @@ export default function SongInfo() {
       const data = await tracksApi.search(query.trim());
       setResults(data);
     } catch {
-      setError('Ошибка поиска. Проверьте соединение с сервером.');
+      setError(t.search_error);
     } finally {
       setSearching(false);
     }
@@ -347,7 +357,7 @@ export default function SongInfo() {
       const data = await tracksApi.getInfo(track.id);
       setInfo(data);
     } catch {
-      setError('Не удалось загрузить информацию о треке.');
+      setError(t.track_error);
     } finally {
       setLoading(false);
     }
@@ -370,7 +380,7 @@ export default function SongInfo() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder="Исполнитель или название песни…"
+            placeholder={t.search_placeholder}
             className="w-full pl-10 pr-9 py-3.5 rounded-[14px] border border-white/[0.1] bg-white/[0.07] text-white placeholder-[#8a8a8a] focus:outline-none focus:ring-1 focus:ring-[#2DD4BF] focus:border-[#2DD4BF] text-[14px] font-medium transition"
             style={SANS}
           />
@@ -391,7 +401,7 @@ export default function SongInfo() {
           className="px-5 h-12 rounded-full text-[#06231f] font-extrabold text-[13px] uppercase tracking-[0.08em] disabled:opacity-40 transition-opacity flex-shrink-0"
           style={{ background: '#2DD4BF', ...SANS }}
         >
-          {searching ? '…' : 'Найти'}
+          {searching ? '…' : t.search_button}
         </button>
       </div>
 
@@ -405,24 +415,24 @@ export default function SongInfo() {
       {/* Search results dropdown */}
       {results.length > 0 && (
         <div className="mb-5 rounded-[16px] border border-white/[0.1] overflow-hidden" style={{ background: 'rgba(24,24,28,.95)' }}>
-          {results.map((t) => (
+          {results.map((track) => (
             <button
-              key={t.id}
-              onClick={() => selectTrack(t)}
+              key={track.id}
+              onClick={() => selectTrack(track)}
               className="w-full flex items-center gap-3 px-4 py-3 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.05] transition-colors text-left group"
             >
-              {t.cover_url ? (
-                <img src={t.cover_url} alt={t.title} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+              {track.cover_url ? (
+                <img src={track.cover_url} alt={track.title} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
               ) : (
                 <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 18V6l10-2v10" stroke="#8a8a8a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><circle cx="6.5" cy="18" r="2.6" fill="#8a8a8a" /><circle cx="16.5" cy="14" r="2.6" fill="#8a8a8a" /></svg>
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <p className="font-semibold text-white text-sm truncate" style={SANS}>{t.title}</p>
-                <p className="text-[#8a8a8a] text-xs truncate" style={SANS}>{t.artist} · {t.album} · {t.release_date.slice(0, 4)}</p>
+                <p className="font-semibold text-white text-sm truncate" style={SANS}>{track.title}</p>
+                <p className="text-[#8a8a8a] text-xs truncate" style={SANS}>{track.artist} · {track.album} · {track.release_date.slice(0, 4)}</p>
               </div>
-              <span className="text-xs text-[#8a8a8a] flex-shrink-0" style={MONO}>{fmtMs(t.duration_ms)}</span>
+              <span className="text-xs text-[#8a8a8a] flex-shrink-0" style={MONO}>{fmtMs(track.duration_ms)}</span>
             </button>
           ))}
         </div>
@@ -443,7 +453,7 @@ export default function SongInfo() {
               <circle cx="28" cy="28" r="2" fill="#0f3d38" />
             </svg>
           </div>
-          <span className="text-sm font-medium" style={SANS}>Загружаем данные…</span>
+          <span className="text-sm font-medium" style={SANS}>{t.loading}</span>
         </div>
       )}
 
@@ -515,14 +525,14 @@ export default function SongInfo() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 px-4 py-3 rounded-[14px] border border-white/[0.08] bg-white/[0.03]">
-                    <span className="text-[12px] text-[#8a8a8a]" style={SANS}>Превью недоступно</span>
+                    <span className="text-[12px] text-[#8a8a8a]" style={SANS}>{t.preview_unavailable}</span>
                   </div>
                 )}
 
                 {info.spotify.popularity !== null && (
                   <div className="mt-3">
                     <span className="text-[11px] text-[#8a8a8a] font-medium" style={SANS}>
-                      Популярность: <span className="text-white font-bold">{info.spotify.popularity}/100</span>
+                      {t.popularity}: <span className="text-white font-bold">{info.spotify.popularity}/100</span>
                     </span>
                   </div>
                 )}
@@ -538,10 +548,10 @@ export default function SongInfo() {
                 {/* Meta rows */}
                 <div className="rounded-[12px] overflow-hidden border border-white/[0.08]">
                   {genius.producer_artists.length > 0 && (
-                    <MetaRow label="Продюсер" value={genius.producer_artists.map(a => a.name).join(', ')} />
+                    <MetaRow label={t.label_producer} value={genius.producer_artists.map(a => a.name).join(', ')} />
                   )}
                   {genius.writer_artists.length > 0 && (
-                    <MetaRow label="Авторы" value={genius.writer_artists.map(a => a.name).join(', ')} />
+                    <MetaRow label={t.label_writers} value={genius.writer_artists.map(a => a.name).join(', ')} />
                   )}
                   {genius.featured_artists.length > 0 && (
                     <MetaRow label="Featuring" value={genius.featured_artists.map(a => a.name).join(', ')} />
@@ -554,22 +564,22 @@ export default function SongInfo() {
                         if (!m) return d;
                         return day ? `${day}.${m}.${y}` : `${m}.${y}`;
                       };
-                      compact.push({ label: 'Дата выхода', value: genius.release_date ? fmtDate(genius.release_date) : String(genius.release_year) });
+                      compact.push({ label: t.label_release_date, value: genius.release_date ? fmtDate(genius.release_date) : String(genius.release_year) });
                     }
                     const countries = getCountriesFromTags(genius.tags);
-                    if (countries.length) compact.push({ label: 'Страна', value: (
+                    if (countries.length) compact.push({ label: t.label_country, value: (
                       <span className="flex flex-wrap justify-center gap-x-1.5">
                         {countries.map((c, i) => (
                           <span key={i} style={{ whiteSpace: 'nowrap' }}>
                             {i > 0 && <span className="text-white/30 mx-0.5">·</span>}
-                            <FlagImg emoji={c.flag} />{c.ru}
+                            <FlagImg emoji={c.flag} />{c.name}
                           </span>
                         ))}
                       </span>
                     ) });
-                    compact.push({ label: 'Текст песни', value: <ExternalLink href={genius.lyrics_url}>→ Открыть</ExternalLink> });
+                    compact.push({ label: t.label_lyrics, value: <ExternalLink href={genius.lyrics_url}>{t.link_open}</ExternalLink> });
                     if (genius.pageviews !== null)
-                      compact.push({ label: 'Просмотры текста', value: fmtNum(genius.pageviews) });
+                      compact.push({ label: t.label_lyric_views, value: fmtNum(genius.pageviews) });
                     return compact.length > 0 ? <MetaCompact items={compact} /> : null;
                   })()}
                   {genius.tags.length > 0 && (
@@ -588,15 +598,15 @@ export default function SongInfo() {
                 {/* Relations */}
                 <div className="flex flex-col gap-3 flex-1">
                   {[
-                    { items: genius.samples, label: 'Сэмплирует' },
-                    { items: genius.sampled_in, label: 'Сэмплировали' },
-                    { items: genius.cover_of, label: 'Кавер на' },
-                    { items: genius.covered_by, label: 'Каверы' },
-                    { items: genius.remix_of, label: 'Ремикс на' },
-                    { items: genius.remixes, label: 'Ремиксы' },
-                    { items: genius.interpolates, label: 'Интерполирует' },
-                    { items: genius.interpolated_by, label: 'Интерполировали' },
-                    { items: genius.live_version_of, label: 'Live-версия' },
+                    { items: genius.samples, label: t.rel_samples },
+                    { items: genius.sampled_in, label: t.rel_sampled_in },
+                    { items: genius.cover_of, label: t.rel_cover_of },
+                    { items: genius.covered_by, label: t.rel_covered_by },
+                    { items: genius.remix_of, label: t.rel_remix_of },
+                    { items: genius.remixes, label: t.rel_remixes },
+                    { items: genius.interpolates, label: t.rel_interpolates },
+                    { items: genius.interpolated_by, label: t.rel_interpolated_by },
+                    { items: genius.live_version_of, label: t.rel_live_version_of },
                   ].filter(({ items }) => items.length > 0).map(({ items, label }) => (
                     <div key={label}>
                       <div className={`${LBL} mb-1.5`} style={SANS}>
@@ -628,7 +638,7 @@ export default function SongInfo() {
                 <ServiceLogo
                   name="Last.fm"
                   link={info.lastfm.url}
-                  linkLabel="→ Открыть"
+                  linkLabel={t.link_open}
                   icon={
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="#D51007">
                       <path d="M10.584 17.21l-.88-2.392s-1.43 1.594-3.573 1.594c-1.897 0-3.244-1.649-3.244-4.288 0-3.382 1.704-4.591 3.381-4.591 2.42 0 3.189 1.567 3.849 3.574l.88 2.749c.88 2.666 2.529 4.81 7.285 4.81 3.409 0 5.718-1.044 5.718-3.793 0-2.227-1.265-3.381-3.63-3.931l-1.758-.385c-1.21-.275-1.567-.77-1.567-1.595 0-.934.742-1.484 1.952-1.484 1.32 0 2.034.495 2.144 1.677l2.749-.33c-.22-2.474-1.924-3.492-4.729-3.492-2.474 0-4.893.935-4.893 3.932 0 1.87.907 3.051 3.189 3.601l1.87.44c1.402.33 1.869.907 1.869 1.704 0 1.017-.99 1.43-2.86 1.43-2.776 0-3.93-1.457-4.59-3.464l-.907-2.75c-1.155-3.573-2.997-4.893-6.653-4.893C2.144 5.333 0 7.89 0 12.233c0 4.18 2.144 6.434 5.993 6.434 3.106 0 4.591-1.457 4.591-1.457z" />
@@ -636,8 +646,8 @@ export default function SongInfo() {
                   }
                 />
                 <div className="flex flex-wrap items-center gap-0">
-                  <StatCol label="Слушателей" value={fmtNum(info.lastfm.listeners)} />
-                  <StatCol label="Прослушиваний" value={fmtNum(info.lastfm.playcount)} last={info.lastfm.tags.length === 0} />
+                  <StatCol label={t.stat_listeners} value={fmtNum(info.lastfm.listeners)} />
+                  <StatCol label={t.stat_playcount} value={fmtNum(info.lastfm.playcount)} last={info.lastfm.tags.length === 0} />
                   {info.lastfm.tags.length > 0 && (
                     <div className="px-4 flex flex-wrap gap-1.5">
                       {info.lastfm.tags.slice(0, 4).map((tag) => (
@@ -658,18 +668,18 @@ export default function SongInfo() {
               <ServiceLogo
                 name="YouTube"
                 link={info.youtube.url || info.youtube.search_url}
-                linkLabel={info.youtube.video_id ? '→ Смотреть' : '→ Найти'}
+                linkLabel={info.youtube.video_id ? t.link_watch : t.link_find}
                 icon={<img src="/youtube-icon3.png" width={20} height={20} alt="" aria-hidden />}
               />
               <div className="flex flex-wrap items-center gap-0">
                 {info.youtube.view_count !== null && (
-                  <StatCol label="Просмотров" value={fmtNum(info.youtube.view_count)} last={info.youtube.like_count === null} />
+                  <StatCol label={t.stat_views} value={fmtNum(info.youtube.view_count)} last={info.youtube.like_count === null} />
                 )}
                 {info.youtube.like_count !== null && (
-                  <StatCol label="Лайков" value={fmtNum(info.youtube.like_count)} last />
+                  <StatCol label={t.stat_likes} value={fmtNum(info.youtube.like_count)} last />
                 )}
                 {info.youtube.view_count === null && info.youtube.like_count === null && (
-                  <span className="px-4 text-[#8a8a8a] text-[13px]" style={SANS}>Видео не найдено</span>
+                  <span className="px-4 text-[#8a8a8a] text-[13px]" style={SANS}>{t.video_not_found}</span>
                 )}
               </div>
             </StripCard>
@@ -680,7 +690,7 @@ export default function SongInfo() {
                 <ServiceLogo
                   name="Setlist.fm"
                   link={setlistfm?.url}
-                  linkLabel="→ Открыть"
+                  linkLabel={t.link_open}
                   icon={
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF6C00" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" fill="rgba(239,108,0,0.15)" />
@@ -691,13 +701,13 @@ export default function SongInfo() {
                   }
                 />
                 {setlistLoading ? (
-                  <span className="text-[#8a8a8a] text-[13px]" style={SANS}>Загружаем…</span>
+                  <span className="text-[#8a8a8a] text-[13px]" style={SANS}>{t.loading_short}</span>
                 ) : setlistfm ? (
                   <div className="flex flex-wrap items-center gap-0">
-                    <StatCol label="Исполнений" value={String(setlistfm.total_performances)} />
+                    <StatCol label={t.stat_performances} value={String(setlistfm.total_performances)} />
                     {setlistfm.first_performance && (
                       <div className="px-4 border-r border-white/[0.08]">
-                        <div className={`${LBL} mb-0.5`} style={SANS}>Первое</div>
+                        <div className={`${LBL} mb-0.5`} style={SANS}>{t.stat_first}</div>
                         <div className="text-[13px] font-semibold text-white" style={SANS}>
                           {setlistfm.first_performance.date.split('-').join('.')} · {setlistfm.first_performance.city}
                         </div>
@@ -705,7 +715,7 @@ export default function SongInfo() {
                     )}
                     {setlistfm.last_performance && (
                       <div className="px-4">
-                        <div className={`${LBL} mb-0.5`} style={SANS}>Последнее</div>
+                        <div className={`${LBL} mb-0.5`} style={SANS}>{t.stat_last}</div>
                         <div className="text-[13px] font-semibold text-white" style={SANS}>
                           {setlistfm.last_performance.date.split('-').join('.')} · {setlistfm.last_performance.city}
                         </div>
@@ -730,9 +740,9 @@ export default function SongInfo() {
                   <path d="M42.3995 19.3967L42.2975 18.6445L36.1353 17.2059L39.3184 12.4823L38.9423 11.9702L33.9785 14.3989L34.5267 7.7926L33.9785 7.52062L30.8974 12.8244L27.2702 4.84961H26.586L27.4742 12.6544L18.403 5.43183L17.6167 5.63795L24.5992 14.3989L10.7363 9.77939L10.0861 10.4976L22.4764 17.514L5.4304 18.9526L5.25829 19.9789L22.9906 21.8956L8.16941 34.0139L8.85363 34.9383L26.4139 25.3528L22.9566 42.1608H24.017L30.7954 26.3473L34.9028 38.7036L35.6211 38.1554L34.0805 25.7651L40.3447 32.8495L40.723 32.1313L36.0673 23.3682L42.6736 25.6971L42.7416 24.9767L37.2317 20.5612L42.3995 19.3967Z" fill="#1A1A1A" />
                 </svg>
                 <div>
-                  <div className="text-[12px] font-bold text-white" style={SANS}>Яндекс Музыка</div>
+                  <div className="text-[12px] font-bold text-white" style={SANS}>{t.yandex_music}</div>
                   <span className="text-[11px] font-bold" style={{ color: '#2DD4BF', ...SANS }}>
-                    {info.yandex.url ? '→ Открыть' : '→ Найти'}
+                    {info.yandex.url ? t.link_open : t.link_find}
                   </span>
                 </div>
               </a>
@@ -742,10 +752,10 @@ export default function SongInfo() {
                 const isItunes = info.spotify.id.startsWith('itunes:');
                 const appleUrl = isItunes ? info.spotify.spotify_url : info.apple_music.search_url;
                 const appleLabel = isItunes
-                  ? '→ Открыть'
+                  ? t.link_open
                   : info.apple_music.charts.length > 0
-                    ? `→ Чарт: ${info.apple_music.charts.sort((a,b)=>a.position-b.position).slice(0,2).map(c=>`${COUNTRY_FLAG[c.country]??c.country.toUpperCase()} #${c.position}`).join(', ')}`
-                    : '→ Найти';
+                    ? `${t.link_chart}: ${info.apple_music.charts.sort((a,b)=>a.position-b.position).slice(0,2).map(c=>`${COUNTRY_FLAG[c.country]??c.country.toUpperCase()} #${c.position}`).join(', ')}`
+                    : t.link_find;
                 return (
                   <a
                     href={appleUrl}
@@ -783,7 +793,7 @@ export default function SongInfo() {
                     <div>
                       <div className="text-[12px] font-bold text-white" style={SANS}>Spotify</div>
                       <span className="text-[11px] font-bold" style={{ color: '#2DD4BF', ...SANS }}>
-                        {isItunes ? '→ Найти' : '→ Открыть'}
+                        {isItunes ? t.link_find : t.link_open}
                       </span>
                     </div>
                   </a>
@@ -805,7 +815,7 @@ export default function SongInfo() {
               <circle cx="16.5" cy="14" r="2.6" fill="#2DD4BF" />
             </svg>
           </div>
-          <p className="text-[14px] font-medium" style={SANS}>Введите название, чтобы начать поиск</p>
+          <p className="text-[14px] font-medium" style={SANS}>{t.search_hint}</p>
         </div>
       )}
     </main>

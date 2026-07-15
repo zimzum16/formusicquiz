@@ -1,5 +1,6 @@
 import type { SongMarker, SectionType } from '../../lib/songStructure'
 import { formatTime } from '../../lib/audioUtils'
+import { t } from '../../i18n'
 
 interface SongStructurePanelProps {
   markers: SongMarker[]
@@ -31,14 +32,14 @@ const SECTION_DOT: Record<SectionType, string> = {
 }
 
 const TYPE_LABEL: Record<SectionType, string> = {
-  intro:        'Интро',
-  outro:        'Аутро',
-  verse:        'Куплет',
-  'pre-chorus': 'Пред-припев',
-  chorus:       'Припев',
-  'post-chorus':'Пост-припев',
-  bridge:       'Бридж',
-  unknown:      'Неизвестно',
+  intro:        t.section_intro,
+  outro:        t.section_outro,
+  verse:        t.section_verse,
+  'pre-chorus': t.section_pre_chorus,
+  chorus:       t.section_chorus,
+  'post-chorus':t.section_post_chorus,
+  bridge:       t.section_bridge,
+  unknown:      t.section_unknown,
 }
 
 export function SongStructurePanel({ markers, isAnalyzing, onApplySegment, duration }: SongStructurePanelProps) {

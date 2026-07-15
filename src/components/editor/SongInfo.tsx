@@ -1,5 +1,7 @@
 import type { AudioFile } from '../../types/audio'
 import { ImageSearchBlock } from './ImageSearchBlock'
+import { t, lang } from '../../i18n'
+import { toCyrillicArtist } from '../../lib/cyrillicNames'
 
 interface SongInfoProps {
   audioFile: AudioFile
@@ -14,7 +16,8 @@ function parseFeat(raw: string): { cleanTitle: string; feat: string | null } {
 }
 
 export function SongInfo({ audioFile }: SongInfoProps) {
-  const { artist, title: rawTitle, album, coverArt, year, geniusUrl, isCover } = audioFile
+  const { title: rawTitle, album, coverArt, year, geniusUrl, isCover } = audioFile
+  const artist = lang === 'ru' ? toCyrillicArtist(audioFile.artist) : audioFile.artist
   const { cleanTitle: title, feat } = parseFeat(rawTitle)
 
   const chips = (
@@ -45,7 +48,7 @@ export function SongInfo({ audioFile }: SongInfoProps) {
       className="inline-flex items-center gap-[6px] font-bold hover:opacity-80 transition-opacity"
       style={{ fontSize: '14px', color: '#2DD4BF', textDecoration: 'none', ...SANS }}
     >
-      Текст песни
+      {t.lyrics_label}
     </a>
   ) : null
 

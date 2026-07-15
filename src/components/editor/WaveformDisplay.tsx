@@ -3,6 +3,7 @@ import type { RefObject } from 'react'
 import type { AudioFile } from '../../types/audio'
 import { drawWaveform, fadeEnvelopeMultiplier } from '../../lib/waveform'
 import { formatTimeDetailed, formatTimeDetailedComma } from '../../lib/audioUtils'
+import { t } from '../../i18n'
 import type { SongMarker, SectionType } from '../../lib/songStructure'
 
 const MIN_TRIM_DURATION = 0.05
@@ -436,7 +437,7 @@ export function WaveformDisplay({
       onClick={togglePlayPause}
       className="flex shrink-0 items-center justify-center transition-opacity hover:opacity-80"
       style={{ width: 56, height: 56, borderRadius: '50%', background: '#2DD4BF', border: 'none', cursor: 'pointer', boxShadow: '0 0 14px rgba(45,212,191,.4)' }}
-      aria-label={isPlaying ? 'Пауза' : 'Воспроизвести'}
+      aria-label={isPlaying ? t.pause_aria : t.play_aria}
     >
       {isPlaying ? (
         <svg width="14" height="14" viewBox="0 0 10 10" aria-hidden><rect x="1" y="0" width="3" height="10" fill="#06231f" /><rect x="6" y="0" width="3" height="10" fill="#06231f" /></svg>
@@ -453,7 +454,7 @@ export function WaveformDisplay({
         onClick={toggleMute}
         className="flex shrink-0 items-center justify-center transition-opacity hover:opacity-70"
         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-        aria-label={isMuted ? 'Включить звук' : 'Выключить звук'}
+        aria-label={isMuted ? t.unmute_aria : t.mute_aria}
       >
         {isMuted ? (
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -542,7 +543,7 @@ export function WaveformDisplay({
             aria-valuemin={0}
             aria-valuemax={displayDuration}
             aria-valuenow={currentTime}
-            aria-label="Позиция воспроизведения, перетащите для перемотки"
+            aria-label={t.waveform_playhead_aria}
             onKeyDown={(e) => {
               const d = getDuration()
               if (d <= 0) return
@@ -569,7 +570,7 @@ export function WaveformDisplay({
                   role="slider"
                   tabIndex={0}
                   aria-orientation="horizontal"
-                  aria-label="Начало фрагмента"
+                  aria-label={t.waveform_start_aria}
                   aria-valuemin={0}
                   aria-valuemax={trimRange!.endTime - MIN_TRIM_DURATION}
                   aria-valuenow={trimRange!.startTime}
@@ -597,7 +598,7 @@ export function WaveformDisplay({
                   role="slider"
                   tabIndex={0}
                   aria-orientation="horizontal"
-                  aria-label="Конец фрагмента"
+                  aria-label={t.waveform_end_aria}
                   aria-valuemin={trimRange!.startTime + MIN_TRIM_DURATION}
                   aria-valuemax={displayDuration}
                   aria-valuenow={trimRange!.endTime}
