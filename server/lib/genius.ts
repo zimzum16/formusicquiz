@@ -67,6 +67,34 @@ function artistMatches(resultArtist: string, searchArtist: string): boolean {
   return a.includes(b) || b.includes(a);
 }
 
+export function parseTagsFromHtml(html: string): string[] {
+  const decode = (s: string) =>
+    s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  try {
+    // Pattern 1: anchor tags rendered server-side
+    const anchorMatches = [...html.matchAll(/href="https:\/\/genius\.com\/tags\/[^"]+\"[^>]*>([^<]+)<\/a>/g)];
+    if (anchorMatches.length > 0) return anchorMatches.map((m) => decode(m[1]));
+
+    // Pattern 2: __NEXT_DATA__ JSON (Next.js Genius pages)
+    const nextDataMatch = html.match(/<script[^>]+id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+    if (nextDataMatch) {
+      try {
+        const json = JSON.parse(nextDataMatch[1]);
+        const song = json?.props?.pageProps?.songPage?.song ?? json?.props?.pageProps?.song;
+        if (Array.isArray(song?.tags) && song.tags.length > 0) {
+          return (song.tags as Array<{ name: string }>).map(t => t.name).filter(Boolean);
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Pattern 3: legacy embedded JSON
+    const jsonMatches = [...html.matchAll(/"url":"https:\/\/genius\.com\/tags\/[^"]+","primary":[^,]+,"name":"([^"]+)"/g)];
+    return jsonMatches.map((m) => decode(m[1]));
+  } catch {
+    return [];
+  }
+}
+
 async function scrapeTags(lyricsUrl: string): Promise<string[]> {
   const decode = (s: string) =>
     s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
@@ -116,26 +144,7 @@ async function scrapeTags(lyricsUrl: string): Promise<string[]> {
     const html = await fetchHtml();
     if (!html) return [];
 
-    // Pattern 1: anchor tags rendered server-side
-    const anchorMatches = [...html.matchAll(/href="https:\/\/genius\.com\/tags\/[^"]+\"[^>]*>([^<]+)<\/a>/g)];
-    if (anchorMatches.length > 0) return anchorMatches.map((m) => decode(m[1]));
-
-    // Pattern 2: __NEXT_DATA__ JSON (Next.js Genius pages)
-    const nextDataMatch = html.match(/<script[^>]+id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
-    if (nextDataMatch) {
-      try {
-        const json = JSON.parse(nextDataMatch[1]);
-        const song = json?.props?.pageProps?.songPage?.song ?? json?.props?.pageProps?.song;
-        if (Array.isArray(song?.tags) && song.tags.length > 0) {
-          return (song.tags as Array<{ name: string }>).map(t => t.name).filter(Boolean);
-        }
-      } catch { /* ignore */ }
-    }
-
-    // Pattern 3: legacy embedded JSON
-    const jsonMatches = [...html.matchAll(/"url":"https:\/\/genius\.com\/tags\/[^"]+","primary":[^,]+,"name":"([^"]+)"/g)];
-    console.log('[genius] scrapeTags patterns matched: anchor=0 nextData=0 legacy=' + jsonMatches.length);
-    return jsonMatches.map((m) => decode(m[1]));
+    return parseTagsFromHtml(html);
   } catch (e) {
     console.error('[genius] scrapeTags error:', e);
     return [];

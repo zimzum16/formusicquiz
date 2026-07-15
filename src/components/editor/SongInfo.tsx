@@ -14,7 +14,7 @@ function parseFeat(raw: string): { cleanTitle: string; feat: string | null } {
 }
 
 export function SongInfo({ audioFile }: SongInfoProps) {
-  const { artist, title: rawTitle, album, coverArt, year, geniusUrl } = audioFile
+  const { artist, title: rawTitle, album, coverArt, year, geniusUrl, isCover } = audioFile
   const { cleanTitle: title, feat } = parseFeat(rawTitle)
 
   const chips = (
@@ -27,6 +27,11 @@ export function SongInfo({ audioFile }: SongInfoProps) {
       {year && (
         <span className="inline-flex items-center font-semibold text-white border border-white/[0.1]" style={{ padding: '6px 14px', borderRadius: '999px', background: 'rgba(255,255,255,.07)', fontSize: '13px', ...SANS }}>
           {year}
+        </span>
+      )}
+      {isCover && (
+        <span className="inline-flex items-center font-semibold border" style={{ padding: '6px 14px', borderRadius: '999px', background: 'rgba(45,212,191,.10)', borderColor: 'rgba(45,212,191,.30)', color: '#2DD4BF', fontSize: '13px', ...SANS }}>
+          Cover
         </span>
       )}
     </div>

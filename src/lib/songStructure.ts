@@ -12,6 +12,7 @@ export interface SongAnalysis {
   title: string
   artist: string
   geniusUrl?: string
+  isCover?: boolean
 }
 
 interface LrcLine { time: number; text: string }
@@ -29,6 +30,7 @@ interface GeniusResult {
   title: string
   artist: string
   url?: string
+  isCover?: boolean
 }
 
 function inferTypeFromLabel(label: string): SectionType {
@@ -53,7 +55,7 @@ async function fetchGeniusSections(title: string, artist: string): Promise<Geniu
       ...s,
       type: s.type === 'unknown' ? inferTypeFromLabel(s.label) : s.type,
     }))
-    return { sections, title: data.title ?? '', artist: data.artist ?? '', url: data.url }
+    return { sections, title: data.title ?? '', artist: data.artist ?? '', url: data.url, isCover: data.isCover }
   } catch {
     return { sections: [], title: '', artist: '' }
   }
@@ -247,14 +249,14 @@ export async function analyzeSongStructure(
 
   const [genius, lrcLines] = await Promise.all([geniusPromise, lrcPromise])
 
-  if (genius.sections.length === 0) return { markers: [], title: genius.resolvedTitle, artist: genius.resolvedArtist, geniusUrl: genius.url }
+  if (genius.sections.length === 0) return { markers: [], title: genius.resolvedTitle, artist: genius.resolvedArtist, geniusUrl: genius.url, isCover: genius.isCover }
 
   // Если LRC не нашёлся с исходным title — retry с очищенным названием из Genius
   const lines = lrcLines.length === 0 && genius.resolvedTitle !== title
     ? await fetchLrcLines(genius.resolvedTitle, genius.resolvedArtist)
     : lrcLines
 
-  if (lines.length === 0) return { markers: [], title: genius.resolvedTitle, artist: genius.resolvedArtist, geniusUrl: genius.url }
+  if (lines.length === 0) return { markers: [], title: genius.resolvedTitle, artist: genius.resolvedArtist, geniusUrl: genius.url, isCover: genius.isCover }
 
-  return { markers: alignSections(genius.sections, lines, duration), title: genius.resolvedTitle, artist: genius.resolvedArtist, geniusUrl: genius.url }
+  return { markers: alignSections(genius.sections, lines, duration), title: genius.resolvedTitle, artist: genius.resolvedArtist, geniusUrl: genius.url, isCover: genius.isCover }
 }

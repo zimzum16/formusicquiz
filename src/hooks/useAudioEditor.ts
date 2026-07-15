@@ -237,8 +237,8 @@ export function useAudioEditor() {
         })
           .then((analysis: SongAnalysis) => {
             setSongMarkers(analysis.markers)
-            if (analysis.geniusUrl) {
-              setAudioFile(prev => prev ? { ...prev, geniusUrl: analysis.geniusUrl } : prev)
+            if (analysis.geniusUrl || analysis.isCover !== undefined) {
+              setAudioFile(prev => prev ? { ...prev, geniusUrl: analysis.geniusUrl, isCover: analysis.isCover } : prev)
             }
           })
           .finally(() => setIsAnalyzingStructure(false))

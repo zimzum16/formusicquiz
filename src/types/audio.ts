@@ -9,6 +9,7 @@ export interface AudioFile {
   year?: string
   genre?: string
   geniusUrl?: string
+  isCover?: boolean
 }
 
 export interface TrimSegment {

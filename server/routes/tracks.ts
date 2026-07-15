@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { Redis } from '@upstash/redis';
 import { searchTracks, getTrack } from '../lib/spotify.js';
-import { searchSong } from '../lib/genius.js';
+import { searchSong, parseTagsFromHtml } from '../lib/genius.js';
 import { extractLyricsText } from '../lib/lyricsCompare.js';
 import { getTrackInfo } from '../lib/lastfm.js';
 import { getTrackStats } from '../lib/setlistfm.js';
@@ -471,7 +471,9 @@ router.openapi(lyricsRoute, async (c) => {
     console.log('[lyrics] html length:', html.length, 'has container:', html.includes('data-lyrics-container'));
     const sections = parseGeniusLyrics(html);
     console.log('[lyrics] parsed sections:', sections.length);
-    const data = { sections, title: geniusTitle, artist: geniusArtist, url: lyricsUrl };
+    const tags = parseTagsFromHtml(html);
+    const isCover = tags.some(t => t.toLowerCase() === 'cover');
+    const data = { sections, title: geniusTitle, artist: geniusArtist, url: lyricsUrl, isCover };
     await cacheSet(lyricsUrl, data);
     if (!('url' in query)) {
       await cacheSet(`ta:${query.title}|${query.artist}`, data);
