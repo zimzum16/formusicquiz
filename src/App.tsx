@@ -25,7 +25,7 @@ function App() {
         {currentPage === 'pricing' && <Pricing navigate={navigate} />}
       </div>
       <footer className="mt-auto pt-6 pb-4 flex flex-col items-center gap-2" style={{ color: 'rgba(255,255,255,.45)', fontSize: '12px', fontFamily: 'Montserrat, sans-serif' }}>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <a
             href="https://trackslice.ru"
             style={{
@@ -34,10 +34,11 @@ function App() {
               fontSize: 11,
               fontWeight: 700,
               letterSpacing: '0.08em',
-              color: lang === 'ru' ? '#fff' : 'rgba(255,255,255,.35)',
-              padding: '3px 7px',
-              borderRadius: 5,
-              border: `1px solid ${lang === 'ru' ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.1)'}`,
+              color: lang === 'ru' ? '#2DD4BF' : 'rgba(255,255,255,.35)',
+              padding: '5px 12px',
+              borderRadius: 8,
+              border: `1px solid ${lang === 'ru' ? 'rgba(45,212,191,.4)' : 'rgba(255,255,255,.08)'}`,
+              background: lang === 'ru' ? 'rgba(45,212,191,.08)' : 'rgba(255,255,255,.03)',
               transition: 'opacity .2s',
             }}
             className="hover:opacity-80"
@@ -61,10 +62,11 @@ function App() {
               fontSize: 11,
               fontWeight: 700,
               letterSpacing: '0.08em',
-              color: lang === 'en' ? '#fff' : 'rgba(255,255,255,.35)',
-              padding: '3px 7px',
-              borderRadius: 5,
-              border: `1px solid ${lang === 'en' ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.1)'}`,
+              color: lang === 'en' ? '#2DD4BF' : 'rgba(255,255,255,.35)',
+              padding: '5px 12px',
+              borderRadius: 8,
+              border: `1px solid ${lang === 'en' ? 'rgba(45,212,191,.4)' : 'rgba(255,255,255,.08)'}`,
+              background: lang === 'en' ? 'rgba(45,212,191,.08)' : 'rgba(255,255,255,.03)',
               transition: 'opacity .2s',
             }}
             className="hover:opacity-80"
