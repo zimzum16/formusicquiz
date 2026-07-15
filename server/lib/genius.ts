@@ -79,6 +79,24 @@ async function scrapeTags(lyricsUrl: string): Promise<string[]> {
       if (res.ok) return res.text();
     } catch { /* blocked, fall through to proxy */ }
 
+    // ScraperBee keys — parallel: whichever responds first wins, failed key is skipped
+    const scraperbeeKeys = (process.env.SCRAPERBEE_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean);
+    if (scraperbeeKeys.length > 0) {
+      try {
+        const html = await Promise.any(
+          scraperbeeKeys.map(key =>
+            fetch(`https://app.scrapingbee.com/api/v1/?api_key=${key}&url=${encodeURIComponent(lyricsUrl)}&render_js=false`, { signal: AbortSignal.timeout(9000) })
+              .then(res => {
+                console.log('[genius] scrapeTags scraperbee status:', res.status, `(key ...${key.slice(-6)})`);
+                if (!res.ok) return Promise.reject(new Error(`scraperbee ${res.status}`));
+                return res.text();
+              })
+          )
+        );
+        if (html) return html;
+      } catch { /* all ScraperBee keys failed */ }
+    }
+
     // ScraperAPI keys — sequential (keys have separate quotas)
     const scraperKeys = [
       ...(process.env.SCRAPERAPI_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean),
@@ -90,24 +108,6 @@ async function scrapeTags(lyricsUrl: string): Promise<string[]> {
         console.log('[genius] scrapeTags scraperapi status:', res.status);
         if (res.ok) return res.text();
       } catch { /* try next */ }
-    }
-
-    // ZenRows keys — parallel: whichever responds first wins, failed key is skipped
-    const zenrowsKeys = (process.env.ZENROWS_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean);
-    if (zenrowsKeys.length > 0) {
-      try {
-        const html = await Promise.any(
-          zenrowsKeys.map(key =>
-            fetch(`https://api.zenrows.com/v1/?apikey=${key}&url=${encodeURIComponent(lyricsUrl)}&antibot=true`, { signal: AbortSignal.timeout(9000) })
-              .then(res => {
-                console.log('[genius] scrapeTags zenrows status:', res.status, `(key ...${key.slice(-6)})`);
-                if (!res.ok) return Promise.reject(new Error(`zenrows ${res.status}`));
-                return res.text();
-              })
-          )
-        );
-        if (html) return html;
-      } catch { /* all ZenRows keys failed */ }
     }
     return '';
   };

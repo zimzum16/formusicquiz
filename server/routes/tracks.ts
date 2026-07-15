@@ -431,7 +431,7 @@ router.openapi(lyricsRoute, async (c) => {
       ...(process.env.SCRAPERAPI_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean),
       ...(process.env.SCRAPERAPI_KEY ? [process.env.SCRAPERAPI_KEY] : []),
     ];
-    const zenrowsKeys = (process.env.ZENROWS_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean);
+    const scraperbeeKeys = (process.env.SCRAPERBEE_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean);
     const proxyBase = process.env.SCRAPE_PROXY_URL;
 
     const directHeaders = {
@@ -442,16 +442,16 @@ router.openapi(lyricsRoute, async (c) => {
 
     let html = '';
 
-    for (const key of scraperapiKeys) {
-      const res = await fetch(`http://api.scraperapi.com?api_key=${key}&url=${encodeURIComponent(lyricsUrl)}`, { signal: AbortSignal.timeout(15000) });
-      console.log('[lyrics] scraperapi status:', res.status);
+    for (const key of scraperbeeKeys) {
+      const res = await fetch(`https://app.scrapingbee.com/api/v1/?api_key=${key}&url=${encodeURIComponent(lyricsUrl)}&render_js=false`, { signal: AbortSignal.timeout(15000) });
+      console.log('[lyrics] scraperbee status:', res.status);
       if (res.ok) { html = await res.text(); break; }
     }
 
     if (!html) {
-      for (const key of zenrowsKeys) {
-        const res = await fetch(`https://api.zenrows.com/v1/?apikey=${key}&url=${encodeURIComponent(lyricsUrl)}&antibot=true`, { signal: AbortSignal.timeout(15000) });
-        console.log('[lyrics] zenrows status:', res.status);
+      for (const key of scraperapiKeys) {
+        const res = await fetch(`http://api.scraperapi.com?api_key=${key}&url=${encodeURIComponent(lyricsUrl)}`, { signal: AbortSignal.timeout(15000) });
+        console.log('[lyrics] scraperapi status:', res.status);
         if (res.ok) { html = await res.text(); break; }
       }
     }

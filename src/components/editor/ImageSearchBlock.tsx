@@ -10,20 +10,20 @@ import {
 
 const ITEMS = [
   {
-    key: 'google',
-    label: 'Google',
-    color: '#fff',
-    bg: 'rgba(255,255,255,.05)',
-    border: 'rgba(255,255,255,.1)',
-    favicon: '/google-icon2.png',
-  },
-  {
     key: 'yandex',
     label: 'Yandex',
     color: '#FC3F1D',
     bg: 'rgba(252,63,29,.08)',
     border: 'rgba(252,63,29,.22)',
     favicon: '/yandex-icon.png',
+  },
+  {
+    key: 'google',
+    label: 'Google',
+    color: '#fff',
+    bg: 'rgba(255,255,255,.05)',
+    border: 'rgba(255,255,255,.1)',
+    favicon: '/google-icon2.png',
   },
   {
     key: 'ddg',
