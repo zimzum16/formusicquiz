@@ -112,6 +112,37 @@ export interface TrackInfo {
   apple_music: AppleMusicResult;
 }
 
+export async function searchItunesDirect(title: string, artist?: string): Promise<SpotifyTrack[]> {
+  const term = artist ? `${title} ${artist}` : title;
+  const url = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=10&country=US`;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(7000) });
+    if (!res.ok) return [];
+    const data = await res.json() as { results: Array<{
+      kind?: string; trackId: number; trackName: string; artistName: string;
+      artistId?: number; collectionName: string; releaseDate: string;
+      trackTimeMillis: number; previewUrl?: string; artworkUrl100?: string; trackViewUrl: string;
+    }> };
+    return data.results
+      .filter(r => r.kind === 'song')
+      .map(r => ({
+        id: `itunes:${r.trackId}`,
+        title: r.trackName,
+        artist: r.artistName,
+        artist_id: String(r.artistId ?? ''),
+        album: r.collectionName ?? '',
+        release_date: r.releaseDate ? r.releaseDate.split('T')[0] : '',
+        duration_ms: r.trackTimeMillis ?? 0,
+        preview_url: r.previewUrl ?? null,
+        cover_url: r.artworkUrl100?.replace('100x100bb', '600x600bb') ?? null,
+        spotify_url: r.trackViewUrl ?? '',
+        popularity: null,
+      }));
+  } catch {
+    return [];
+  }
+}
+
 export const tracksApi = {
   search: (q: string, artist?: string) => {
     const params = new URLSearchParams({ q });

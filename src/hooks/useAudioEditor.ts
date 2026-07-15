@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react'
 import type { AudioFile, TrimSegment, ProcessedAudioFile } from '../types/audio'
 import { processAudioSegment } from '../lib/audioUtils'
 import { extractID3Tags, parseFilename } from '../lib/id3Parser'
-import { tracksApi } from '../lib/api'
+import { tracksApi, searchItunesDirect } from '../lib/api'
 import { analyzeSongStructure, type SongMarker, type SongAnalysis } from '../lib/songStructure'
 
 // Убирает водяные знаки пиратских сайтов из ID3 тегов: [muzmo.ru], [zaycev.net] и т.п.
@@ -99,23 +99,37 @@ export function useAudioEditor() {
       setSegments([defaultSegment])
       setProcessedFiles([])
 
-      // Сначала Spotify/iTunes (подтверждаем title/artist), затем Genius с правильными данными
+      // Сначала Spotify/iTunes параллельно (подтверждаем title/artist/cover), затем Genius
       void (async () => {
         let confirmedTitle = title
         let confirmedArtist = artist
         let spotifyFound = false
 
+        const normalize = (s: string) => s.toLowerCase().replace(/[^a-zа-яё0-9]/gi, '')
+        const searchArtist = artist === 'Неизвестный исполнитель' ? undefined : artist
+
+        // Запускаем iTunes сразу параллельно — прямо из браузера, не ждём Spotify
+        const itunesPromise = searchItunesDirect(title, searchArtist).catch((): Awaited<ReturnType<typeof searchItunesDirect>> => [])
+
         try {
-          const searchArtist = artist === 'Неизвестный исполнитель' ? undefined : artist
           const results = await tracksApi.search(title, searchArtist)
+          console.log('[upload] spotify results:', results.length, results[0])
 
           if (results.length) {
-            const normalize = (s: string) => s.toLowerCase().replace(/[^a-zа-яё0-9]/gi, '')
+            // Сравниваем без учёта алфавита (Alisa ≈ Алиса — одинаковые символы после strip)
+            const latinToCyrillic: Record<string, string> = {
+              a:'а',b:'б',v:'в',g:'г',d:'д',e:'е',z:'з',i:'и',
+              k:'к',l:'л',m:'м',n:'н',o:'о',p:'п',r:'р',s:'с',
+              t:'т',u:'у',f:'ф',h:'х',c:'ц',y:'ы',
+            }
+            const normArtist = (s: string) => s.toLowerCase()
+              .replace(/[^a-zа-яё]/gi, '')
+              .replace(/[a-z]/g, c => latinToCyrillic[c] ?? c)
 
             const findArtistMatches = (res: typeof results, artistName: string) =>
               res.filter(r => {
-                const rNorm = normalize(r.artist)
-                const aNorm = normalize(artistName)
+                const rNorm = normArtist(r.artist)
+                const aNorm = normArtist(artistName)
                 return rNorm.includes(aNorm) || aNorm.includes(rNorm)
               })
 
@@ -123,7 +137,7 @@ export function useAudioEditor() {
 
             // Если совпадений нет и теги не были в файле — порядок мог быть "Title - Artist"
             if (!artistMatches.length && !id3Tags.artist && !id3Tags.title) {
-              const swappedResults = await tracksApi.search(artist, title)
+              const swappedResults = await tracksApi.search(artist, searchArtist)
               const swappedMatches = findArtistMatches(swappedResults, title)
               if (swappedMatches.length) {
                 artistMatches = swappedMatches
@@ -143,6 +157,8 @@ export function useAudioEditor() {
               if (byTitle) artistMatches = [byTitle]
             }
 
+            console.log('[upload] artistMatches:', artistMatches.length, artistMatches[0])
+
             if (artistMatches.length) {
               const COMPILATION_RE = /greatest hits|best of|collection|anthology|compilation|platinum|hits|essential|сборник/i
               let match = artistMatches[0]
@@ -158,25 +174,57 @@ export function useAudioEditor() {
               }
 
               const year = match.release_date?.slice(0, 4) ?? undefined
+              confirmedTitle = match.title
+              confirmedArtist = match.artist.split(',')[0].trim()
 
-              // Если не было ID3-тегов — title/artist из Spotify надёжнее чем из имени файла
-              if (!hasId3Tags) {
-                confirmedTitle = match.title
-                confirmedArtist = match.artist.split(',')[0].trim()
-              }
+              // Берём обложку от Spotify, при отсутствии ждём iTunes
+              const spotifyCover = match.cover_url
+              const itunesResults = await itunesPromise
+              const itunesCover = itunesResults.find(r => {
+                const rn = normalize(r.title)
+                const tn = normalize(confirmedTitle)
+                return rn === tn || rn.includes(tn) || tn.includes(rn)
+              })?.cover_url ?? itunesResults.find(r => r.cover_url)?.cover_url ?? null
 
+              console.log('[upload] spotifyCover:', spotifyCover, 'itunesCover:', itunesCover)
+
+              setAudioFile(prev => prev ? {
+                ...prev,
+                coverArt: spotifyCover ?? itunesCover ?? prev.coverArt,
+                album: match.album || prev.album,
+                year: year || prev.year,
+                title: confirmedTitle,
+                artist: confirmedArtist,
+              } : prev)
+              spotifyFound = true
+            }
+          }
+        } catch (e) {
+          console.log('[upload] spotify error:', e)
+          // Spotify/сервер недоступен — используем уже запущенный iTunes
+          try {
+            const itunesResults = await itunesPromise
+            console.log('[upload] itunes fallback results:', itunesResults.length)
+            if (itunesResults.length) {
+              const titleNorm = normalize(confirmedTitle)
+              const match = itunesResults.find(r => {
+                const rn = normalize(r.title)
+                return rn === titleNorm || rn.includes(titleNorm) || titleNorm.includes(rn)
+              }) ?? itunesResults[0]
+              const year = match.release_date?.slice(0, 4) ?? undefined
+              confirmedTitle = match.title
+              confirmedArtist = match.artist.split(',')[0].trim()
               setAudioFile(prev => prev ? {
                 ...prev,
                 coverArt: match.cover_url ?? prev.coverArt,
                 album: match.album || prev.album,
                 year: year || prev.year,
-                ...(!hasId3Tags && { title: confirmedTitle, artist: confirmedArtist }),
+                title: confirmedTitle,
+                artist: confirmedArtist,
               } : prev)
               spotifyFound = true
             }
-          }
-        } catch {
-          // тихая ошибка — продолжаем с оригинальными значениями
+          } catch { /* iTunes тоже недоступен */ }
         }
 
         // Запускаем Genius с подтверждёнными данными от Spotify/iTunes

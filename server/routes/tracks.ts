@@ -404,8 +404,8 @@ router.openapi(lyricsRoute, async (c) => {
     lyricsUrl = query.url;
   } else if (query.title && query.artist) {
     const cacheKey = `ta:${query.title}|${query.artist}`;
-    const cached = await cacheGet<{ sections: GeniusLyricsSection[] }>(cacheKey);
-    if (cached) return c.json(cached, 200);
+    const cached = await cacheGet<{ sections: GeniusLyricsSection[]; url?: string; title?: string; artist?: string }>(cacheKey);
+    if (cached?.url) return c.json(cached, 200);
 
     const genius = await searchSong(query.title, query.artist).catch((e) => {
       console.error('[lyrics] searchSong error:', e);
