@@ -728,33 +728,23 @@ export default function SongInfo() {
             {/* Compact row: Yandex + Apple + Spotify */}
             <StripCard>
               {/* Yandex */}
-              <div className="flex-1 flex items-center gap-2.5 border-r border-white/[0.08] pr-4 min-w-[130px]">
-                <a
-                  href={info.yandex.url ?? info.yandex.search_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
-                >
-                  <svg width="18" height="18" viewBox="0 0 48 48">
-                    <path d="M24 48C37.2548 48 48 37.2548 48 24C48 10.7452 37.2548 0 24 0C10.7452 0 0 10.7452 0 24C0 37.2548 10.7452 48 24 48Z" fill="#FFBC0D" />
-                    <path d="M42.3995 19.3967L42.2975 18.6445L36.1353 17.2059L39.3184 12.4823L38.9423 11.9702L33.9785 14.3989L34.5267 7.7926L33.9785 7.52062L30.8974 12.8244L27.2702 4.84961H26.586L27.4742 12.6544L18.403 5.43183L17.6167 5.63795L24.5992 14.3989L10.7363 9.77939L10.0861 10.4976L22.4764 17.514L5.4304 18.9526L5.25829 19.9789L22.9906 21.8956L8.16941 34.0139L8.85363 34.9383L26.4139 25.3528L22.9566 42.1608H24.017L30.7954 26.3473L34.9028 38.7036L35.6211 38.1554L34.0805 25.7651L40.3447 32.8495L40.723 32.1313L36.0673 23.3682L42.6736 25.6971L42.7416 24.9767L37.2317 20.5612L42.3995 19.3967Z" fill="#1A1A1A" />
-                  </svg>
-                  <div>
-                    <div className="text-[12px] font-bold text-white" style={SANS}>{t.yandex_music}</div>
-                    <span className="text-[11px] font-bold" style={{ color: '#2DD4BF', ...SANS }}>
-                      {info.yandex.url ? t.link_open : t.link_find}
-                    </span>
-                  </div>
-                </a>
-                {info.yandex.likes_count != null && (
-                  <div className="ml-auto text-right">
-                    <div className="text-[11px] text-white/40" style={SANS}>лайки</div>
-                    <div className="text-[12px] font-bold text-white" style={SANS}>
-                      ♥ {info.yandex.likes_count.toLocaleString('ru-RU')}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <a
+                href={info.yandex.url ?? info.yandex.search_url}
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 flex items-center gap-2.5 border-r border-white/[0.08] pr-4 hover:opacity-80 transition-opacity min-w-[130px]"
+              >
+                <svg width="18" height="18" viewBox="0 0 48 48">
+                  <path d="M24 48C37.2548 48 48 37.2548 48 24C48 10.7452 37.2548 0 24 0C10.7452 0 0 10.7452 0 24C0 37.2548 10.7452 48 24 48Z" fill="#FFBC0D" />
+                  <path d="M42.3995 19.3967L42.2975 18.6445L36.1353 17.2059L39.3184 12.4823L38.9423 11.9702L33.9785 14.3989L34.5267 7.7926L33.9785 7.52062L30.8974 12.8244L27.2702 4.84961H26.586L27.4742 12.6544L18.403 5.43183L17.6167 5.63795L24.5992 14.3989L10.7363 9.77939L10.0861 10.4976L22.4764 17.514L5.4304 18.9526L5.25829 19.9789L22.9906 21.8956L8.16941 34.0139L8.85363 34.9383L26.4139 25.3528L22.9566 42.1608H24.017L30.7954 26.3473L34.9028 38.7036L35.6211 38.1554L34.0805 25.7651L40.3447 32.8495L40.723 32.1313L36.0673 23.3682L42.6736 25.6971L42.7416 24.9767L37.2317 20.5612L42.3995 19.3967Z" fill="#1A1A1A" />
+                </svg>
+                <div>
+                  <div className="text-[12px] font-bold text-white" style={SANS}>{t.yandex_music}</div>
+                  <span className="text-[11px] font-bold" style={{ color: '#2DD4BF', ...SANS }}>
+                    {info.yandex.url ? t.link_open : t.link_find}
+                  </span>
+                </div>
+              </a>
 
               {/* Apple Music */}
               {(() => {

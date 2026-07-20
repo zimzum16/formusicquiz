@@ -92,7 +92,6 @@ const ChartEntrySchema = z.object({ position: z.number(), progress: z.enum(['up'
 const YandexSchema = z.object({
   url: z.string().nullable(),
   search_url: z.string(),
-  likes_count: z.number().nullable(),
   play_count: z.number().nullable(),
   chart: ChartEntrySchema.nullable(),
 });
@@ -541,7 +540,7 @@ router.openapi(infoRoute, async (c) => {
   const yandex =
     yandexResult.status === 'fulfilled' && yandexResult.value
       ? yandexResult.value
-      : { url: null, search_url: `https://music.yandex.ru/search?text=${encodeURIComponent(`${artist} ${title}`)}`, likes_count: null, play_count: null, chart: null };
+      : { url: null, search_url: `https://music.yandex.ru/search?text=${encodeURIComponent(`${artist} ${title}`)}`, play_count: null, chart: null };
   const apple_music =
     appleResult.status === 'fulfilled' && appleResult.value
       ? appleResult.value

@@ -92,7 +92,6 @@ export interface YoutubeResult {
 export interface YandexResult {
   url: string | null;
   search_url: string;
-  likes_count: number | null;
   play_count: number | null;
   chart: { position: number; progress: 'up' | 'down' | 'same' } | null;
 }
