@@ -82,6 +82,9 @@ export async function getTrackInfo(title: string, artist: string): Promise<Yande
     const url = `https://music.yandex.ru/track/${trackId}`;
     const play_count = typeof track.playCount === 'number' ? track.playCount : null;
 
+    console.log('[yandex] search track keys:', Object.keys(track));
+    console.log('[yandex] likesCount from search:', track.likesCount);
+
     // POST /tracks даёт полные данные включая likesCount
     let likes_count: number | null = typeof track.likesCount === 'number' ? track.likesCount : null;
     if (likes_count === null && trackId) {
@@ -91,9 +94,12 @@ export async function getTrackInfo(title: string, artist: string): Promise<Yande
         headers: { ...getHeaders(), 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `track-ids=${trackKey}`,
       });
+      console.log('[yandex] POST /tracks status:', detailResp.status);
       if (detailResp.ok) {
         const detailJson = await detailResp.json() as any;
         const detail = detailJson?.result?.[0];
+        console.log('[yandex] detail keys:', detail ? Object.keys(detail) : 'no detail');
+        console.log('[yandex] detail.likesCount:', detail?.likesCount);
         if (typeof detail?.likesCount === 'number') likes_count = detail.likesCount;
       }
     }
