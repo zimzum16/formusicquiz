@@ -28,22 +28,11 @@ function App() {
         <div className="flex items-center gap-3">
           <a
             href="https://trackslice.ru"
-            style={{
-              textDecoration: 'none',
-              fontFamily: 'Montserrat, sans-serif',
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              color: lang === 'ru' ? '#2DD4BF' : 'rgba(255,255,255,.35)',
-              padding: '5px 12px',
-              borderRadius: 8,
-              border: `1px solid ${lang === 'ru' ? 'rgba(45,212,191,.4)' : 'rgba(255,255,255,.08)'}`,
-              background: lang === 'ru' ? 'rgba(45,212,191,.08)' : 'rgba(255,255,255,.03)',
-              transition: 'opacity .2s',
-            }}
+            title="Русский"
+            style={{ opacity: lang === 'ru' ? 1 : 0.35, lineHeight: 0, transition: 'opacity .2s', textDecoration: 'none' }}
             className="hover:opacity-80"
           >
-            RU
+            <img src="/flag-ru.svg" width={24} height={24} alt="RU" />
           </a>
           <a
             href="https://t.me/zimzum16"
@@ -56,22 +45,11 @@ function App() {
           </a>
           <a
             href="https://en.trackslice.ru"
-            style={{
-              textDecoration: 'none',
-              fontFamily: 'Montserrat, sans-serif',
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              color: lang === 'en' ? '#2DD4BF' : 'rgba(255,255,255,.35)',
-              padding: '5px 12px',
-              borderRadius: 8,
-              border: `1px solid ${lang === 'en' ? 'rgba(45,212,191,.4)' : 'rgba(255,255,255,.08)'}`,
-              background: lang === 'en' ? 'rgba(45,212,191,.08)' : 'rgba(255,255,255,.03)',
-              transition: 'opacity .2s',
-            }}
+            title="English"
+            style={{ opacity: lang === 'en' ? 1 : 0.35, lineHeight: 0, transition: 'opacity .2s', textDecoration: 'none' }}
             className="hover:opacity-80"
           >
-            EN
+            <img src="/flag-en.svg" width={24} height={24} alt="EN" />
           </a>
         </div>
         <span>© {new Date().getFullYear()} ZimZum Production</span>
