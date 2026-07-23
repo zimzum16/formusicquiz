@@ -234,15 +234,15 @@ export async function analyzeSongStructure(
   title: string,
   artist: string,
   duration: number,
-  onGeniusResolved?: (title: string, artist: string) => void
+  onGeniusResolved?: (title: string, artist: string, geniusUrl?: string, isCover?: boolean) => void
 ): Promise<SongAnalysis> {
   const stripParens = (s: string) => s.replace(/\s*\([^)]*\)/g, '').trim()
 
-  // Genius и LRC запускаем параллельно, но title/artist обновляем сразу как Genius ответил
+  // Genius и LRC запускаем параллельно, но title/artist/url обновляем сразу как Genius ответил
   const geniusPromise = fetchGeniusSections(title, artist).then(g => {
     const resolvedTitle = stripParens(g.title || title)
     const resolvedArtist = stripParens(g.artist || artist)
-    onGeniusResolved?.(resolvedTitle, resolvedArtist)
+    onGeniusResolved?.(resolvedTitle, resolvedArtist, g.url, g.isCover)
     return { ...g, resolvedTitle, resolvedArtist }
   })
   const lrcPromise = fetchLrcLines(title, artist)

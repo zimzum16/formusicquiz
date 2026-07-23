@@ -46,7 +46,6 @@ const MAP: Record<string, string> = {
   'chyorny obelisk': 'Чёрный Обелиск',
   'black obelisk': 'Чёрный Обелиск',
   'kofe': 'Кофе',
-  'televizor': 'Телевизор',
 
   // Исполнители
   'viktor tsoi': 'Виктор Цой',
@@ -82,7 +81,6 @@ const MAP: Record<string, string> = {
   'loboda': 'LOBODA',
   'basta': 'Баста',
   'monetochka': 'Монеточка',
-  'pelageya': 'Пелагея',
   'pelageya': 'Пелагея',
   'shaman': 'SHAMAN',
   'polina gagarina': 'Полина Гагарина',

@@ -67,7 +67,8 @@ export function useAudioEditor() {
 
       if (!artist || !title) {
         const parsed = parseFilename(file.name)
-        artist = artist || parsed.artist || 'Неизвестный исполнитель'
+        const isTrackNumber = parsed.artist ? /^\d{1,3}$/.test(parsed.artist.trim()) : false
+        artist = artist || (isTrackNumber ? undefined : parsed.artist) || 'Неизвестный исполнитель'
         title = title || parsed.title || file.name.replace('.mp3', '')
       }
 
@@ -207,39 +208,69 @@ export function useAudioEditor() {
             console.log('[upload] itunes fallback results:', itunesResults.length)
             if (itunesResults.length) {
               const titleNorm = normalize(confirmedTitle)
-              const match = itunesResults.find(r => {
+              const artistNorm = confirmedArtist !== 'Неизвестный исполнитель' ? normalize(confirmedArtist) : null
+              const albumNorm = id3Tags.album ? normalize(id3Tags.album) : null
+
+              const titleMatch = itunesResults.find(r => {
                 const rn = normalize(r.title)
                 return rn === titleNorm || rn.includes(titleNorm) || titleNorm.includes(rn)
-              }) ?? itunesResults[0]
-              const year = match.release_date?.slice(0, 4) ?? undefined
-              confirmedTitle = match.title
-              confirmedArtist = match.artist.split(',')[0].trim()
-              setAudioFile(prev => prev ? {
-                ...prev,
-                coverArt: match.cover_url ?? prev.coverArt,
-                album: match.album || prev.album,
-                year: year || prev.year,
-                title: confirmedTitle,
-                artist: confirmedArtist,
-              } : prev)
-              spotifyFound = true
+              })
+              const titleArtistMatch = titleMatch && artistNorm
+                ? (() => { const rn = normalize(titleMatch.artist); return rn.includes(artistNorm) || artistNorm.includes(rn) })()
+                : false
+
+              const artistAlbumMatch = artistNorm && albumNorm
+                ? itunesResults.find(r => {
+                    const rArtist = normalize(r.artist)
+                    const rAlbum = r.album ? normalize(r.album) : ''
+                    return (rArtist.includes(artistNorm) || artistNorm.includes(rArtist))
+                      && (rAlbum.includes(albumNorm) || albumNorm.includes(rAlbum))
+                  })
+                : null
+
+              if (titleMatch && titleArtistMatch) {
+                confirmedTitle = titleMatch.title
+                confirmedArtist = titleMatch.artist.split(',')[0].trim()
+                setAudioFile(prev => prev ? {
+                  ...prev,
+                  coverArt: titleMatch.cover_url ?? prev.coverArt,
+                  album: titleMatch.album || prev.album,
+                  year: titleMatch.release_date?.slice(0, 4) || prev.year,
+                  title: confirmedTitle,
+                  artist: confirmedArtist,
+                } : prev)
+                spotifyFound = true
+              } else if (artistAlbumMatch) {
+                // Совпал артист + альбом но не конкретный трек — берём только обложку/мета
+                setAudioFile(prev => prev ? {
+                  ...prev,
+                  coverArt: artistAlbumMatch.cover_url ?? prev.coverArt,
+                  album: artistAlbumMatch.album || prev.album,
+                  year: artistAlbumMatch.release_date?.slice(0, 4) || prev.year,
+                } : prev)
+              }
+              // Иначе ничего не трогаем — Genius разберётся с title/artist
             }
           } catch { /* iTunes тоже недоступен */ }
         }
 
         // Запускаем Genius с подтверждёнными данными от Spotify/iTunes
         setIsAnalyzingStructure(true)
-        analyzeSongStructure(confirmedTitle, confirmedArtist, audioBuffer.duration, (gTitle, gArtist) => {
-          // Обновляем title/artist только если Spotify не нашёл совпадений и не было ID3-тегов
-          if (!hasId3Tags && !spotifyFound && (gTitle !== confirmedTitle || gArtist !== confirmedArtist)) {
-            setAudioFile(prev => prev ? { ...prev, title: gTitle, artist: gArtist } : prev)
-          }
+        analyzeSongStructure(confirmedTitle, confirmedArtist, audioBuffer.duration, (gTitle, gArtist, geniusUrl, isCover) => {
+          setAudioFile(prev => {
+            if (!prev) return prev
+            const updates: Partial<typeof prev> = {}
+            if (!hasId3Tags && !spotifyFound && (gTitle !== confirmedTitle || gArtist !== confirmedArtist)) {
+              updates.title = gTitle
+              updates.artist = gArtist
+            }
+            if (geniusUrl !== undefined) updates.geniusUrl = geniusUrl
+            if (isCover !== undefined) updates.isCover = isCover
+            return Object.keys(updates).length ? { ...prev, ...updates } : prev
+          })
         })
           .then((analysis: SongAnalysis) => {
             setSongMarkers(analysis.markers)
-            if (analysis.geniusUrl || analysis.isCover !== undefined) {
-              setAudioFile(prev => prev ? { ...prev, geniusUrl: analysis.geniusUrl, isCover: analysis.isCover } : prev)
-            }
           })
           .finally(() => setIsAnalyzingStructure(false))
       })()
