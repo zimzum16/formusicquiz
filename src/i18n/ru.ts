@@ -115,6 +115,16 @@ export const ru = {
 
   // Editor — Editor page
   close: 'Закрыть',
+
+  // Feedback modal
+  feedback_button: 'Написать отзыв',
+  feedback_title: 'Обратная связь',
+  feedback_placeholder: 'Напишите отзыв или предложение, оставьте контакт для связи',
+  feedback_contact_placeholder: 'Telegram или имя (необязательно)',
+  feedback_send: 'Отправить',
+  feedback_sending: 'Отправляем…',
+  feedback_success: 'Спасибо! Мы получили ваш отзыв.',
+  feedback_error: 'Не удалось отправить. Попробуйте позже.',
 };
 
 export type Translations = typeof ru;

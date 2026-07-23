@@ -117,4 +117,14 @@ export const en: Translations = {
 
   // Editor — Editor page
   close: 'Close',
+
+  // Feedback modal
+  feedback_button: 'Send feedback',
+  feedback_title: 'Feedback',
+  feedback_placeholder: 'Leave a review or suggestion, add your contact for a reply',
+  feedback_contact_placeholder: 'Telegram or name (optional)',
+  feedback_send: 'Send',
+  feedback_sending: 'Sending…',
+  feedback_success: 'Thank you! We received your feedback.',
+  feedback_error: 'Failed to send. Please try again later.',
 };

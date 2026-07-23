@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import Navbar from './components/Navbar';
-import { lang } from './i18n';
+import { lang, t } from './i18n';
 import Home from './pages/Home';
 import SongInfo from './pages/SongInfo';
 import Editor from './pages/Editor';
 import Pricing from './pages/Pricing';
+import FeedbackModal from './components/FeedbackModal';
 
 export type Page = 'home' | 'song-info' | 'editor' | 'pricing';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const navigate = (page: Page) => setCurrentPage(page);
 
@@ -34,15 +36,15 @@ function App() {
           >
             <img src="/flag-ru.svg" width={24} height={24} alt="RU" />
           </a>
-          <a
-            href="https://t.me/zimzum16"
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => setFeedbackOpen(true)}
             className="flex items-center transition-opacity hover:opacity-60"
-            style={{ color: 'rgba(255,255,255,.45)', textDecoration: 'none', lineHeight: 0 }}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 0 }}
+            aria-label={t.feedback_button}
+            title={t.feedback_button}
           >
             <img src="/tg-icon.png" width={36} height={36} alt="" aria-hidden />
-          </a>
+          </button>
           <a
             href="https://en.trackslice.ru"
             title="English"
@@ -54,6 +56,7 @@ function App() {
         </div>
         <span>© {new Date().getFullYear()} ZimZum Production</span>
       </footer>
+      {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
     </div>
   );
 }

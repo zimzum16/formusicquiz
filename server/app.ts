@@ -3,6 +3,7 @@ import { swaggerUI } from '@hono/swagger-ui';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import tracksRouter from './routes/tracks.js';
+import feedbackRouter from './routes/feedback.js';
 
 const app = new OpenAPIHono();
 
@@ -13,6 +14,7 @@ app.use('*', cors({
 }));
 
 app.route('/api/tracks', tracksRouter);
+app.route('/api/feedback', feedbackRouter);
 
 app.get('/api/health', (c) => c.json({ ok: true, v: 2 }));
 

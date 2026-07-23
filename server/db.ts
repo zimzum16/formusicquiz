@@ -21,6 +21,13 @@ const migrations: string[] = [
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expires_at INTEGER NOT NULL
   );`,
+  // v2 — обратная связь
+  `CREATE TABLE IF NOT EXISTS feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message TEXT NOT NULL,
+    contact TEXT,
+    created_at INTEGER DEFAULT (unixepoch())
+  );`,
 ];
 
 function runMigrations() {
