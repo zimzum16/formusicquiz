@@ -25,7 +25,7 @@ function App() {
         {currentPage === 'pricing' && <Pricing navigate={navigate} />}
       </div>
       <footer className="mt-auto pt-6 pb-4 flex flex-col items-center gap-2" style={{ color: 'rgba(255,255,255,.45)', fontSize: '12px', fontFamily: 'Montserrat, sans-serif' }}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-5">
           <a
             href="https://trackslice.ru"
             title="Русский"
