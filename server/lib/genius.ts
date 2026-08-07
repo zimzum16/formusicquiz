@@ -137,6 +137,19 @@ async function scrapeTags(lyricsUrl: string): Promise<string[]> {
         if (res.ok) return res.text();
       } catch { /* try next */ }
     }
+
+    // ScraperDo keys — sequential
+    const scraperdoKeys = [
+      ...(process.env.SCRAPERDO_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean),
+      ...(process.env.SCRAPERDO_KEY ? [process.env.SCRAPERDO_KEY] : []),
+    ];
+    for (const key of scraperdoKeys) {
+      try {
+        const res = await fetch(`https://api.scrape.do?token=${key}&url=${encodeURIComponent(lyricsUrl)}`, { signal: AbortSignal.timeout(30000) });
+        console.log('[genius] scrapeTags scrapedo status:', res.status);
+        if (res.ok) return res.text();
+      } catch { /* try next */ }
+    }
     return '';
   };
 
