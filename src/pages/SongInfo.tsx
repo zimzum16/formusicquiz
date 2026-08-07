@@ -664,12 +664,24 @@ export default function SongInfo() {
 
             {/* YouTube */}
             <StripCard>
-              <ServiceLogo
-                name="YouTube"
-                link={info.youtube.url || info.youtube.search_url}
-                linkLabel={info.youtube.video_id ? t.link_watch : t.link_find}
-                icon={<img src="/youtube-icon3.png" width={20} height={20} alt="" aria-hidden />}
-              />
+              <div className="flex-shrink-0 w-[140px] flex items-center gap-2.5 border-r border-white/[0.08] pr-4 mr-2">
+                <img src="/youtube-icon3.png" width={20} height={20} alt="" aria-hidden />
+                <div>
+                  <div className="text-[12px] font-bold text-white" style={SANS}>YouTube</div>
+                  {(info.youtube.url || info.youtube.search_url) && (
+                    <ExternalLink href={info.youtube.url || info.youtube.search_url!}>
+                      {info.youtube.video_id ? t.link_watch : t.link_find}
+                    </ExternalLink>
+                  )}
+                  {info.youtube.url && (
+                    <div>
+                      <ExternalLink href={`https://dub.trackslice.ru?url=${encodeURIComponent(info.youtube.url)}`}>
+                        {t.link_download}
+                      </ExternalLink>
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className="flex flex-wrap items-center gap-0">
                 {info.youtube.view_count !== null && (
                   <StatCol label={t.stat_views} value={fmtNum(info.youtube.view_count)} last={info.youtube.like_count === null} />

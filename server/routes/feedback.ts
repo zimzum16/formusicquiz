@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import db from '../db.js';
+import { Redis } from '@upstash/redis';
 
 const router = new Hono();
 
@@ -8,6 +8,10 @@ const schema = z.object({
   message: z.string().min(1).max(2000),
   contact: z.string().max(200).optional(),
 });
+
+const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
+  ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
+  : null;
 
 async function sendTelegram(text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -35,7 +39,13 @@ router.post('/', async (c) => {
 
   const { message, contact } = parsed.data;
 
-  db.prepare('INSERT INTO feedback (message, contact) VALUES (?, ?)').run(message, contact ?? null);
+  if (redis) {
+    await redis.lpush('feedback', JSON.stringify({
+      message,
+      contact: contact ?? null,
+      created_at: Date.now(),
+    }));
+  }
 
   const tgText = [
     '📬 <b>Новый фидбек</b>',

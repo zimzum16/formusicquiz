@@ -40,6 +40,7 @@ export const ru = {
   // SongInfo page — service links
   link_open: '→ Открыть',
   link_watch: '→ Смотреть',
+  link_download: '↓ Скачать',
   link_find: '→ Найти',
   link_chart: 'Чарт',
 

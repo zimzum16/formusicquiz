@@ -42,6 +42,7 @@ export const en: Translations = {
   // SongInfo page — service links
   link_open: '→ Open',
   link_watch: '→ Watch',
+  link_download: '↓ Download',
   link_find: '→ Find',
   link_chart: 'Chart',
 
