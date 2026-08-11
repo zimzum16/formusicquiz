@@ -192,11 +192,16 @@ function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
 
 function MetaCompact({ items }: { items: { label: string; value: React.ReactNode }[] }) {
   return (
-    <div className="flex border-b border-white/[0.08] last:border-0 bg-white/[0.02]">
+    <div className="grid grid-cols-2 sm:flex border-b border-white/[0.08] last:border-0 bg-white/[0.02]">
       {items.map((item, i) => (
         <div
           key={i}
-          className={`flex-1 flex flex-col items-center gap-0.5 px-4 py-[10px]${i > 0 ? ' border-l border-white/[0.08]' : ''}`}
+          className={[
+            'flex flex-col items-center gap-0.5 px-3 sm:px-4 py-[10px] sm:flex-1',
+            i % 2 === 1 ? 'border-l border-white/[0.08]' : '',
+            i >= 2 ? 'border-t border-white/[0.08] sm:border-t-0' : '',
+            i > 0 ? 'sm:border-l sm:border-white/[0.08]' : '',
+          ].filter(Boolean).join(' ')}
         >
           <span className={LBL} style={SANS}>{item.label}</span>
           <span className={`${VAL} text-[13px]`} style={SANS}>{item.value}</span>
@@ -223,7 +228,7 @@ function GeniusLink({ href, children }: { href: string; children: React.ReactNod
 function StripCard({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="flex items-center flex-wrap gap-3 px-5 py-3.5 rounded-[14px] border border-white/[0.1]"
+      className="flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-3 px-5 py-3.5 rounded-[14px] border border-white/[0.1]"
       style={{ background: 'rgba(24,24,28,.78)', backdropFilter: 'saturate(180%) blur(24px)' }}
     >
       {children}
@@ -247,7 +252,7 @@ function ExternalLink({ href, children }: { href: string; children: React.ReactN
 
 function ServiceLogo({ icon, name, link, linkLabel }: { icon: React.ReactNode; name: string; link?: string; linkLabel?: string }) {
   return (
-    <div className="flex-shrink-0 w-[140px] flex items-center gap-2.5 border-r border-white/[0.08] pr-4 mr-2">
+    <div className="w-full sm:flex-shrink-0 sm:w-[140px] flex items-center gap-2.5 border-b sm:border-b-0 sm:border-r border-white/[0.08] pb-2 sm:pb-0 sm:pr-4 sm:mr-2">
       {icon}
       <div>
         <div className="text-[12px] font-bold text-white" style={SANS}>{name}</div>
@@ -664,7 +669,7 @@ export default function SongInfo() {
 
             {/* YouTube */}
             <StripCard>
-              <div className="flex-shrink-0 w-[140px] flex items-center gap-2.5 border-r border-white/[0.08] pr-4 mr-2">
+              <div className="w-full sm:flex-shrink-0 sm:w-[140px] flex items-center gap-2.5 border-b sm:border-b-0 sm:border-r border-white/[0.08] pb-2 sm:pb-0 sm:pr-4 sm:mr-2">
                 <img src="/youtube-icon3.png" width={20} height={20} alt="" aria-hidden />
                 <div>
                   <div className="text-[12px] font-bold text-white" style={SANS}>YouTube</div>
@@ -744,7 +749,7 @@ export default function SongInfo() {
                 href={info.yandex.url ?? info.yandex.search_url}
                 target="_blank"
                 rel="noreferrer"
-                className="flex-1 flex items-center gap-2.5 border-r border-white/[0.08] pr-4 hover:opacity-80 transition-opacity min-w-[130px]"
+                className="w-full sm:flex-1 flex items-center gap-2.5 sm:border-r border-white/[0.08] sm:pr-4 hover:opacity-80 transition-opacity"
               >
                 <svg width="18" height="18" viewBox="0 0 48 48">
                   <path d="M24 48C37.2548 48 48 37.2548 48 24C48 10.7452 37.2548 0 24 0C10.7452 0 0 10.7452 0 24C0 37.2548 10.7452 48 24 48Z" fill="#FFBC0D" />
@@ -764,7 +769,7 @@ export default function SongInfo() {
                 const appleUrl = isItunes ? info.spotify.spotify_url : info.apple_music.search_url;
                 const charts = isItunes ? [] : info.apple_music.charts.slice().sort((a, b) => a.position - b.position).slice(0, 2);
                 return (
-                  <div className="flex-1 flex items-center gap-2.5 border-r border-white/[0.08] pr-4 min-w-[130px] relative">
+                  <div className="w-full sm:flex-1 flex items-center gap-2.5 sm:border-r border-white/[0.08] sm:pr-4 relative">
                     <a
                       href={appleUrl}
                       target="_blank"
@@ -804,7 +809,7 @@ export default function SongInfo() {
                     href={spotifyUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex-1 flex items-center gap-2.5 hover:opacity-80 transition-opacity min-w-[130px]"
+                    className="w-full sm:flex-1 flex items-center gap-2.5 hover:opacity-80 transition-opacity"
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="#1DB954">
                       <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
