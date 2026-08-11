@@ -3,6 +3,16 @@ import { tracksApi, type SpotifyTrack, type TrackInfo } from '../lib/api';
 import { CollapsibleList } from '../components/CollapsibleList';
 import { t, lang } from '../i18n';
 
+function useIsMobile() {
+  const [v, setV] = useState(() => window.innerWidth < 640);
+  useEffect(() => {
+    const fn = () => setV(window.innerWidth < 640);
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
+  }, []);
+  return v;
+}
+
 function fmtMs(ms: number) {
   const s = Math.floor(ms / 1000);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -191,22 +201,35 @@ function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 function MetaCompact({ items }: { items: { label: string; value: React.ReactNode }[] }) {
+  const mobile = useIsMobile();
   return (
-    <div className="grid grid-cols-2 sm:flex border-b border-white/[0.08] last:border-0 bg-white/[0.02]">
-      {items.map((item, i) => (
-        <div
-          key={i}
-          className={[
-            'flex flex-col items-center gap-0.5 px-3 sm:px-4 py-[10px] sm:flex-1',
-            i % 2 === 1 ? 'border-l border-white/[0.08]' : '',
-            i >= 2 ? 'border-t border-white/[0.08] sm:border-t-0' : '',
-            i > 0 ? 'sm:border-l sm:border-white/[0.08]' : '',
-          ].filter(Boolean).join(' ')}
-        >
-          <span className={LBL} style={SANS}>{item.label}</span>
-          <span className={`${VAL} text-[13px]`} style={SANS}>{item.value}</span>
-        </div>
-      ))}
+    <div
+      className="border-b border-white/[0.08] last:border-0 bg-white/[0.02]"
+      style={mobile
+        ? { display: 'grid', gridTemplateColumns: '1fr 1fr' }
+        : { display: 'flex' }
+      }
+    >
+      {items.map((item, i) => {
+        const isRightCol = mobile && i % 2 === 1;
+        const isSecondRow = mobile && i >= 2;
+        const borderLeft = isRightCol || (!mobile && i > 0);
+        const borderTop = isSecondRow;
+        return (
+          <div
+            key={i}
+            className="flex flex-col items-center gap-0.5 px-3 py-[10px]"
+            style={{
+              flex: mobile ? undefined : 1,
+              borderLeft: borderLeft ? '1px solid rgba(255,255,255,0.08)' : undefined,
+              borderTop: borderTop ? '1px solid rgba(255,255,255,0.08)' : undefined,
+            }}
+          >
+            <span className={LBL} style={SANS}>{item.label}</span>
+            <span className={`${VAL} text-[13px]`} style={SANS}>{item.value}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
