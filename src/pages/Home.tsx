@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Page } from '../App';
 import { t } from '../i18n';
 
@@ -70,11 +70,18 @@ const EditorPreview = ({ onClick }: { onClick: () => void }) => (
 
 export default function Home({ navigate }: HomeProps) {
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   return (
     <>
     <main style={{ fontFamily: 'Montserrat, sans-serif', color: '#fff' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '80px 32px 120px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '40px 16px 60px' : '80px 32px 120px' }}>
 
         {/* Wordmark */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, marginBottom: 96 }}>
@@ -94,7 +101,7 @@ export default function Home({ navigate }: HomeProps) {
             <WaveformIcon size={46} />
           </div>
 
-          <div style={{ fontSize: 46, fontWeight: 900, letterSpacing: '-.05em', lineHeight: 1 }}>
+          <div style={{ fontSize: isMobile ? 34 : 46, fontWeight: 900, letterSpacing: '-.05em', lineHeight: 1 }}>
             track<span style={{ color: '#2DD4BF' }}>slice</span>
           </div>
 
@@ -108,7 +115,7 @@ export default function Home({ navigate }: HomeProps) {
         </div>
 
         {/* Two cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 16 : 20 }}>
 
           {/* track */}
           <div
@@ -140,12 +147,14 @@ export default function Home({ navigate }: HomeProps) {
                   color: '#2DD4BF',
                 }}>track</span>
               </div>
-              <h2 style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-.03em', color: '#aaa', marginBottom: 8, lineHeight: 1.2 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-.03em', color: '#aaa', marginBottom: isMobile ? 0 : 8, lineHeight: 1.2 }}>
                 {t.home_track_title}
               </h2>
-              <p style={{ fontSize: 13, color: '#999', fontWeight: 500, lineHeight: 1.6 }}>
-                {t.home_track_desc}
-              </p>
+              {!isMobile && (
+                <p style={{ fontSize: 13, color: '#999', fontWeight: 500, lineHeight: 1.6 }}>
+                  {t.home_track_desc}
+                </p>
+              )}
             </div>
             <div style={{ padding: '0 20px 20px', flex: 1 }}>
               <SongInfoPreview onClick={() => setLightbox('/preview-song-info.png')} />
@@ -183,14 +192,16 @@ export default function Home({ navigate }: HomeProps) {
                   color: '#2DD4BF',
                 }}>slicer</span>
               </div>
-              <h2 style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-.03em', color: '#aaa', marginBottom: 8, lineHeight: 1.2, marginTop: 8 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-.03em', color: '#aaa', marginBottom: isMobile ? 0 : 8, lineHeight: 1.2, marginTop: 8 }}>
                 {t.home_slicer_title.split('\n').map((line, i, arr) => (
                   <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
                 ))}
               </h2>
-              <p style={{ fontSize: 13, color: '#999', fontWeight: 500, lineHeight: 1.6 }}>
-                {t.home_slicer_desc}
-              </p>
+              {!isMobile && (
+                <p style={{ fontSize: 13, color: '#999', fontWeight: 500, lineHeight: 1.6 }}>
+                  {t.home_slicer_desc}
+                </p>
+              )}
             </div>
             <div style={{ padding: '0 20px 20px', flex: 1 }}>
               <EditorPreview onClick={() => setLightbox('/preview-editor.png')} />
