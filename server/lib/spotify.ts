@@ -63,6 +63,55 @@ export interface SpotifyArtist {
   genres: string[];
 }
 
+export interface ArtistAlbum {
+  id: string;
+  title: string;
+  year: string;
+  cover_url: string | null;
+  track_count: number;
+}
+
+export interface SpotifyArtistResult {
+  id: string;
+  name: string;
+  popularity: number;
+  followers: number;
+  genres: string[];
+  image_url: string | null;
+  spotify_url: string;
+}
+
+interface SpotifyApiArtist {
+  id: string;
+  name: string;
+  popularity?: number;
+  followers?: { total?: number };
+  genres?: string[];
+  images?: { url: string; width: number; height: number }[];
+  external_urls?: { spotify: string };
+}
+
+export async function searchArtists(query: string): Promise<SpotifyArtistResult[]> {
+  const token = await getAppToken();
+  if (!token) return [];
+  const searchUrl = `${BASE}/search?q=${encodeURIComponent(query)}&type=artist&limit=5&market=US`;
+  const res = await fetch(searchUrl, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8000) });
+  if (!res.ok) return [];
+  const data = (await res.json()) as { artists: { items: SpotifyApiArtist[] } };
+  const items = data.artists.items;
+  if (!items.length) return [];
+
+  return items.map(a => ({
+    id: a.id,
+    name: a.name,
+    popularity: 0,
+    followers: 0,
+    genres: [],
+    image_url: a.images?.[0]?.url ?? null,
+    spotify_url: a.external_urls?.spotify ?? '',
+  }));
+}
+
 export async function searchTracks(query: string, artist?: string): Promise<SpotifyTrack[]> {
   const token = await getAppToken();
   if (!token) return [];
@@ -103,6 +152,105 @@ interface SpotifyApiTrack {
   popularity?: number;
 }
 
+interface SpotifyAlbumItem {
+  id: string;
+  name: string;
+  release_date: string;
+  total_tracks: number;
+  album_type?: string;
+  album_group?: string;
+  images?: { url: string }[];
+}
+
+async function fetchArtistAlbumGroup(token: string, artistId: string, group: string): Promise<SpotifyAlbumItem[]> {
+  const items: SpotifyAlbumItem[] = [];
+  let url: string | null =
+    `${BASE}/artists/${artistId}/albums?include_groups=${encodeURIComponent(group)}&market=US&limit=20`;
+  while (url) {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8000) });
+    if (!res.ok) break;
+    const data = (await res.json()) as { items: SpotifyAlbumItem[]; next: string | null; total: number };
+    items.push(...data.items);
+    url = data.next;
+    if (items.length >= 100) break;
+  }
+  return items;
+}
+
+export async function getArtistAlbums(artistId: string): Promise<ArtistAlbum[]> {
+  const token = await getAppToken();
+  if (!token) return [];
+
+  // Fetch albums/EPs and singles separately so full albums come first
+  const [albums, singles] = await Promise.all([
+    fetchArtistAlbumGroup(token, artistId, 'album').catch(() => [] as SpotifyAlbumItem[]),
+    fetchArtistAlbumGroup(token, artistId, 'single').catch(() => [] as SpotifyAlbumItem[]),
+  ]);
+
+  const seen = new Set<string>();
+  const dedup = (a: SpotifyAlbumItem) => {
+    // Filter out compilations appearing in artist page as a foreign album
+    if (a.album_group === 'appears_on' || a.album_group === 'compilation') return false;
+    const key = a.name.toLowerCase().replace(/\s*[-–—]\s*(single|ep|remix|remixes|live|version|edition|remastered|deluxe|extended).*$/i, '').trim();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  };
+
+  return [...albums.filter(dedup), ...singles.filter(dedup)]
+    .sort((a, b) => b.release_date.localeCompare(a.release_date))
+    .map(a => ({
+      id: `spotify:album:${a.id}`,
+      title: a.name,
+      year: a.release_date?.slice(0, 4) ?? '',
+      cover_url: a.images?.[0]?.url ?? null,
+      track_count: a.total_tracks,
+    }));
+}
+
+export async function getAlbumTracks(spotifyAlbumId: string): Promise<SpotifyTrack[]> {
+  const token = await getAppToken();
+  if (!token) return [];
+  // Fetch album (includes tracks + cover image)
+  const albumRes = await fetch(`${BASE}/albums/${spotifyAlbumId}?market=US`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!albumRes.ok) return [];
+  const album = (await albumRes.json()) as {
+    name: string;
+    images?: { url: string }[];
+    tracks: {
+      items: Array<{
+        id: string;
+        name: string;
+        artists: { name: string; id: string }[];
+        duration_ms: number;
+        preview_url: string | null;
+        track_number: number;
+        external_urls: { spotify: string };
+      }>;
+    };
+    release_date: string;
+  };
+  const cover = album.images?.[0]?.url ?? null;
+  return album.tracks.items
+    .sort((a, b) => a.track_number - b.track_number)
+    .map(t => ({
+      id: t.id,
+      title: t.name,
+      artist: t.artists.map(a => a.name).join(', '),
+      artist_id: t.artists[0]?.id ?? '',
+      album: album.name,
+      release_date: album.release_date,
+      duration_ms: t.duration_ms,
+      preview_url: t.preview_url,
+      cover_url: cover,
+      spotify_url: t.external_urls.spotify,
+      popularity: null,
+    }));
+}
+
 function normalizeTrack(t: SpotifyApiTrack): SpotifyTrack {
   return {
     id: t.id,
@@ -112,7 +260,7 @@ function normalizeTrack(t: SpotifyApiTrack): SpotifyTrack {
     album: t.album.name,
     release_date: t.album.release_date,
     duration_ms: t.duration_ms,
-    preview_url: t.preview_url,
+    preview_url: t.preview_url ?? null,
     cover_url: t.album.images[0]?.url ?? null,
     spotify_url: t.external_urls.spotify,
     popularity: t.popularity ?? null,

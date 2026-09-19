@@ -16,6 +16,29 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 // Tracks types
+export interface SpotifyArtistResult {
+  id: string;
+  name: string;
+  popularity: number;
+  followers: number;
+  genres: string[];
+  image_url: string | null;
+  spotify_url: string;
+}
+
+export interface SearchResults {
+  artists: SpotifyArtistResult[];
+  tracks: SpotifyTrack[];
+}
+
+export interface ArtistAlbum {
+  id: string;
+  title: string;
+  year: string;
+  cover_url: string | null;
+  track_count: number;
+}
+
 export interface SpotifyTrack {
   id: string;
   title: string;
@@ -146,9 +169,14 @@ export const tracksApi = {
   search: (q: string, artist?: string) => {
     const params = new URLSearchParams({ q });
     if (artist) params.set('artist', artist);
-    return request<SpotifyTrack[]>(`/api/tracks/search?${params}`);
+    return request<SearchResults>(`/api/tracks/search?${params}`);
   },
   getInfo: (id: string) => request<TrackInfo>(`/api/tracks/${id}/info`),
   getSetlistfm: (id: string) => request<SetlistStats | null>(`/api/tracks/${id}/setlistfm`),
+  getArtistAlbums: (id: string, name: string) => {
+    const params = new URLSearchParams({ name });
+    return request<ArtistAlbum[]>(`/api/tracks/artists/${id}/albums?${params}`);
+  },
+  getAlbumTracks: (id: string) => request<SpotifyTrack[]>(`/api/tracks/albums/${encodeURIComponent(id)}/tracks`),
 };
 

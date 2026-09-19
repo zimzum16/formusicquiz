@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { Redis } from '@upstash/redis';
-import { searchTracks, getTrack } from '../lib/spotify.js';
+import { searchTracks, getTrack, searchArtists, getArtistAlbums, getAlbumTracks, type SpotifyArtistResult, type ArtistAlbum } from '../lib/spotify.js';
 import { searchSong, parseTagsFromHtml } from '../lib/genius.js';
 import { extractLyricsText } from '../lib/lyricsCompare.js';
 import { getTrackInfo } from '../lib/lastfm.js';
@@ -8,7 +8,7 @@ import { getTrackStats } from '../lib/setlistfm.js';
 import { findVideo } from '../lib/youtube.js';
 import { getTrackInfo as getYandexTrackInfo } from '../lib/yandex.js';
 import { getAppleMusicData } from '../lib/applemusic.js';
-import { searchTracksItunes, getTrackItunes } from '../lib/itunes.js';
+import { searchTracksItunes, searchArtistsItunes, getArtistAlbumsItunes, getAlbumTracksItunes, getTrackItunes } from '../lib/itunes.js';
 
 const router = new OpenAPIHono();
 
@@ -28,6 +28,16 @@ const TrackSchema = z.object({
   popularity: z.number().nullable(),
 });
 
+
+const ArtistResultSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  popularity: z.number(),
+  followers: z.number(),
+  genres: z.array(z.string()),
+  image_url: z.string().nullable(),
+  spotify_url: z.string(),
+});
 
 const ArtistRefSchema = z.object({ name: z.string(), url: z.string() });
 const RelatedSongSchema = z.object({ title: z.string(), artist: z.string(), genius_url: z.string() });
@@ -255,8 +265,15 @@ const searchRoute = createRoute({
   },
   responses: {
     200: {
-      content: { 'application/json': { schema: z.array(TrackSchema) } },
-      description: 'Список треков',
+      content: {
+        'application/json': {
+          schema: z.object({
+            artists: z.array(ArtistResultSchema),
+            tracks: z.array(TrackSchema),
+          }),
+        },
+      },
+      description: 'Результаты поиска',
     },
   },
 });
@@ -501,19 +518,53 @@ router.openapi(lyricsRoute, async (c) => {
 router.openapi(searchRoute, async (c) => {
   const { q, artist } = c.req.valid('query');
 
-  let merged: Awaited<ReturnType<typeof searchTracks>> = [];
-  try {
-    merged = await searchTracks(q, artist);
-  } catch (e) {
-    console.error('[search] Spotify error, falling back to iTunes:', e instanceof Error ? e.message : e);
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const [spotifyTracks, spotifyArtists, itunesResults] = await Promise.all([
+    searchTracks(q, artist).catch(() => [] as Awaited<ReturnType<typeof searchTracks>>),
+    artist ? Promise.resolve([] as SpotifyArtistResult[]) : searchArtists(q).catch(() => [] as SpotifyArtistResult[]),
+    searchTracksItunes(q, artist, 50).catch(() => []),
+  ]);
+
+  if (spotifyTracks.length === 0) {
+    const itunesArtists = artist
+      ? ([] as SpotifyArtistResult[])
+      : await searchArtistsItunes(q).catch(() => [] as SpotifyArtistResult[]);
+    return c.json({ artists: itunesArtists.slice(0, 5), tracks: itunesResults.slice(0, 20) });
   }
 
-  if (merged.length === 0) {
-    const itunesResults = await searchTracksItunes(q, artist);
-    return c.json(itunesResults.slice(0, 20));
+  const tryMatch = (track: (typeof spotifyTracks)[0], pool: typeof itunesResults) => {
+    const tNorm = norm(track.title);
+    const aNorm = norm(track.artist.split(',')[0]);
+    const match = pool.find(it => {
+      const itTitle = norm(it.title);
+      const itArtist = norm(it.artist.split(',')[0]);
+      return itTitle === tNorm && (itArtist.includes(aNorm) || aNorm.includes(itArtist));
+    });
+    return match?.preview_url ?? null;
+  };
+
+  let enriched = spotifyTracks.map(track =>
+    track.preview_url ? track : { ...track, preview_url: tryMatch(track, itunesResults) }
+  );
+
+  // Second pass: individual iTunes lookups for still-missing tracks (parallel)
+  const stillMissing = enriched.filter(t => !t.preview_url);
+  if (stillMissing.length > 0) {
+    const fallbacks = await Promise.all(
+      stillMissing.map(t =>
+        searchTracksItunes(`${t.title} ${t.artist.split(',')[0]}`, undefined, 5)
+          .then(results => ({ id: t.id, preview_url: results[0]?.preview_url ?? null }))
+          .catch(() => ({ id: t.id, preview_url: null }))
+      )
+    );
+    const fallbackMap = new Map(fallbacks.map(f => [f.id, f.preview_url]));
+    enriched = enriched.map(t =>
+      t.preview_url ? t : { ...t, preview_url: fallbackMap.get(t.id) ?? null }
+    );
   }
 
-  return c.json(merged.slice(0, 20));
+  return c.json({ artists: spotifyArtists.slice(0, 5), tracks: enriched.slice(0, 20) });
 });
 
 router.openapi(infoRoute, async (c) => {
@@ -583,6 +634,69 @@ router.openapi(setlistfmRoute, async (c) => {
   const data = await getTrackStats(title, artist).catch(() => null);
   if (data) await cacheSet(`setlist:${id}`, data, TRACK_TTL_S);
   return c.json(data, 200);
+});
+
+const albumTracksRoute = createRoute({
+  method: 'get',
+  path: '/albums/:id/tracks',
+  request: { params: z.object({ id: z.string() }) },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: z.array(TrackSchema) } },
+      description: 'Треки альбома',
+    },
+  },
+});
+
+router.openapi(albumTracksRoute, async (c) => {
+  const { id } = c.req.valid('param');
+
+  if (id.startsWith('itunes:album:')) {
+    return c.json(await getAlbumTracksItunes(id), 200);
+  }
+
+  // Spotify album ID
+  const spotifyId = id.replace('spotify:album:', '');
+  const tracks = await getAlbumTracks(spotifyId).catch(() => [] as Awaited<ReturnType<typeof getAlbumTracks>>);
+  return c.json(tracks, 200);
+});
+
+const AlbumSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  year: z.string(),
+  cover_url: z.string().nullable(),
+  track_count: z.number(),
+});
+
+const artistAlbumsRoute = createRoute({
+  method: 'get',
+  path: '/artists/:id/albums',
+  request: {
+    params: z.object({ id: z.string() }),
+    query: z.object({ name: z.string().optional() }),
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: z.array(AlbumSchema) } },
+      description: 'Список альбомов артиста',
+    },
+  },
+});
+
+router.openapi(artistAlbumsRoute, async (c) => {
+  const { id } = c.req.valid('param');
+  const { name = '' } = c.req.valid('query');
+
+  // Try Spotify if it's a Spotify artist ID
+  if (!id.startsWith('itunes:')) {
+    const albums = await getArtistAlbums(id).catch(() => [] as ArtistAlbum[]);
+    if (albums.length > 0) return c.json(albums, 200);
+  }
+
+  // Fall back to iTunes
+  const albums = await getArtistAlbumsItunes(id, name);
+  return c.json(albums, 200);
 });
 
 export default router;

@@ -15,6 +15,11 @@ export const en: Translations = {
   loading: 'Loading…',
   loading_short: 'Loading…',
   search_hint: 'Enter a name to start searching',
+  search_section_artists: 'Artists',
+  search_section_tracks: 'Tracks',
+  search_followers: 'followers',
+  albums_not_found: 'No albums found',
+  tracks_label: 'tr.',
 
   // SongInfo page — track card
   preview_unavailable: 'Preview unavailable',

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { tracksApi, type SpotifyTrack, type TrackInfo } from '../lib/api';
+import { tracksApi, type SpotifyTrack, type SpotifyArtistResult, type SearchResults, type ArtistAlbum, type TrackInfo } from '../lib/api';
 import { CollapsibleList } from '../components/CollapsibleList';
 import { t, lang } from '../i18n';
 
@@ -303,8 +303,14 @@ const COUNTRY_FLAG: Record<string, string> = {
 
 export default function SongInfo() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SpotifyTrack[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
   const [searching, setSearching] = useState(false);
+  const [selectedArtist, setSelectedArtist] = useState<SpotifyArtistResult | null>(null);
+  const [artistAlbums, setArtistAlbums] = useState<ArtistAlbum[] | null>(null);
+  const [albumsLoading, setAlbumsLoading] = useState(false);
+  const [selectedAlbum, setSelectedAlbum] = useState<ArtistAlbum | null>(null);
+  const [albumTracks, setAlbumTracks] = useState<SpotifyTrack[] | null>(null);
+  const [albumTracksLoading, setAlbumTracksLoading] = useState(false);
   const [info, setInfo] = useState<TrackInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [setlistfm, setSetlistfm] = useState<import('../lib/api').SetlistStats | null>(null);
@@ -315,9 +321,38 @@ export default function SongInfo() {
   const [previewTime, setPreviewTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // List preview state (hover-play on track rows)
+  const [listPlayingId, setListPlayingId] = useState<string | null>(null);
+  const listAudioRef = useRef<HTMLAudioElement | null>(null);
+
   useEffect(() => {
     return () => { audioRef.current?.pause(); };
   }, []);
+
+  useEffect(() => {
+    return () => { listAudioRef.current?.pause(); };
+  }, []);
+
+  const toggleListPreview = (e: React.MouseEvent, track: SpotifyTrack) => {
+    e.stopPropagation();
+    if (!track.preview_url) return;
+
+    if (listPlayingId === track.id) {
+      listAudioRef.current?.pause();
+      setListPlayingId(null);
+      return;
+    }
+
+    if (listAudioRef.current) {
+      listAudioRef.current.pause();
+    }
+    const audio = new Audio(track.preview_url);
+    audio.volume = 0.5;
+    audio.onended = () => setListPlayingId(null);
+    audio.play();
+    listAudioRef.current = audio;
+    setListPlayingId(track.id);
+  };
 
   const togglePreview = () => {
     const audio = audioRef.current;
@@ -347,15 +382,20 @@ export default function SongInfo() {
 
   const fmtSec = (s: number) => `0:${String(Math.floor(s)).padStart(2, '0')}`;
 
-  const handleSearch = async () => {
-    if (!query.trim()) return;
+  const handleSearch = async (overrideQuery?: string) => {
+    const q = (overrideQuery ?? query).trim();
+    if (!q) return;
     setSearching(true);
-    setResults([]);
+    setSearchResults(null);
+    setSelectedArtist(null);
+    setArtistAlbums(null);
+    setSelectedAlbum(null);
+    setAlbumTracks(null);
     setInfo(null);
     setError(null);
     try {
-      const data = await tracksApi.search(query.trim());
-      setResults(data);
+      const data = await tracksApi.search(q);
+      setSearchResults(data);
     } catch {
       setError(t.search_error);
     } finally {
@@ -363,8 +403,53 @@ export default function SongInfo() {
     }
   };
 
+  const handleArtistClick = async (artist: SpotifyArtistResult) => {
+    setSelectedArtist(artist);
+    setSearchResults(null);
+    setArtistAlbums(null);
+    setAlbumsLoading(true);
+    try {
+      const albums = await tracksApi.getArtistAlbums(artist.id, artist.name);
+      setArtistAlbums(albums);
+    } catch {
+      setArtistAlbums([]);
+    } finally {
+      setAlbumsLoading(false);
+    }
+  };
+
+  const handleAlbumClick = async (album: ArtistAlbum) => {
+    setSelectedAlbum(album);
+    setAlbumTracks(null);
+    setAlbumTracksLoading(true);
+    try {
+      const tracks = await tracksApi.getAlbumTracks(album.id);
+      setAlbumTracks(tracks);
+    } catch {
+      setAlbumTracks([]);
+    } finally {
+      setAlbumTracksLoading(false);
+    }
+  };
+
+  const handleBackToAlbums = () => {
+    setSelectedAlbum(null);
+    setAlbumTracks(null);
+  };
+
+  const handleBackToSearch = () => {
+    setSelectedArtist(null);
+    setArtistAlbums(null);
+    setSelectedAlbum(null);
+    setAlbumTracks(null);
+  };
+
   const selectTrack = async (track: SpotifyTrack) => {
-    setResults([]);
+    setSearchResults(null);
+    setSelectedArtist(null);
+    setArtistAlbums(null);
+    setSelectedAlbum(null);
+    setAlbumTracks(null);
     setInfo(null);
     setSetlistfm(null);
     setSetlistLoading(true);
@@ -374,6 +459,8 @@ export default function SongInfo() {
     setPreviewProgress(0);
     setPreviewTime(0);
     audioRef.current?.pause();
+    listAudioRef.current?.pause();
+    setListPlayingId(null);
 
     tracksApi.getSetlistfm(track.id)
       .then(data => setSetlistfm(data))
@@ -406,7 +493,7 @@ export default function SongInfo() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch(undefined)}
             placeholder={t.search_placeholder}
             className="w-full pl-10 pr-9 py-3.5 rounded-[14px] border border-white/[0.1] bg-white/[0.07] text-white placeholder-[#8a8a8a] focus:outline-none focus:ring-1 focus:ring-[#2DD4BF] focus:border-[#2DD4BF] text-[14px] font-medium transition"
             style={SANS}
@@ -423,7 +510,7 @@ export default function SongInfo() {
           )}
         </div>
         <button
-          onClick={handleSearch}
+          onClick={() => handleSearch(undefined)}
           disabled={searching || !query.trim()}
           className="px-5 h-12 rounded-full text-[#06231f] font-extrabold text-[13px] uppercase tracking-[0.08em] disabled:opacity-40 transition-opacity flex-shrink-0"
           style={{ background: '#2DD4BF', ...SANS }}
@@ -439,29 +526,243 @@ export default function SongInfo() {
         </div>
       )}
 
-      {/* Search results dropdown */}
-      {results.length > 0 && (
-        <div className="mb-5 rounded-[16px] border border-white/[0.1] overflow-hidden" style={{ background: 'rgba(24,24,28,.95)' }}>
-          {results.map((track) => (
+      {/* Artist albums view */}
+      {(selectedArtist || albumsLoading) && !selectedAlbum && (
+        <div className="mb-7">
+          <div className="flex items-center gap-3 mb-4">
             <button
-              key={track.id}
-              onClick={() => selectTrack(track)}
-              className="w-full flex items-center gap-3 px-4 py-3 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.05] transition-colors text-left group"
+              onClick={handleBackToSearch}
+              className="w-8 h-8 rounded-full flex items-center justify-center border border-white/[0.12] hover:bg-white/[0.08] transition-colors flex-shrink-0"
             >
-              {track.cover_url ? (
-                <img src={track.cover_url} alt={track.title} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
-              ) : (
-                <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 18V6l10-2v10" stroke="#8a8a8a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><circle cx="6.5" cy="18" r="2.6" fill="#8a8a8a" /><circle cx="16.5" cy="14" r="2.6" fill="#8a8a8a" /></svg>
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-white text-sm truncate" style={SANS}>{track.title}</p>
-                <p className="text-[#8a8a8a] text-xs truncate" style={SANS}>{track.artist} · {track.album} · {track.release_date.slice(0, 4)}</p>
-              </div>
-              <span className="text-xs text-[#8a8a8a] flex-shrink-0" style={MONO}>{fmtMs(track.duration_ms)}</span>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M9 2L4 7l5 5" stroke="#8a8a8a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </button>
-          ))}
+            {selectedArtist?.image_url ? (
+              <img src={selectedArtist.image_url} alt={selectedArtist.name} className="w-8 h-8 rounded-full object-cover" />
+            ) : null}
+            <span className="font-bold text-white text-[15px]" style={SANS}>{selectedArtist?.name}</span>
+          </div>
+
+          {albumsLoading && (
+            <div className="flex items-center gap-3 px-1 text-[#8a8a8a]">
+              <div className="animate-spin w-5 h-5 border-2 border-[#2DD4BF] border-t-transparent rounded-full" />
+              <span className="text-[13px]" style={SANS}>{t.loading_short}</span>
+            </div>
+          )}
+
+          {artistAlbums && artistAlbums.length === 0 && (
+            <p className="text-[#8a8a8a] text-[13px] px-1" style={SANS}>{t.albums_not_found}</p>
+          )}
+
+          {artistAlbums && artistAlbums.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {artistAlbums.map(album => (
+                <button
+                  key={album.id}
+                  onClick={() => handleAlbumClick(album)}
+                  className="flex flex-col rounded-[14px] border border-white/[0.08] overflow-hidden hover:bg-white/[0.05] active:scale-[0.98] transition-all text-left"
+                  style={{ background: 'rgba(24,24,28,.78)' }}
+                >
+                  {album.cover_url ? (
+                    <img src={album.cover_url} alt={album.title} className="w-full aspect-square object-cover" />
+                  ) : (
+                    <div className="w-full aspect-square bg-white/[0.06] flex items-center justify-center">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                        <path d="M9 18V6l10-2v10" stroke="#8a8a8a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <circle cx="6.5" cy="18" r="2.6" fill="#8a8a8a"/>
+                        <circle cx="16.5" cy="14" r="2.6" fill="#8a8a8a"/>
+                      </svg>
+                    </div>
+                  )}
+                  <div className="px-2.5 py-2">
+                    <p className="font-semibold text-white text-[12px] leading-tight line-clamp-2" style={SANS}>{album.title}</p>
+                    <p className="text-[#8a8a8a] text-[11px] mt-0.5" style={SANS}>
+                      {album.year}{album.track_count > 0 ? ` · ${album.track_count} ${t.tracks_label}` : ''}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Album tracks view */}
+      {selectedAlbum && (
+        <div className="mb-7">
+          {/* Header: back → albums */}
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={handleBackToAlbums}
+              className="w-8 h-8 rounded-full flex items-center justify-center border border-white/[0.12] hover:bg-white/[0.08] transition-colors flex-shrink-0"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M9 2L4 7l5 5" stroke="#8a8a8a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            {selectedAlbum.cover_url && (
+              <img src={selectedAlbum.cover_url} alt={selectedAlbum.title} className="w-8 h-8 rounded object-cover" />
+            )}
+            <div className="min-w-0">
+              <p className="font-bold text-white text-[14px] leading-tight truncate" style={SANS}>{selectedAlbum.title}</p>
+              <p className="text-[#8a8a8a] text-[11px]" style={SANS}>{selectedAlbum.year}</p>
+            </div>
+          </div>
+
+          {albumTracksLoading && (
+            <div className="flex items-center gap-3 px-1 text-[#8a8a8a]">
+              <div className="animate-spin w-5 h-5 border-2 border-[#2DD4BF] border-t-transparent rounded-full" />
+              <span className="text-[13px]" style={SANS}>{t.loading_short}</span>
+            </div>
+          )}
+
+          {albumTracks && albumTracks.length === 0 && (
+            <p className="text-[#8a8a8a] text-[13px] px-1" style={SANS}>{t.search_error}</p>
+          )}
+
+          {albumTracks && albumTracks.length > 0 && (
+            <div className="rounded-[16px] border border-white/[0.1] overflow-hidden" style={{ background: 'rgba(24,24,28,.95)' }}>
+              {albumTracks.map((track, i) => (
+                <div
+                  key={track.id}
+                  className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.05] transition-colors group"
+                >
+                  <div
+                    className="w-5 flex-shrink-0 flex items-center justify-center cursor-pointer"
+                    onClick={(e) => track.preview_url ? toggleListPreview(e, track) : selectTrack(track)}
+                  >
+                    {track.preview_url ? (
+                      <>
+                        <span className={`text-[11px] text-[#8a8a8a] font-medium group-hover:hidden ${listPlayingId === track.id ? 'hidden' : ''}`} style={MONO}>{i + 1}</span>
+                        <span className={`hidden group-hover:flex items-center ${listPlayingId === track.id ? '!flex' : ''}`}>
+                          {listPlayingId === track.id ? (
+                            <svg width="10" height="10" viewBox="0 0 10 10"><rect x="1" y="0" width="3" height="10" fill="#2DD4BF" /><rect x="6" y="0" width="3" height="10" fill="#2DD4BF" /></svg>
+                          ) : (
+                            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 0l8 5-8 5z" fill="#2DD4BF" /></svg>
+                          )}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-[11px] text-[#8a8a8a] font-medium" style={MONO}>{i + 1}</span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => selectTrack(track)}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <p className="font-semibold text-white text-sm truncate" style={SANS}>{track.title}</p>
+                    {track.artist && (
+                      <p className="text-[#8a8a8a] text-xs truncate" style={SANS}>{track.artist}</p>
+                    )}
+                  </button>
+                  <span className="text-xs text-[#8a8a8a] flex-shrink-0" style={MONO}>{fmtMs(track.duration_ms)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Search results page */}
+      {searchResults && (
+        <div className="mb-7 space-y-5">
+
+          {/* Artists section */}
+          {searchResults.artists.length > 0 && (
+            <div>
+              <div className={`${LBL} mb-3 px-1`} style={SANS}>
+                {t.search_section_artists}
+                <span className="ml-1.5 opacity-50">({searchResults.artists.length})</span>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-1">
+                {searchResults.artists.map(artist => (
+                  <button
+                    key={artist.id}
+                    onClick={() => handleArtistClick(artist)}
+                    className="flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-[16px] border border-white/[0.1] hover:bg-white/[0.05] active:scale-95 transition-all w-[108px]"
+                    style={{ background: 'rgba(24,24,28,.78)' }}
+                  >
+                    {artist.image_url ? (
+                      <img src={artist.image_url} alt={artist.name} className="w-14 h-14 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#8a8a8a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <circle cx="12" cy="7" r="4" stroke="#8a8a8a" strokeWidth="2"/>
+                        </svg>
+                      </div>
+                    )}
+                    <span className="text-[12px] font-bold text-white text-center leading-tight line-clamp-2" style={SANS}>
+                      {artist.name}
+                    </span>
+                    {artist.genres.length > 0 && (
+                      <span className="text-[10px] text-[#8a8a8a] text-center truncate w-full" style={SANS}>
+                        {artist.genres[0]}
+                      </span>
+                    )}
+                    {artist.followers > 0 && (
+                      <span className="text-[10px] text-[#8a8a8a] text-center" style={SANS}>
+                        {fmtNum(artist.followers)} {t.search_followers}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tracks section */}
+          {searchResults.tracks.length > 0 && (
+            <div>
+              <div className={`${LBL} mb-3 px-1`} style={SANS}>
+                {t.search_section_tracks}
+                <span className="ml-1.5 opacity-50">({searchResults.tracks.length})</span>
+              </div>
+              <div className="rounded-[16px] border border-white/[0.1] overflow-hidden" style={{ background: 'rgba(24,24,28,.95)' }}>
+                {searchResults.tracks.map((track) => (
+                  <div
+                    key={track.id}
+                    className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.05] transition-colors group"
+                  >
+                    <div
+                      className="relative w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden cursor-pointer"
+                      onClick={(e) => track.preview_url ? toggleListPreview(e, track) : selectTrack(track)}
+                    >
+                      {track.cover_url ? (
+                        <img src={track.cover_url} alt={track.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 18V6l10-2v10" stroke="#8a8a8a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><circle cx="6.5" cy="18" r="2.6" fill="#8a8a8a" /><circle cx="16.5" cy="14" r="2.6" fill="#8a8a8a" /></svg>
+                        </div>
+                      )}
+                      {track.preview_url && (
+                        <div
+                          className={`absolute inset-0 flex items-center justify-center group-hover:opacity-100 transition-opacity duration-150 ${listPlayingId === track.id ? 'opacity-100' : 'opacity-0'}`}
+                          style={{ background: 'rgba(0,0,0,0.6)' }}
+                        >
+                          {listPlayingId === track.id ? (
+                            <svg width="12" height="12" viewBox="0 0 10 10"><rect x="1" y="0" width="3" height="10" fill="white" /><rect x="6" y="0" width="3" height="10" fill="white" /></svg>
+                          ) : (
+                            <svg width="12" height="12" viewBox="0 0 10 10"><path d="M1 0l8 5-8 5z" fill="white" /></svg>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => selectTrack(track)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <p className="font-semibold text-white text-sm truncate" style={SANS}>{track.title}</p>
+                      <p className="text-[#8a8a8a] text-xs truncate" style={SANS}>{track.artist} · {track.album} · {track.release_date.slice(0, 4)}</p>
+                    </button>
+                    <span className="text-xs text-[#8a8a8a] flex-shrink-0" style={MONO}>{fmtMs(track.duration_ms)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
       )}
 
@@ -853,7 +1154,7 @@ export default function SongInfo() {
       )}
 
       {/* Empty state */}
-      {!info && !loading && results.length === 0 && !error && (
+      {!info && !loading && !searchResults && !error && (
         <div className="mt-20 flex flex-col items-center gap-3 text-[#8a8a8a]">
           <div className="w-14 h-14 rounded-[16px] flex items-center justify-center border border-white/[0.08]" style={{ background: 'rgba(45,212,191,.08)' }}>
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none">

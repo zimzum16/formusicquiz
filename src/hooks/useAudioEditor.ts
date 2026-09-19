@@ -113,7 +113,7 @@ export function useAudioEditor() {
         const itunesPromise = searchItunesDirect(title, searchArtist).catch((): Awaited<ReturnType<typeof searchItunesDirect>> => [])
 
         try {
-          const results = await tracksApi.search(title, searchArtist)
+          const { tracks: results } = await tracksApi.search(title, searchArtist)
           console.log('[upload] spotify results:', results.length, results[0])
 
           if (results.length) {
@@ -138,7 +138,7 @@ export function useAudioEditor() {
 
             // Если совпадений нет и теги не были в файле — порядок мог быть "Title - Artist"
             if (!artistMatches.length && !id3Tags.artist && !id3Tags.title) {
-              const swappedResults = await tracksApi.search(artist, searchArtist)
+              const { tracks: swappedResults } = await tracksApi.search(artist, searchArtist)
               const swappedMatches = findArtistMatches(swappedResults, title)
               if (swappedMatches.length) {
                 artistMatches = swappedMatches

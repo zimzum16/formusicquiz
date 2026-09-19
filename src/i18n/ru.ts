@@ -13,6 +13,11 @@ export const ru = {
   loading: 'Загружаем данные…',
   loading_short: 'Загружаем…',
   search_hint: 'Введите название, чтобы начать поиск',
+  search_section_artists: 'Артисты',
+  search_section_tracks: 'Треки',
+  search_followers: 'подписчиков',
+  albums_not_found: 'Альбомы не найдены',
+  tracks_label: 'тр.',
 
   // SongInfo page — track card
   preview_unavailable: 'Превью недоступно',
