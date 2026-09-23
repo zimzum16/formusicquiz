@@ -405,7 +405,6 @@ export default function SongInfo() {
 
   const handleArtistClick = async (artist: SpotifyArtistResult) => {
     setSelectedArtist(artist);
-    setSearchResults(null);
     setArtistAlbums(null);
     setAlbumsLoading(true);
     try {
@@ -661,11 +660,43 @@ export default function SongInfo() {
               ))}
             </div>
           )}
+
+          {/* Other albums strip */}
+          {artistAlbums && artistAlbums.length > 1 && (
+            <div className="mt-5">
+              <div className={`${LBL} mb-3 px-1`} style={SANS}>{t.search_section_albums}</div>
+              <div className="flex gap-2.5 overflow-x-auto pb-1">
+                {artistAlbums.map(album => (
+                  <button
+                    key={album.id}
+                    onClick={() => handleAlbumClick(album)}
+                    className={`flex-shrink-0 w-[88px] flex flex-col rounded-[10px] border overflow-hidden active:scale-[0.97] transition-all text-left ${album.id === selectedAlbum?.id ? 'border-[#2DD4BF]/60' : 'border-white/[0.08] hover:bg-white/[0.05]'}`}
+                    style={{ background: album.id === selectedAlbum?.id ? 'rgba(45,212,191,0.08)' : 'rgba(24,24,28,.78)' }}
+                  >
+                    {album.cover_url ? (
+                      <img src={album.cover_url} alt={album.title} className="w-full aspect-square object-cover" />
+                    ) : (
+                      <div className="w-full aspect-square bg-white/[0.06] flex items-center justify-center">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                          <path d="M9 18V6l10-2v10" stroke="#8a8a8a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          <circle cx="6.5" cy="18" r="2.6" fill="#8a8a8a"/><circle cx="16.5" cy="14" r="2.6" fill="#8a8a8a"/>
+                        </svg>
+                      </div>
+                    )}
+                    <div className="px-1.5 py-1">
+                      <p className="font-semibold text-[10px] leading-tight line-clamp-2 text-white" style={SANS}>{album.title}</p>
+                      <p className="text-[#8a8a8a] text-[9px] mt-0.5" style={SANS}>{album.year}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Search results page */}
-      {searchResults && (
+      {searchResults && !selectedArtist && (
         <div className="mb-7 space-y-5">
 
           {/* Artists section */}
@@ -1154,7 +1185,7 @@ export default function SongInfo() {
       )}
 
       {/* Empty state */}
-      {!info && !loading && !searchResults && !error && (
+      {!info && !loading && !searchResults && !selectedArtist && !error && (
         <div className="mt-20 flex flex-col items-center gap-3 text-[#8a8a8a]">
           <div className="w-14 h-14 rounded-[16px] flex items-center justify-center border border-white/[0.08]" style={{ background: 'rgba(45,212,191,.08)' }}>
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none">

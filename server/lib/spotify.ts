@@ -104,9 +104,9 @@ export async function searchArtists(query: string): Promise<SpotifyArtistResult[
   return items.map(a => ({
     id: a.id,
     name: a.name,
-    popularity: 0,
-    followers: 0,
-    genres: [],
+    popularity: a.popularity ?? 0,
+    followers: a.followers?.total ?? 0,
+    genres: a.genres ?? [],
     image_url: a.images?.[0]?.url ?? null,
     spotify_url: a.external_urls?.spotify ?? '',
   }));

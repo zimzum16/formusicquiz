@@ -1,5 +1,17 @@
 const BASE = import.meta.env.VITE_API_URL ?? '';
 
+const PROXY_HOSTS = ['i.scdn.co', 'mosaic.scdn.co', 'lineup-images.scdn.co', 'is1-ssl.mzstatic.com', 'is2-ssl.mzstatic.com', 'is3-ssl.mzstatic.com', 'is4-ssl.mzstatic.com', 'is5-ssl.mzstatic.com'];
+export function proxyImg(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const { hostname } = new URL(url);
+    if (PROXY_HOSTS.some(h => hostname === h || hostname.endsWith(`.${h}`))) {
+      return `${BASE}/api/img?url=${encodeURIComponent(url)}`;
+    }
+  } catch { /* ignore */ }
+  return url;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const { headers: extraHeaders, ...restOptions } = options ?? {};
   const res = await fetch(`${BASE}${path}`, {

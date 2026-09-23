@@ -17,6 +17,7 @@ export const en: Translations = {
   search_hint: 'Enter a name to start searching',
   search_section_artists: 'Artists',
   search_section_tracks: 'Tracks',
+  search_section_albums: 'Albums',
   search_followers: 'followers',
   albums_not_found: 'No albums found',
   tracks_label: 'tr.',

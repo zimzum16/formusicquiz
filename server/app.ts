@@ -45,6 +45,32 @@ app.get('/api/scrape', async (c) => {
   }
 });
 
+// Image proxy — для обхода блокировки Spotify CDN в России
+const ALLOWED_IMG_HOSTS = ['i.scdn.co', 'mosaic.scdn.co', 'lineup-images.scdn.co', 'is1-ssl.mzstatic.com', 'is2-ssl.mzstatic.com', 'is3-ssl.mzstatic.com', 'is4-ssl.mzstatic.com', 'is5-ssl.mzstatic.com'];
+app.get('/api/img', async (c) => {
+  const url = c.req.query('url');
+  if (!url) return c.json({ error: 'url required' }, 400);
+  try {
+    const { hostname } = new URL(url);
+    if (!ALLOWED_IMG_HOSTS.some(h => hostname === h || hostname.endsWith(`.${h}`))) {
+      return c.json({ error: 'host not allowed' }, 403);
+    }
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return c.body(null, res.status as 404);
+    const ct = res.headers.get('content-type') || 'image/jpeg';
+    return new Response(res.body, {
+      headers: {
+        'content-type': ct,
+        'cache-control': 'public, max-age=604800, immutable',
+        'access-control-allow-origin': '*',
+      },
+    });
+  } catch (e) {
+    console.error('[img-proxy] error:', e);
+    return c.json({ error: 'fetch failed' }, 500);
+  }
+});
+
 app.doc('/api/spec', {
   openapi: '3.0.0',
   info: { title: 'Trackslice API', version: '1.0.0' },

@@ -530,7 +530,13 @@ router.openapi(searchRoute, async (c) => {
     const itunesArtists = artist
       ? ([] as SpotifyArtistResult[])
       : await searchArtistsItunes(q).catch(() => [] as SpotifyArtistResult[]);
-    return c.json({ artists: itunesArtists.slice(0, 5), tracks: itunesResults.slice(0, 20) });
+    const itunesArtistsWithImg = itunesArtists.map(a => {
+      if (a.image_url) return a;
+      const aNorm = norm(a.name);
+      const match = itunesResults.find(it => norm(it.artist.split(',')[0]).includes(aNorm) || aNorm.includes(norm(it.artist.split(',')[0])));
+      return match?.cover_url ? { ...a, image_url: match.cover_url } : a;
+    });
+    return c.json({ artists: itunesArtistsWithImg.slice(0, 5), tracks: itunesResults.slice(0, 20) });
   }
 
   const tryMatch = (track: (typeof spotifyTracks)[0], pool: typeof itunesResults) => {
@@ -564,7 +570,15 @@ router.openapi(searchRoute, async (c) => {
     );
   }
 
-  return c.json({ artists: spotifyArtists.slice(0, 5), tracks: enriched.slice(0, 20) });
+  // Заполняем image_url артистов через iTunes-обложки (Apple CDN доступен в России)
+  const enrichedArtists = spotifyArtists.map(a => {
+    if (a.image_url) return a;
+    const aNorm = norm(a.name);
+    const match = itunesResults.find(it => norm(it.artist.split(',')[0]).includes(aNorm) || aNorm.includes(norm(it.artist.split(',')[0])));
+    return match?.cover_url ? { ...a, image_url: match.cover_url } : a;
+  });
+
+  return c.json({ artists: enrichedArtists.slice(0, 5), tracks: enriched.slice(0, 20) });
 });
 
 router.openapi(infoRoute, async (c) => {
