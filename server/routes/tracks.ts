@@ -728,7 +728,7 @@ router.openapi(relatedArtistsRoute, async (c) => {
     const enriched = await Promise.all(
       lfm.map(async (a, i) => {
         let image_url = a.image_url;
-        if (!image_url && i < 6) {
+        if (!image_url) {
           try {
             const url = `https://itunes.apple.com/search?term=${encodeURIComponent(a.name)}&media=music&entity=song&limit=1&country=US`;
             const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
