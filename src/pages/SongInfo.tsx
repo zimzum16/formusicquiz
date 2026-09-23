@@ -325,6 +325,35 @@ export default function SongInfo() {
   const [listPlayingId, setListPlayingId] = useState<string | null>(null);
   const listAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Related artists for search results
+  const [relatedArtists, setRelatedArtists] = useState<SpotifyArtistResult[] | null>(null);
+  const [relatedLoading, setRelatedLoading] = useState(false);
+
+  useEffect(() => {
+    if (!searchResults) { setRelatedArtists(null); return; }
+    // Use dominant artist from tracks or first artist from results
+    const freq = new Map<string, { id: string; count: number }>();
+    for (const t of searchResults.tracks) {
+      if (!t.artist_id || t.artist_id.startsWith('itunes:')) continue;
+      const e = freq.get(t.artist_id);
+      if (e) e.count++; else freq.set(t.artist_id, { id: t.artist_id, count: 1 });
+    }
+    const byTrack = [...freq.values()].sort((a, b) => b.count - a.count)[0];
+    const artistId = byTrack?.id ?? searchResults.artists.find(a => !a.id.startsWith('itunes:'))?.id;
+    // Get artist name for Last.fm fallback
+    const artistName = byTrack
+      ? searchResults.tracks.find(t => t.artist_id === byTrack.id)?.artist.split(',')[0]?.trim()
+      : searchResults.artists.find(a => !a.id.startsWith('itunes:'))?.name;
+    if (!artistId && !artistName) { setRelatedArtists(null); return; }
+    const lookupId = artistId ?? `itunes:unknown`;
+    setRelatedArtists(null);
+    setRelatedLoading(true);
+    tracksApi.getRelatedArtists(lookupId, artistName)
+      .then(data => setRelatedArtists(data))
+      .catch(() => setRelatedArtists([]))
+      .finally(() => setRelatedLoading(false));
+  }, [searchResults]);
+
   useEffect(() => {
     return () => { audioRef.current?.pause(); };
   }, []);
@@ -791,6 +820,47 @@ export default function SongInfo() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Related artists */}
+          {(relatedLoading || (relatedArtists && relatedArtists.length > 0)) && (
+            <div>
+              <div className={`${LBL} mb-3 px-1`} style={SANS}>
+                {t.search_section_related}
+              </div>
+              {relatedLoading ? (
+                <div className="flex items-center gap-3 px-1 text-[#8a8a8a]">
+                  <div className="animate-spin w-4 h-4 border-2 border-[#2DD4BF] border-t-transparent rounded-full" />
+                  <span className="text-[13px]" style={SANS}>{t.loading_short}</span>
+                </div>
+              ) : (
+                <div className="flex gap-3 overflow-x-auto pb-1">
+                  {relatedArtists!.map(artist => (
+                    <button
+                      key={artist.id}
+                      onClick={() => handleArtistClick(artist)}
+                      className="flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-[16px] border border-white/[0.1] hover:bg-white/[0.05] active:scale-95 transition-all w-[96px]"
+                      style={{ background: 'rgba(24,24,28,.78)' }}
+                    >
+                      {artist.image_url ? (
+                        <img src={artist.image_url} alt={artist.name} className="w-12 h-12 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#8a8a8a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <circle cx="12" cy="7" r="4" stroke="#8a8a8a" strokeWidth="2"/>
+                          </svg>
+                        </div>
+                      )}
+                      <span className="text-[11px] font-bold text-white text-center leading-tight line-clamp-2" style={SANS}>{artist.name}</span>
+                      {artist.genres.length > 0 && (
+                        <span className="text-[10px] text-[#8a8a8a] text-center truncate w-full" style={SANS}>{artist.genres[0]}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

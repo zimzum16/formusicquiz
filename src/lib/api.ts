@@ -190,5 +190,9 @@ export const tracksApi = {
     return request<ArtistAlbum[]>(`/api/tracks/artists/${id}/albums?${params}`);
   },
   getAlbumTracks: (id: string) => request<SpotifyTrack[]>(`/api/tracks/albums/${encodeURIComponent(id)}/tracks`),
+  getRelatedArtists: (id: string, name?: string) => {
+    const params = name ? `?name=${encodeURIComponent(name)}` : '';
+    return request<SpotifyArtistResult[]>(`/api/tracks/artists/${encodeURIComponent(id)}/related${params}`);
+  },
 };
 

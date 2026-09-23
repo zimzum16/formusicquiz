@@ -16,6 +16,7 @@ export const ru = {
   search_section_artists: 'Артисты',
   search_section_tracks: 'Треки',
   search_section_albums: 'Альбомы',
+  search_section_related: 'Похожие артисты',
   search_followers: 'подписчиков',
   albums_not_found: 'Альбомы не найдены',
   tracks_label: 'тр.',

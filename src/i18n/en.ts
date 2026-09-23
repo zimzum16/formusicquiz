@@ -18,6 +18,7 @@ export const en: Translations = {
   search_section_artists: 'Artists',
   search_section_tracks: 'Tracks',
   search_section_albums: 'Albums',
+  search_section_related: 'Similar Artists',
   search_followers: 'followers',
   albums_not_found: 'No albums found',
   tracks_label: 'tr.',

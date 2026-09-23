@@ -54,6 +54,47 @@ export async function getTrackInfo(title: string, artist: string): Promise<Lastf
   };
 }
 
+export interface LastfmSimilarArtist {
+  name: string;
+  url: string;
+  image_url: string | null;
+}
+
+export async function getSimilarArtists(artistName: string, limit = 10): Promise<LastfmSimilarArtist[]> {
+  const key = process.env.LASTFM_API_KEY;
+  if (!key) return [];
+
+  const params = new URLSearchParams({
+    method: 'artist.getSimilar',
+    api_key: key,
+    artist: artistName,
+    limit: String(limit),
+    autocorrect: '1',
+    format: 'json',
+  });
+
+  try {
+    const res = await fetch(`${BASE}/?${params}`, { signal: AbortSignal.timeout(6000) });
+    if (!res.ok) return [];
+    const data = (await res.json()) as LastfmSimilarResponse;
+    if (data.error || !data.similarartists?.artist) return [];
+    const artists = Array.isArray(data.similarartists.artist)
+      ? data.similarartists.artist
+      : [data.similarartists.artist];
+    return artists.map(a => {
+      const imgEntry = a.image?.find(i => i.size === 'extralarge' || i.size === 'mega') ?? a.image?.[a.image.length - 1];
+      const img = imgEntry?.['#text'] ?? null;
+      return {
+        name: a.name,
+        url: a.url,
+        image_url: img && !img.includes('2a96cbd8b46e442fc41c2b86b821562f') ? img : null,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
 interface LastfmApiResponse {
   error?: number;
   track?: {
@@ -62,5 +103,20 @@ interface LastfmApiResponse {
     url: string;
     toptags?: { tag: { name: string; url: string }[] };
     similartracks?: { track: { name: string; url: string; artist: { name: string } }[] };
+  };
+}
+
+interface LastfmSimilarResponse {
+  error?: number;
+  similarartists?: {
+    artist: Array<{
+      name: string;
+      url: string;
+      image?: Array<{ '#text': string; size: string }>;
+    }> | {
+      name: string;
+      url: string;
+      image?: Array<{ '#text': string; size: string }>;
+    };
   };
 }

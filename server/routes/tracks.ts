@@ -1,9 +1,9 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { Redis } from '@upstash/redis';
-import { searchTracks, getTrack, searchArtists, getArtistAlbums, getAlbumTracks, type SpotifyArtistResult, type ArtistAlbum } from '../lib/spotify.js';
+import { searchTracks, getTrack, searchArtists, getArtistAlbums, getAlbumTracks, getRelatedArtists, type SpotifyArtistResult, type ArtistAlbum } from '../lib/spotify.js';
 import { searchSong, parseTagsFromHtml } from '../lib/genius.js';
 import { extractLyricsText } from '../lib/lyricsCompare.js';
-import { getTrackInfo } from '../lib/lastfm.js';
+import { getTrackInfo, getSimilarArtists } from '../lib/lastfm.js';
 import { getTrackStats } from '../lib/setlistfm.js';
 import { findVideo } from '../lib/youtube.js';
 import { getTrackInfo as getYandexTrackInfo } from '../lib/yandex.js';
@@ -696,6 +696,63 @@ const artistAlbumsRoute = createRoute({
       description: 'Список альбомов артиста',
     },
   },
+});
+
+const relatedArtistsRoute = createRoute({
+  method: 'get',
+  path: '/artists/:id/related',
+  request: {
+    params: z.object({ id: z.string() }),
+    query: z.object({ name: z.string().optional() }),
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: z.array(ArtistResultSchema) } },
+      description: 'Похожие артисты',
+    },
+  },
+});
+
+router.openapi(relatedArtistsRoute, async (c) => {
+  const { id } = c.req.valid('param');
+  const { name = '' } = c.req.valid('query');
+  if (!id.startsWith('itunes:')) {
+    const spotify = await getRelatedArtists(id).catch(() => [] as SpotifyArtistResult[]);
+    if (spotify.length > 0) return c.json(spotify, 200);
+  }
+  // Fallback to Last.fm similar artists with iTunes image enrichment
+  if (name) {
+    const lfm = await getSimilarArtists(name, 10).catch(() => []);
+    if (!lfm.length) return c.json([], 200);
+    // Enrich top-5 with iTunes album covers in parallel (used as artist proxy images)
+    const enriched = await Promise.all(
+      lfm.map(async (a, i) => {
+        let image_url = a.image_url;
+        if (!image_url && i < 6) {
+          try {
+            const url = `https://itunes.apple.com/search?term=${encodeURIComponent(a.name)}&media=music&entity=song&limit=1&country=US`;
+            const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+            if (res.ok) {
+              const data = (await res.json()) as { results: Array<{ artworkUrl100?: string; kind?: string }> };
+              const track = data.results.find(r => r.kind === 'song');
+              image_url = track?.artworkUrl100?.replace('100x100bb', '600x600bb') ?? null;
+            }
+          } catch { /* ignore */ }
+        }
+        return {
+          id: `lastfm:${encodeURIComponent(a.name)}`,
+          name: a.name,
+          popularity: 0,
+          followers: 0,
+          genres: [],
+          image_url,
+          spotify_url: a.url,
+        } satisfies SpotifyArtistResult;
+      })
+    );
+    return c.json(enriched, 200);
+  }
+  return c.json([], 200);
 });
 
 router.openapi(artistAlbumsRoute, async (c) => {
