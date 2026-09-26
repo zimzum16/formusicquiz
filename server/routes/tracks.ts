@@ -517,68 +517,110 @@ router.openapi(lyricsRoute, async (c) => {
 
 router.openapi(searchRoute, async (c) => {
   const { q, artist } = c.req.valid('query');
-
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-  const [spotifyTracks, spotifyArtists, itunesResults] = await Promise.all([
+  // Запрашиваем Spotify-треки, iTunes-треки и артистов параллельно
+  const [spotifyTracks, itunesTracks, spotifyArtists, itunesArtists] = await Promise.all([
     searchTracks(q, artist).catch(() => [] as Awaited<ReturnType<typeof searchTracks>>),
-    artist ? Promise.resolve([] as SpotifyArtistResult[]) : searchArtists(q).catch(() => [] as SpotifyArtistResult[]),
     searchTracksItunes(q, artist, 50).catch(() => []),
+    artist ? Promise.resolve([] as SpotifyArtistResult[]) : searchArtists(q).catch(() => [] as SpotifyArtistResult[]),
+    artist ? Promise.resolve([] as SpotifyArtistResult[]) : searchArtistsItunes(q).catch(() => [] as SpotifyArtistResult[]),
   ]);
 
-  if (spotifyTracks.length === 0) {
-    const itunesArtists = artist
-      ? ([] as SpotifyArtistResult[])
-      : await searchArtistsItunes(q).catch(() => [] as SpotifyArtistResult[]);
-    const itunesArtistsWithImg = itunesArtists.map(a => {
-      if (a.image_url) return a;
-      const aNorm = norm(a.name);
-      const match = itunesResults.find(it => norm(it.artist.split(',')[0]).includes(aNorm) || aNorm.includes(norm(it.artist.split(',')[0])));
-      return match?.cover_url ? { ...a, image_url: match.cover_url } : a;
+  // Строим список треков: если Spotify есть — он определяет порядок (релевантность),
+  // iTunes добавляет превью. Если Spotify пуст — берём iTunes напрямую.
+  let allTracks: typeof itunesTracks;
+
+  if (spotifyTracks.length > 0) {
+    // Enrich Spotify tracks with iTunes previews and covers
+    const tryMatch = (track: (typeof spotifyTracks)[0]) => {
+      const tNorm = norm(track.title);
+      const aNorm = norm(track.artist.split(',')[0]);
+      return itunesTracks.find(it =>
+        norm(it.title) === tNorm && (norm(it.artist.split(',')[0]).includes(aNorm) || aNorm.includes(norm(it.artist.split(',')[0])))
+      );
+    };
+    let enriched = spotifyTracks.map(t => {
+      const match = tryMatch(t);
+      return {
+        ...t,
+        preview_url: t.preview_url ?? match?.preview_url ?? null,
+        cover_url: t.cover_url ?? match?.cover_url ?? null,
+      };
     });
-    return c.json({ artists: itunesArtistsWithImg.slice(0, 5), tracks: itunesResults.slice(0, 20) });
+
+    // Second pass: individual iTunes lookups for still-missing previews (parallel)
+    const stillMissing = enriched.filter(t => !t.preview_url);
+    if (stillMissing.length > 0) {
+      const fallbacks = await Promise.all(
+        stillMissing.map(t =>
+          searchTracksItunes(`${t.title} ${t.artist.split(',')[0]}`, undefined, 5)
+            .then(res => ({ id: t.id, preview_url: res[0]?.preview_url ?? null }))
+            .catch(() => ({ id: t.id, preview_url: null as string | null }))
+        )
+      );
+      const fb = new Map(fallbacks.map(f => [f.id, f.preview_url]));
+      enriched = enriched.map(t => t.preview_url ? t : { ...t, preview_url: fb.get(t.id) ?? null });
+    }
+
+    // Append unique iTunes tracks not covered by Spotify (полезно для русского контента)
+    const seenKey = new Set(enriched.map(t => norm(t.title) + '|' + norm(t.artist.split(',')[0])));
+    const extraItunes = itunesTracks.filter(t =>
+      !seenKey.has(norm(t.title) + '|' + norm(t.artist.split(',')[0]))
+    );
+    allTracks = [...enriched, ...extraItunes];
+  } else {
+    // Spotify недоступен — используем iTunes напрямую
+    allTracks = itunesTracks;
   }
 
-  const tryMatch = (track: (typeof spotifyTracks)[0], pool: typeof itunesResults) => {
-    const tNorm = norm(track.title);
-    const aNorm = norm(track.artist.split(',')[0]);
-    const match = pool.find(it => {
-      const itTitle = norm(it.title);
-      const itArtist = norm(it.artist.split(',')[0]);
-      return itTitle === tNorm && (itArtist.includes(aNorm) || aNorm.includes(itArtist));
+  // Нормализация без отбрасывания кириллицы — для сопоставления имён
+  const normFull = (s: string) => s.toLowerCase().replace(/[\s\-_.,!?'"]/g, '');
+
+  // Доминирующий жанр из iTunes-артистов этого поиска (fallback для Spotify без жанров)
+  const genreFreq = new Map<string, number>();
+  for (const a of itunesArtists) for (const g of a.genres) genreFreq.set(g, (genreFreq.get(g) ?? 0) + 1);
+  const dominantGenre = [...genreFreq.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const fallbackGenre = dominantGenre ? [dominantGenre] : [];
+
+  // Обогащаем артиста: фото из треков, жанр из iTunes (точное совпадение → fallback)
+  const enrichArtist = (a: SpotifyArtistResult): SpotifyArtistResult => {
+    const aNorm = norm(a.name);
+    const aNormFull = normFull(a.name);
+    const itunesMatch = itunesArtists.find(it => {
+      const itFull = normFull(it.name);
+      return itFull === aNormFull || itFull.includes(aNormFull) || aNormFull.includes(itFull);
     });
-    return match?.preview_url ?? null;
+    const trackMatch = a.image_url ? null : allTracks.find(it => {
+      const tArtist = norm(it.artist.split(',')[0]);
+      return tArtist.includes(aNorm) || aNorm.includes(tArtist);
+    });
+    const genres = a.genres.length > 0 ? a.genres
+      : itunesMatch?.genres.length ? itunesMatch.genres
+      : fallbackGenre;
+    return { ...a, image_url: a.image_url ?? trackMatch?.cover_url ?? null, genres };
   };
 
-  let enriched = spotifyTracks.map(track =>
-    track.preview_url ? track : { ...track, preview_url: tryMatch(track, itunesResults) }
-  );
+  // Объединяем артистов: Spotify первый (лучше данные), затем уникальные из iTunes
+  const enrichedSpotify = spotifyArtists.map(enrichArtist);
+  const seenArtistName = new Set(enrichedSpotify.map(a => norm(a.name)));
+  const uniqueItunes = itunesArtists
+    .map(enrichArtist)
+    .filter(a => {
+      const n = norm(a.name);
+      return ![...seenArtistName].some(sn => sn.includes(n) || n.includes(sn));
+    });
 
-  // Second pass: individual iTunes lookups for still-missing tracks (parallel)
-  const stillMissing = enriched.filter(t => !t.preview_url);
-  if (stillMissing.length > 0) {
-    const fallbacks = await Promise.all(
-      stillMissing.map(t =>
-        searchTracksItunes(`${t.title} ${t.artist.split(',')[0]}`, undefined, 5)
-          .then(results => ({ id: t.id, preview_url: results[0]?.preview_url ?? null }))
-          .catch(() => ({ id: t.id, preview_url: null }))
-      )
-    );
-    const fallbackMap = new Map(fallbacks.map(f => [f.id, f.preview_url]));
-    enriched = enriched.map(t =>
-      t.preview_url ? t : { ...t, preview_url: fallbackMap.get(t.id) ?? null }
-    );
-  }
-
-  // Заполняем image_url артистов через iTunes-обложки (Apple CDN доступен в России)
-  const enrichedArtists = spotifyArtists.map(a => {
-    if (a.image_url) return a;
-    const aNorm = norm(a.name);
-    const match = itunesResults.find(it => norm(it.artist.split(',')[0]).includes(aNorm) || aNorm.includes(norm(it.artist.split(',')[0])));
-    return match?.cover_url ? { ...a, image_url: match.cover_url } : a;
+  // Дедупликация по фото (убирает EN/RU дубли одного артиста)
+  const seenImg = new Set<string>();
+  const dedupedArtists = [...enrichedSpotify, ...uniqueItunes].filter(a => {
+    if (!a.image_url) return true;
+    if (seenImg.has(a.image_url)) return false;
+    seenImg.add(a.image_url);
+    return true;
   });
 
-  return c.json({ artists: enrichedArtists.slice(0, 5), tracks: enriched.slice(0, 20) });
+  return c.json({ artists: dedupedArtists.slice(0, 5), tracks: allTracks.slice(0, 20) });
 });
 
 router.openapi(infoRoute, async (c) => {

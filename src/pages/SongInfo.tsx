@@ -340,11 +340,14 @@ export default function SongInfo() {
     }
     const byTrack = [...freq.values()].sort((a, b) => b.count - a.count)[0];
     const artistId = byTrack?.id ?? searchResults.artists.find(a => !a.id.startsWith('itunes:'))?.id;
-    // Get artist name for Last.fm fallback
-    const artistName = byTrack
-      ? searchResults.tracks.find(t => t.artist_id === byTrack.id)?.artist.split(',')[0]?.trim()
-      : searchResults.artists.find(a => !a.id.startsWith('itunes:'))?.name;
-    if (!artistId && !artistName) { setRelatedArtists(null); return; }
+    // Get artist name — also fall back to iTunes tracks/artists
+    const artistName = (byTrack
+      ? searchResults.tracks.find(t => t.artist_id === byTrack.id)?.artist
+      : searchResults.artists.find(a => !a.id.startsWith('itunes:'))?.name
+        ?? searchResults.artists[0]?.name
+        ?? searchResults.tracks[0]?.artist
+    )?.split(',')[0]?.trim();
+    if (!artistName) { setRelatedArtists(null); return; }
     const lookupId = artistId ?? `itunes:unknown`;
     setRelatedArtists(null);
     setRelatedLoading(true);
