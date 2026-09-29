@@ -94,7 +94,7 @@ interface SpotifyApiArtist {
 export async function searchArtists(query: string): Promise<SpotifyArtistResult[]> {
   const token = await getAppToken();
   if (!token) return [];
-  const searchUrl = `${BASE}/search?q=${encodeURIComponent(query)}&type=artist&limit=5&market=US`;
+  const searchUrl = `${BASE}/search?q=${encodeURIComponent(query)}&type=artist&limit=10&market=US`;
   const res = await fetch(searchUrl, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8000) });
   if (!res.ok) return [];
   const data = (await res.json()) as { artists: { items: SpotifyApiArtist[] } };
@@ -208,24 +208,8 @@ export async function getArtistAlbums(artistId: string): Promise<ArtistAlbum[]> 
     }));
 }
 
-export async function getRelatedArtists(artistId: string): Promise<SpotifyArtistResult[]> {
-  const token = await getAppToken();
-  if (!token) return [];
-  const res = await fetch(`${BASE}/artists/${artistId}/related-artists`, {
-    headers: { Authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(6000),
-  });
-  if (!res.ok) return [];
-  const data = (await res.json()) as { artists: SpotifyApiArtist[] };
-  return (data.artists ?? []).slice(0, 10).map(a => ({
-    id: a.id,
-    name: a.name,
-    popularity: a.popularity ?? 0,
-    followers: a.followers?.total ?? 0,
-    genres: a.genres ?? [],
-    image_url: a.images?.[0]?.url ?? null,
-    spotify_url: a.external_urls?.spotify ?? '',
-  }));
+export async function getRelatedArtists(_artistId: string): Promise<SpotifyArtistResult[]> {
+  return []; // related-artists deprecated; genre search yields no genres via client_credentials
 }
 
 export async function getAlbumTracks(spotifyAlbumId: string): Promise<SpotifyTrack[]> {

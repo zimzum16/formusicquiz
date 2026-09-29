@@ -120,3 +120,4 @@ export async function getTrackInfo(title: string, artist: string): Promise<Yande
     return { url: null, search_url, play_count: null, chart: null };
   }
 }
+

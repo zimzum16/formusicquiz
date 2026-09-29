@@ -743,11 +743,11 @@ export default function SongInfo() {
                   <button
                     key={artist.id}
                     onClick={() => handleArtistClick(artist)}
-                    className="flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-[16px] border border-white/[0.1] hover:bg-white/[0.05] active:scale-95 transition-all w-[108px]"
+                    className="flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-[16px] border border-white/[0.1] hover:bg-white/[0.05] active:scale-95 transition-all w-[108px] overflow-hidden"
                     style={{ background: 'rgba(24,24,28,.78)' }}
                   >
                     {artist.image_url ? (
-                      <img src={artist.image_url} alt={artist.name} className="w-14 h-14 rounded-full object-cover" />
+                      <img src={artist.image_url} alt={artist.name} className="w-14 h-14 rounded-full object-cover flex-shrink-0" />
                     ) : (
                       <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -756,7 +756,7 @@ export default function SongInfo() {
                         </svg>
                       </div>
                     )}
-                    <span className="text-[12px] font-bold text-white text-center leading-tight line-clamp-2" style={SANS}>
+                    <span className="text-[12px] font-bold text-white text-center leading-tight line-clamp-2 break-all w-full" style={SANS}>
                       {artist.name}
                     </span>
                     {artist.genres.length > 0 && (
@@ -843,20 +843,20 @@ export default function SongInfo() {
                     <button
                       key={artist.id}
                       onClick={() => handleArtistClick(artist)}
-                      className="flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-[16px] border border-white/[0.1] hover:bg-white/[0.05] active:scale-95 transition-all w-[96px]"
+                      className="flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-[16px] border border-white/[0.1] hover:bg-white/[0.05] active:scale-95 transition-all w-[96px] overflow-hidden"
                       style={{ background: 'rgba(24,24,28,.78)' }}
                     >
                       {artist.image_url ? (
-                        <img src={artist.image_url} alt={artist.name} className="w-12 h-12 rounded-full object-cover" />
+                        <img src={artist.image_url} alt={artist.name} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
                       ) : (
-                        <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#8a8a8a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                             <circle cx="12" cy="7" r="4" stroke="#8a8a8a" strokeWidth="2"/>
                           </svg>
                         </div>
                       )}
-                      <span className="text-[11px] font-bold text-white text-center leading-tight line-clamp-2" style={SANS}>{artist.name}</span>
+                      <span className="text-[11px] font-bold text-white text-center leading-tight line-clamp-2 break-all w-full" style={SANS}>{artist.name}</span>
                       {artist.genres.length > 0 && (
                         <span className="text-[10px] text-[#8a8a8a] text-center truncate w-full" style={SANS}>{artist.genres[0]}</span>
                       )}

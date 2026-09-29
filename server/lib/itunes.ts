@@ -53,7 +53,7 @@ export async function getTrackItunes(itunesId: string): Promise<SpotifyTrack | n
 
 export async function searchArtistsItunes(query: string): Promise<SpotifyArtistResult[]> {
   try {
-    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=musicArtist&limit=5&country=US`;
+    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=musicArtist&limit=10&country=US`;
     const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return [];
     const data = (await res.json()) as {

@@ -3,10 +3,10 @@ import { Redis } from '@upstash/redis';
 import { searchTracks, getTrack, searchArtists, getArtistAlbums, getAlbumTracks, getRelatedArtists, type SpotifyArtistResult, type ArtistAlbum } from '../lib/spotify.js';
 import { searchSong, parseTagsFromHtml } from '../lib/genius.js';
 import { extractLyricsText } from '../lib/lyricsCompare.js';
-import { getTrackInfo, getSimilarArtists } from '../lib/lastfm.js';
+import { getTrackInfo } from '../lib/lastfm.js';
+import { getTrackInfo as getYandexTrackInfo } from '../lib/yandex.js';
 import { getTrackStats } from '../lib/setlistfm.js';
 import { findVideo } from '../lib/youtube.js';
-import { getTrackInfo as getYandexTrackInfo } from '../lib/yandex.js';
 import { getAppleMusicData } from '../lib/applemusic.js';
 import { searchTracksItunes, searchArtistsItunes, getArtistAlbumsItunes, getAlbumTracksItunes, getTrackItunes } from '../lib/itunes.js';
 
@@ -603,24 +603,55 @@ router.openapi(searchRoute, async (c) => {
 
   // Объединяем артистов: Spotify первый (лучше данные), затем уникальные из iTunes
   const enrichedSpotify = spotifyArtists.map(enrichArtist);
-  const seenArtistName = new Set(enrichedSpotify.map(a => norm(a.name)));
+  const seenArtistNorm = new Set(enrichedSpotify.map(a => norm(a.name)));
   const uniqueItunes = itunesArtists
     .map(enrichArtist)
+    // iTunes: только если запрос есть в имени (убирает нерелевантные вроде 五月天)
+    .filter(a => norm(a.name).includes(norm(q)))
     .filter(a => {
       const n = norm(a.name);
-      return ![...seenArtistName].some(sn => sn.includes(n) || n.includes(sn));
+      if (seenArtistNorm.has(n)) return false; // точный дубль по имени
+      if ([...seenArtistNorm].some(sn => sn.includes(n) || n.includes(sn))) return false;
+      seenArtistNorm.add(n);
+      return true;
     });
 
-  // Дедупликация по фото (убирает EN/RU дубли одного артиста)
+  // Дополнительно: артисты из треков у которых запрос встречается в имени (ловит "Black Stone Cherry" при поиске "stone")
+  const qNorm = norm(q);
+  const fromTracks: SpotifyArtistResult[] = [];
+  const seenFromTracks = new Set([...seenArtistNorm, ...uniqueItunes.map(a => norm(a.name))]);
+  for (const t of allTracks) {
+    for (const part of t.artist.split(/,|feat\.|&/i).map(s => s.trim())) {
+      const pNorm = norm(part);
+      if (!pNorm || !pNorm.includes(qNorm) || seenFromTracks.has(pNorm)) continue;
+      seenFromTracks.add(pNorm);
+      fromTracks.push({
+        id: `itunes:track-artist:${encodeURIComponent(part)}`,
+        name: part,
+        popularity: 0,
+        followers: 0,
+        genres: fallbackGenre,
+        image_url: t.cover_url ?? null,
+        spotify_url: '',
+      });
+    }
+  }
+
+  // Дедупликация по имени и фото
   const seenImg = new Set<string>();
-  const dedupedArtists = [...enrichedSpotify, ...uniqueItunes].filter(a => {
-    if (!a.image_url) return true;
-    if (seenImg.has(a.image_url)) return false;
-    seenImg.add(a.image_url);
+  const seenFinalName = new Set<string>();
+  const dedupedArtists = [...enrichedSpotify, ...uniqueItunes, ...fromTracks].filter(a => {
+    const n = norm(a.name);
+    if (seenFinalName.has(n)) return false;
+    seenFinalName.add(n);
+    if (a.image_url) {
+      if (seenImg.has(a.image_url)) return false;
+      seenImg.add(a.image_url);
+    }
     return true;
   });
 
-  return c.json({ artists: dedupedArtists.slice(0, 5), tracks: allTracks.slice(0, 20) });
+  return c.json({ artists: dedupedArtists.slice(0, 8), tracks: allTracks.slice(0, 20) });
 });
 
 router.openapi(infoRoute, async (c) => {
@@ -756,45 +787,52 @@ const relatedArtistsRoute = createRoute({
 });
 
 router.openapi(relatedArtistsRoute, async (c) => {
-  const { id } = c.req.valid('param');
   const { name = '' } = c.req.valid('query');
-  if (!id.startsWith('itunes:')) {
-    const spotify = await getRelatedArtists(id).catch(() => [] as SpotifyArtistResult[]);
-    if (spotify.length > 0) return c.json(spotify, 200);
+  if (!name) return c.json([], 200);
+
+  // Step 1: get artist genre from iTunes
+  const itunesArtists = await searchArtistsItunes(name).catch(() => [] as SpotifyArtistResult[]);
+  const genre = itunesArtists[0]?.genres?.[0];
+  if (!genre) return c.json([], 200);
+
+  // Step 2: search iTunes tracks by genre, extract unique artists
+  const tracks = await searchTracksItunes(genre, undefined, 50).catch(() => []);
+  if (!tracks.length) return c.json([], 200);
+
+  const normName = name.toLowerCase().replace(/[^a-zа-я0-9]/gi, '');
+  const seen = new Map<string, { cover_url: string | null; count: number }>();
+
+  for (const t of tracks) {
+    const parts = t.artist.split(/,|&/).map(s => s.trim()).filter(Boolean);
+    for (const part of parts) {
+      const key = part.toLowerCase().replace(/[^a-zа-я0-9]/gi, '');
+      if (!key || key.includes(normName) || normName.includes(key)) continue;
+      const existing = seen.get(key);
+      if (existing) { existing.count++; }
+      else { seen.set(key, { cover_url: t.cover_url ?? null, count: 1 }); }
+    }
   }
-  // Fallback to Last.fm similar artists with iTunes image enrichment
-  if (name) {
-    const lfm = await getSimilarArtists(name, 10).catch(() => []);
-    if (!lfm.length) return c.json([], 200);
-    // Enrich top-5 with iTunes album covers in parallel (used as artist proxy images)
-    const enriched = await Promise.all(
-      lfm.map(async (a, i) => {
-        let image_url = a.image_url;
-        if (!image_url) {
-          try {
-            const url = `https://itunes.apple.com/search?term=${encodeURIComponent(a.name)}&media=music&entity=song&limit=1&country=US`;
-            const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
-            if (res.ok) {
-              const data = (await res.json()) as { results: Array<{ artworkUrl100?: string; kind?: string }> };
-              const track = data.results.find(r => r.kind === 'song');
-              image_url = track?.artworkUrl100?.replace('100x100bb', '600x600bb') ?? null;
-            }
-          } catch { /* ignore */ }
-        }
-        return {
-          id: `lastfm:${encodeURIComponent(a.name)}`,
-          name: a.name,
-          popularity: 0,
-          followers: 0,
-          genres: [],
-          image_url,
-          spotify_url: a.url,
-        } satisfies SpotifyArtistResult;
-      })
-    );
-    return c.json(enriched, 200);
-  }
-  return c.json([], 200);
+
+  const sorted = [...seen.entries()]
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 10);
+
+  const result: SpotifyArtistResult[] = sorted.map(([key, v]) => {
+    const originalName = tracks
+      .flatMap(t => t.artist.split(/,|&/).map(s => s.trim()))
+      .find(s => s.toLowerCase().replace(/[^a-zа-я0-9]/gi, '') === key) ?? key;
+    return {
+      id: `itunes:related:${encodeURIComponent(originalName)}`,
+      name: originalName,
+      popularity: 0,
+      followers: 0,
+      genres: [genre],
+      image_url: v.cover_url,
+      spotify_url: '',
+    };
+  });
+
+  return c.json(result, 200);
 });
 
 router.openapi(artistAlbumsRoute, async (c) => {
