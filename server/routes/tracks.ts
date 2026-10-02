@@ -607,11 +607,16 @@ router.openapi(searchRoute, async (c) => {
   const uniqueItunes = itunesArtists
     .map(enrichArtist)
     // iTunes: только если запрос есть в имени (убирает нерелевантные вроде 五月天)
-    .filter(a => norm(a.name).includes(norm(q)))
     .filter(a => {
       const n = norm(a.name);
-      if (seenArtistNorm.has(n)) return false; // точный дубль по имени
-      if ([...seenArtistNorm].some(sn => sn.includes(n) || n.includes(sn))) return false;
+      if (seenArtistNorm.has(n)) return false;
+      // подавляем дубль только если имена очень похожи (≥70% длины) — не удаляем "Stone Roses" из-за "Stone"
+      const isSimilar = [...seenArtistNorm].some(sn => {
+        const shorter = sn.length <= n.length ? sn : n;
+        const longer  = sn.length <= n.length ? n  : sn;
+        return longer.includes(shorter) && shorter.length >= longer.length * 0.7;
+      });
+      if (isSimilar) return false;
       seenArtistNorm.add(n);
       return true;
     });

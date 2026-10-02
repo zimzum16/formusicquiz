@@ -838,13 +838,13 @@ export default function SongInfo() {
                   <span className="text-[13px]" style={SANS}>{t.loading_short}</span>
                 </div>
               ) : (
-                <div className="flex gap-3 overflow-x-auto pb-1">
-                  {relatedArtists!.map(artist => (
+                <div className="flex flex-wrap gap-3">
+                  {relatedArtists!.slice(0, 8).map(artist => (
                     <button
                       key={artist.id}
                       onClick={() => handleArtistClick(artist)}
-                      className="flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-[16px] border border-white/[0.1] hover:bg-white/[0.05] active:scale-95 transition-all w-[96px] overflow-hidden"
-                      style={{ background: 'rgba(24,24,28,.78)' }}
+                      className="flex flex-col items-center gap-2 p-3 rounded-[16px] border border-white/[0.1] hover:bg-white/[0.05] active:scale-95 transition-all overflow-hidden"
+                      style={{ background: 'rgba(24,24,28,.78)', width: 96 }}
                     >
                       {artist.image_url ? (
                         <img src={artist.image_url} alt={artist.name} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
@@ -856,7 +856,7 @@ export default function SongInfo() {
                           </svg>
                         </div>
                       )}
-                      <span className="text-[11px] font-bold text-white text-center leading-tight line-clamp-2 break-all w-full" style={SANS}>{artist.name}</span>
+                      <span className="text-[11px] font-bold text-white text-center leading-tight line-clamp-2 break-words w-full" style={SANS}>{artist.name}</span>
                       {artist.genres.length > 0 && (
                         <span className="text-[10px] text-[#8a8a8a] text-center truncate w-full" style={SANS}>{artist.genres[0]}</span>
                       )}
