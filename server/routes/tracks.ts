@@ -610,13 +610,6 @@ router.openapi(searchRoute, async (c) => {
     .filter(a => {
       const n = norm(a.name);
       if (seenArtistNorm.has(n)) return false;
-      // подавляем дубль только если имена очень похожи (≥70% длины) — не удаляем "Stone Roses" из-за "Stone"
-      const isSimilar = [...seenArtistNorm].some(sn => {
-        const shorter = sn.length <= n.length ? sn : n;
-        const longer  = sn.length <= n.length ? n  : sn;
-        return longer.includes(shorter) && shorter.length >= longer.length * 0.7;
-      });
-      if (isSimilar) return false;
       seenArtistNorm.add(n);
       return true;
     });
