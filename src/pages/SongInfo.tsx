@@ -721,12 +721,12 @@ export default function SongInfo() {
           {artistAlbums && artistAlbums.length > 1 && (
             <div className="mt-5">
               <div className={`${LBL} mb-3 px-1`} style={SANS}>{t.search_section_albums}</div>
-              <div className="flex gap-2.5 overflow-x-auto pb-1">
+              <div className="flex flex-wrap gap-2.5">
                 {artistAlbums.map(album => (
                   <button
                     key={album.id}
                     onClick={() => handleAlbumClick(album)}
-                    className={`flex-shrink-0 w-[88px] flex flex-col rounded-[10px] border overflow-hidden active:scale-[0.97] transition-all text-left ${album.id === selectedAlbum?.id ? 'border-[#2DD4BF]/60' : 'border-white/[0.08] hover:bg-white/[0.05]'}`}
+                    className={`w-[88px] flex flex-col rounded-[10px] border overflow-hidden active:scale-[0.97] transition-all text-left ${album.id === selectedAlbum?.id ? 'border-[#2DD4BF]/60' : 'border-white/[0.08] hover:bg-white/[0.05]'}`}
                     style={{ background: album.id === selectedAlbum?.id ? 'rgba(45,212,191,0.08)' : 'rgba(24,24,28,.78)' }}
                   >
                     {album.cover_url ? (

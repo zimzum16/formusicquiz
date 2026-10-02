@@ -649,7 +649,20 @@ router.openapi(searchRoute, async (c) => {
     return true;
   });
 
-  return c.json({ artists: dedupedArtists.slice(0, 8), tracks: allTracks.slice(0, 20) });
+  // Сортировка: сначала по близости к запросу, затем по популярности
+  const scored = dedupedArtists.map(a => {
+    const n = norm(a.name);
+    const qn = norm(q);
+    let score = 0;
+    if (n === qn) score += 2000;
+    else if (n.startsWith(qn)) score += 1000;
+    else if (n.includes(qn)) score += 500;
+    score += a.popularity ?? 0;
+    return { a, score };
+  });
+  scored.sort((x, y) => y.score - x.score);
+
+  return c.json({ artists: scored.slice(0, 5).map(x => x.a), tracks: allTracks.slice(0, 20) });
 });
 
 router.openapi(infoRoute, async (c) => {
@@ -793,8 +806,11 @@ router.openapi(relatedArtistsRoute, async (c) => {
   const genre = itunesArtists[0]?.genres?.[0];
   if (!genre) return c.json([], 200);
 
-  // Step 2: search iTunes tracks by genre, extract unique artists
-  const tracks = await searchTracksItunes(genre, undefined, 50).catch(() => []);
+  // Step 2: pick country store — Cyrillic name → RU, otherwise US
+  const country = /[а-яёА-ЯЁ]/.test(name) ? 'RU' : 'US';
+
+  // Step 3: search iTunes tracks by genre in appropriate store, extract unique artists
+  const tracks = await searchTracksItunes(genre, undefined, 50, country).catch(() => []);
   if (!tracks.length) return c.json([], 200);
 
   const normName = name.toLowerCase().replace(/[^a-zа-я0-9]/gi, '');

@@ -165,22 +165,23 @@ export async function getAlbumTracksItunes(albumId: string): Promise<SpotifyTrac
   }
 }
 
-export async function searchTracksItunes(query: string, artist?: string, limit = 10): Promise<SpotifyTrack[]> {
+export async function searchTracksItunes(query: string, artist?: string, limit = 10, country?: string): Promise<SpotifyTrack[]> {
   const term = artist ? `${query} ${artist}` : query;
 
-  const fetchCountry = async (country: string): Promise<SpotifyTrack[]> => {
-    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=${limit}&country=${country}`;
+  const fetchCountry = async (c: string): Promise<SpotifyTrack[]> => {
+    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=${limit}&country=${c}`;
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      if (!res.ok) { console.error(`[itunes] search error ${res.status} (${country})`); return []; }
+      if (!res.ok) { console.error(`[itunes] search error ${res.status} (${c})`); return []; }
       const data = (await res.json()) as iTunesResponse;
       return data.results.filter(r => r.kind === 'song').map(normalize);
     } catch (e) {
-      console.error(`[itunes] search failed (${country}):`, e);
+      console.error(`[itunes] search failed (${c}):`, e);
       return [];
     }
   };
 
+  if (country) return fetchCountry(country);
   const usResults = await fetchCountry('US');
   if (usResults.length > 0) return usResults;
   return fetchCountry('RU');
