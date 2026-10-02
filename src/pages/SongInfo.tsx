@@ -325,37 +325,20 @@ export default function SongInfo() {
   const [listPlayingId, setListPlayingId] = useState<string | null>(null);
   const listAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Related artists for search results
   const [relatedArtists, setRelatedArtists] = useState<SpotifyArtistResult[] | null>(null);
   const [relatedLoading, setRelatedLoading] = useState(false);
 
+  // Related artists when a specific artist is selected
   useEffect(() => {
-    if (!searchResults) { setRelatedArtists(null); return; }
-    // Use dominant artist from tracks or first artist from results
-    const freq = new Map<string, { id: string; count: number }>();
-    for (const t of searchResults.tracks) {
-      if (!t.artist_id || t.artist_id.startsWith('itunes:')) continue;
-      const e = freq.get(t.artist_id);
-      if (e) e.count++; else freq.set(t.artist_id, { id: t.artist_id, count: 1 });
-    }
-    const byTrack = [...freq.values()].sort((a, b) => b.count - a.count)[0];
-    const artistId = byTrack?.id ?? searchResults.artists.find(a => !a.id.startsWith('itunes:'))?.id;
-    // Get artist name — also fall back to iTunes tracks/artists
-    const artistName = (byTrack
-      ? searchResults.tracks.find(t => t.artist_id === byTrack.id)?.artist
-      : searchResults.artists.find(a => !a.id.startsWith('itunes:'))?.name
-        ?? searchResults.artists[0]?.name
-        ?? searchResults.tracks[0]?.artist
-    )?.split(',')[0]?.trim();
-    if (!artistName) { setRelatedArtists(null); return; }
-    const lookupId = artistId ?? `itunes:unknown`;
+    if (!selectedArtist) { setRelatedArtists(null); return; }
+    const artistName = selectedArtist.name.split(',')[0].trim();
     setRelatedArtists(null);
     setRelatedLoading(true);
-    tracksApi.getRelatedArtists(lookupId, artistName)
+    tracksApi.getRelatedArtists(selectedArtist.id, artistName)
       .then(data => setRelatedArtists(data))
       .catch(() => setRelatedArtists([]))
       .finally(() => setRelatedLoading(false));
-  }, [searchResults]);
+  }, [selectedArtist]);
 
   useEffect(() => {
     return () => { audioRef.current?.pause(); };
@@ -616,6 +599,47 @@ export default function SongInfo() {
               ))}
             </div>
           )}
+
+          {/* Related artists */}
+          {(relatedLoading || (relatedArtists && relatedArtists.length > 0)) && (
+            <div className="mt-5">
+              <div className={`${LBL} mb-3 px-1`} style={SANS}>
+                {t.search_section_related}
+              </div>
+              {relatedLoading ? (
+                <div className="flex items-center gap-3 px-1 text-[#8a8a8a]">
+                  <div className="animate-spin w-4 h-4 border-2 border-[#2DD4BF] border-t-transparent rounded-full" />
+                  <span className="text-[13px]" style={SANS}>{t.loading_short}</span>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-3">
+                  {relatedArtists!.slice(0, 8).map(artist => (
+                    <button
+                      key={artist.id}
+                      onClick={() => handleArtistClick(artist)}
+                      className="flex flex-col items-center gap-2 p-3 rounded-[16px] border border-white/[0.1] hover:bg-white/[0.05] active:scale-95 transition-all overflow-hidden"
+                      style={{ background: 'rgba(24,24,28,.78)', width: 96 }}
+                    >
+                      {artist.image_url ? (
+                        <img src={artist.image_url} alt={artist.name} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#8a8a8a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <circle cx="12" cy="7" r="4" stroke="#8a8a8a" strokeWidth="2"/>
+                          </svg>
+                        </div>
+                      )}
+                      <span className="text-[11px] font-bold text-white text-center leading-tight line-clamp-2 break-words w-full" style={SANS}>{artist.name}</span>
+                      {artist.genres.length > 0 && (
+                        <span className="text-[10px] text-[#8a8a8a] text-center truncate w-full" style={SANS}>{artist.genres[0]}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -725,46 +749,6 @@ export default function SongInfo() {
             </div>
           )}
 
-          {/* Related artists */}
-          {(relatedLoading || (relatedArtists && relatedArtists.length > 0)) && (
-            <div className="mt-5">
-              <div className={`${LBL} mb-3 px-1`} style={SANS}>
-                {t.search_section_related}
-              </div>
-              {relatedLoading ? (
-                <div className="flex items-center gap-3 px-1 text-[#8a8a8a]">
-                  <div className="animate-spin w-4 h-4 border-2 border-[#2DD4BF] border-t-transparent rounded-full" />
-                  <span className="text-[13px]" style={SANS}>{t.loading_short}</span>
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-3">
-                  {relatedArtists!.slice(0, 8).map(artist => (
-                    <button
-                      key={artist.id}
-                      onClick={() => handleArtistClick(artist)}
-                      className="flex flex-col items-center gap-2 p-3 rounded-[16px] border border-white/[0.1] hover:bg-white/[0.05] active:scale-95 transition-all overflow-hidden"
-                      style={{ background: 'rgba(24,24,28,.78)', width: 96 }}
-                    >
-                      {artist.image_url ? (
-                        <img src={artist.image_url} alt={artist.name} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
-                      ) : (
-                        <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#8a8a8a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <circle cx="12" cy="7" r="4" stroke="#8a8a8a" strokeWidth="2"/>
-                          </svg>
-                        </div>
-                      )}
-                      <span className="text-[11px] font-bold text-white text-center leading-tight line-clamp-2 break-words w-full" style={SANS}>{artist.name}</span>
-                      {artist.genres.length > 0 && (
-                        <span className="text-[10px] text-[#8a8a8a] text-center truncate w-full" style={SANS}>{artist.genres[0]}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
 
