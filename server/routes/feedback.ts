@@ -19,7 +19,7 @@ async function sendNotification(text: string) {
 
   const res = await fetch(`https://ntfy.sh/${topic}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Title': 'Новый фидбек TrackSlice' },
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Title': 'New feedback TrackSlice' },
     body: text,
     signal: AbortSignal.timeout(8000),
   });
