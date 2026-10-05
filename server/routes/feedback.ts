@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { Redis } from '@upstash/redis';
+import { SocksProxyAgent } from 'socks-proxy-agent';
+import https from 'https';
 
 const router = new Hono();
 
@@ -16,13 +18,34 @@ const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_R
 async function sendTelegram(text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (!token || !chatId) return;
+  const proxyUrl = process.env.PROXY_URL;
+  if (!token || !chatId) {
+    console.error('[telegram] missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID');
+    return;
+  }
 
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
-    signal: AbortSignal.timeout(8000),
+  const agent = proxyUrl ? new SocksProxyAgent(proxyUrl) : undefined;
+
+  await new Promise<void>((resolve, reject) => {
+    const body = JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' });
+    const req = https.request({
+      hostname: 'api.telegram.org',
+      path: `/bot${token}/sendMessage`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+      agent,
+      timeout: 8000,
+    }, (res) => {
+      res.resume();
+      if (res.statusCode && res.statusCode >= 400) {
+        console.error('[telegram] sendMessage failed:', res.statusCode);
+      }
+      resolve();
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+    req.write(body);
+    req.end();
   });
 }
 
@@ -54,7 +77,7 @@ router.post('/', async (c) => {
     contact ? `\n<i>Контакт: ${contact}</i>` : '',
   ].join('\n');
 
-  sendTelegram(tgText).catch(() => {});
+  sendTelegram(tgText).catch((e) => console.error('[telegram] error:', e?.message ?? e));
 
   return c.json({ ok: true });
 });
