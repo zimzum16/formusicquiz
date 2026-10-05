@@ -1,8 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { Redis } from '@upstash/redis';
-import { SocksProxyAgent } from 'socks-proxy-agent';
-import https from 'https';
 
 const router = new Hono();
 
@@ -15,39 +13,17 @@ const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_R
   ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
   : null;
 
-async function sendTelegram(text: string) {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  const proxyUrl = process.env.PROXY_URL;
-  if (!token || !chatId) {
-    console.error('[telegram] missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID');
-    return;
-  }
+async function sendNotification(text: string) {
+  const topic = process.env.NTFY_TOPIC;
+  if (!topic) return;
 
-  const agent = proxyUrl ? new SocksProxyAgent(proxyUrl) : undefined;
-
-  await new Promise<void>((resolve, reject) => {
-    const body = JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' });
-    const req = https.request({
-      hostname: 'api.telegram.org',
-      path: `/bot${token}/sendMessage`,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
-      agent,
-      timeout: 8000,
-    }, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        console.log('[telegram] response:', res.statusCode, data);
-        resolve();
-      });
-    });
-    req.on('error', reject);
-    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
-    req.write(body);
-    req.end();
+  const res = await fetch(`https://ntfy.sh/${topic}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Title': 'Новый фидбек TrackSlice' },
+    body: text,
+    signal: AbortSignal.timeout(8000),
   });
+  if (!res.ok) console.error('[ntfy] failed:', res.status);
 }
 
 router.post('/', async (c) => {
@@ -78,7 +54,7 @@ router.post('/', async (c) => {
     contact ? `\n<i>Контакт: ${contact}</i>` : '',
   ].join('\n');
 
-  sendTelegram(tgText).catch((e) => console.error('[telegram] error:', e?.message ?? e));
+  sendNotification(tgText).catch((e) => console.error('[ntfy] error:', e?.message ?? e));
 
   return c.json({ ok: true });
 });
