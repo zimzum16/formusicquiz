@@ -36,11 +36,12 @@ async function sendTelegram(text: string) {
       agent,
       timeout: 8000,
     }, (res) => {
-      res.resume();
-      if (res.statusCode && res.statusCode >= 400) {
-        console.error('[telegram] sendMessage failed:', res.statusCode);
-      }
-      resolve();
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        console.log('[telegram] response:', res.statusCode, data);
+        resolve();
+      });
     });
     req.on('error', reject);
     req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
