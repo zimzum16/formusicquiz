@@ -1,7 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { tracksApi, infoApi, type SpotifyTrack, type SpotifyArtistResult, type SearchResults, type ArtistAlbum, type TrackInfo } from '../lib/api';
 import { CollapsibleList } from '../components/CollapsibleList';
-import { ArtistInfoPanel, AlbumInfoPanel } from '../components/InfoPanel';
+import { ArtistInfoPanel, AlbumInfoPanel, SingleBadge } from '../components/InfoPanel';
+import { useAlbumInfo } from '../hooks/useInfo';
+import { matchSingles } from '../lib/singles';
 import { t, lang } from '../i18n';
 
 function useIsMobile() {
@@ -328,6 +330,13 @@ export default function SongInfo() {
 
   const [relatedArtists, setRelatedArtists] = useState<SpotifyArtistResult[] | null>(null);
   const [relatedLoading, setRelatedLoading] = useState(false);
+  const albumInfo = useAlbumInfo(selectedAlbum, selectedArtist?.name);
+  // Синглы помечаются в треклисте; в панели остаются только те, что не нашлись среди треков
+  const singles = useMemo(() => {
+    const all = albumInfo.data?.singles ?? [];
+    if (!albumTracks) return { byTrack: new Map<string, (typeof all)[number]>(), unmatched: [] };
+    return matchSingles(albumTracks, all);
+  }, [albumTracks, albumInfo.data]);
 
   // Related artists when a specific artist is selected
   useEffect(() => {
@@ -678,7 +687,7 @@ export default function SongInfo() {
           </div>
 
           {/* Треклист + справка: справа на десктопе, сверху на мобильном */}
-          <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_300px] md:items-start">
+          <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_300px] md:items-stretch">
             <div className="min-w-0">
               {albumTracksLoading && (
                 <div className="flex items-center gap-3 px-1 text-[#8a8a8a]">
@@ -722,7 +731,14 @@ export default function SongInfo() {
                         className="min-w-0 flex-1 text-left"
                       >
                         <p className="font-semibold text-white text-sm truncate" style={SANS}>{track.title}</p>
-                        {track.artist && (
+                        {singles.byTrack.has(track.id) ? (
+                          // flex + items-center: иначе плашка встаёт на базовую линию текста и строка «плывёт»
+                          <div className="flex items-center gap-1.5 min-w-0 text-[#8a8a8a] text-xs" style={SANS}>
+                            {track.artist && <span className="truncate">{track.artist}</span>}
+                            {track.artist && <span aria-hidden>·</span>}
+                            <SingleBadge single={singles.byTrack.get(track.id)!} />
+                          </div>
+                        ) : track.artist && (
                           <p className="text-[#8a8a8a] text-xs truncate" style={SANS}>{track.artist}</p>
                         )}
                       </button>
@@ -732,8 +748,9 @@ export default function SongInfo() {
                 </div>
               )}
             </div>
-            <div className="order-first md:order-none">
-              <AlbumInfoPanel albumId={selectedAlbum.id} title={selectedAlbum.title} artistName={selectedArtist?.name} />
+            {/* relative + min-h: справка тянется на высоту треклиста (см. FittedCard) */}
+            <div className="order-first md:order-none relative md:min-h-[360px]">
+              <AlbumInfoPanel data={albumInfo.data} loading={albumInfo.loading} singles={singles.unmatched} />
             </div>
           </div>
 

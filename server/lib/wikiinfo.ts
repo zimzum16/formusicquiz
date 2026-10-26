@@ -1,11 +1,11 @@
 import { Agent, fetch } from 'undici';
 import { cacheGet, cacheSet } from './cache.js';
 import {
-  parseCriticRatings, parseSingles, parseCharts, parseCertifications,
-  type Localized, type CriticRating, type Single, type ChartPeak, type Certification,
+  parseCriticRatings, parseSingles, parseCharts, parseCertifications, parsePersonnel,
+  type Localized, type CriticRating, type Single, type ChartPeak, type Certification, type PersonnelGroup,
 } from './wikitext.js';
 
-export type { Localized, CriticRating, Single, ChartPeak, Certification };
+export type { Localized, CriticRating, Single, ChartPeak, Certification, PersonnelGroup };
 
 // Wikimedia без контакта (URL или email) в User-Agent даёт 10 запросов/мин вместо 200
 const UA = process.env.WIKI_USER_AGENT || 'SoundLens/1.0 (https://github.com/zimzum16/formusicquiz)';
@@ -60,6 +60,7 @@ export interface AlbumInfo {
   singles: Single[];
   charts: ChartPeak[];
   certifications: Certification[];
+  personnel: PersonnelGroup[];
   rym_url: string;
   musicbrainz_id: string | null;
   pending: boolean;  // MusicBrainz не успел — оценка слушателей (и синглы, если их нет в Википедии) появятся позже
@@ -266,9 +267,10 @@ interface EnArticle {
   singles: Single[];
   charts: ChartPeak[];
   certifications: Certification[];
+  personnel: PersonnelGroup[];
 }
 
-const NO_ARTICLE: EnArticle = { critic_ratings: [], singles: [], charts: [], certifications: [] };
+const NO_ARTICLE: EnArticle = { critic_ratings: [], singles: [], charts: [], certifications: [], personnel: [] };
 
 // Одна загрузка английской статьи — все блоки из её разметки
 async function enArticle(enTitle: string): Promise<EnArticle> {
@@ -280,6 +282,7 @@ async function enArticle(enTitle: string): Promise<EnArticle> {
     singles: parseSingles(text),
     charts: parseCharts(text),
     certifications: parseCertifications(text),
+    personnel: parsePersonnel(text),
   };
 }
 
@@ -473,6 +476,7 @@ async function buildAlbum(qid: string, artistName: string | undefined, state: So
     singles: pickSingles(mb.value.singles),
     charts: article.charts,
     certifications: article.certifications,
+    personnel: article.personnel,
     // У большинства альбомов RYM ID в Wikidata нет — ведём на поиск, чтобы не получить 404
     rym_url: rym
       ? `https://rateyourmusic.com/release/${encodeURI(rym.replace(/\/+$/, ''))}/`
@@ -507,7 +511,7 @@ export function getArtistInfo(id: string, name?: string): Promise<ArtistInfo | n
 }
 
 export function getAlbumInfo(id: string, title?: string, artist?: string): Promise<AlbumInfo | null> {
-  return cached(`wiki:album:v5:${id}|${title ?? ''}|${artist ?? ''}`, async state => {
+  return cached(`wiki:album:v7:${id}|${title ?? ''}|${artist ?? ''}`, async state => {
     const qid = await resolveAlbum(id, title, artist);
     return qid ? buildAlbum(qid, artist, state) : null;
   });

@@ -53,6 +53,10 @@ const AlbumInfoSchema = z.object({
     multiplier: z.number(),
     units: z.number().nullable(),
   })),
+  personnel: z.array(z.object({
+    title: z.string().nullable(),
+    people: z.array(z.object({ name: z.string(), roles: z.string().nullable() })),
+  })),
   rym_url: z.string(),
   musicbrainz_id: z.string().nullable(),
   pending: z.boolean(),

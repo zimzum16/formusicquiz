@@ -330,3 +330,82 @@ export function parseCertifications(wikitext: string): Certification[] {
   }
   return certs;
 }
+
+// ── Участники записи ──────────────────────────────────────────────────────────
+
+export interface PersonnelGroup {
+  title: string | null;  // «Nirvana», «Technical», «Other musicians»… — как в статье; null — без подзаголовка
+  people: { name: string; roles: string | null }[];
+}
+
+const PERSONNEL_HEADING_RE = /^(personnel|credits|credits and personnel|personnel and credits)$/i;
+const PERSONNEL_MAX = 60;
+
+// Нужны только музыканты: технические подгруппы и роли отбрасываем
+const TECH_GROUP_RE = /technical|production|producers|engineer|artwork|design|packaging|management|photograph|recording|mastering/i;
+const TECH_ROLE_RE = /engineer|mix(ing|ed)?\b|master(ing|ed)?\b|produc|art direct|creative direct|design|photograph|illustration|artwork|layout|liner notes|a&r|manage|coordinat|technician|assistant|recording|recorded by|editing|editor|studio|sleeve|cover art|packag|concept|committing to tape|audio level|lacquer|tape op|pro tools|crew/i;
+
+// Роли через запятую/точку с запятой, не разрывая скобки: "vocals (tracks 1, 2), guitar"
+function splitRoles(roles: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (const ch of roles) {
+    if (ch === '(') depth++;
+    if (ch === ')') depth = Math.max(0, depth - 1);
+    if ((ch === ',' || ch === ';') && depth === 0) { parts.push(current.trim()); current = ''; continue; }
+    current += ch;
+  }
+  parts.push(current.trim());
+  return parts.filter(Boolean);
+}
+
+// null — человек не музыкант (только технические роли), иначе — его музыкальные роли
+function musicalRoles(roles: string | null): string | null | false {
+  if (!roles) return null;  // без ролей — обычно участники группы списком под её названием
+  const parts = splitRoles(roles);
+  const musical = parts.filter(r => !TECH_ROLE_RE.test(r));
+  if (!musical.length) return false;
+  // Ничего не вырезали — оставляем как в статье, с её разделителями (у Abbey Road это «;»)
+  return musical.length === parts.length ? roles : musical.join(', ');
+}
+
+// Раздел «Personnel»: подгруппы — '''жирной строкой''' или подзаголовком, участники — «* Имя – роли»
+export function parsePersonnel(wikitext: string): PersonnelGroup[] {
+  const lines = wikitext.split('\n');
+  const start = lines.findIndex(l => {
+    const h = l.match(/^(={2,4})\s*(.*?)\s*\1\s*$/);
+    return h && PERSONNEL_HEADING_RE.test(h[2]);
+  });
+  if (start < 0) return [];
+  const level = lines[start].match(/^=+/)![0].length;
+
+  const groups: PersonnelGroup[] = [];
+  let current: PersonnelGroup | null = null;
+  let total = 0;
+  const open = (title: string | null) => { current = { title, people: [] }; groups.push(current); };
+
+  for (const raw of lines.slice(start + 1)) {
+    const h = raw.match(/^(={2,6})\s*(.*?)\s*\1\s*$/);
+    if (h && h[1].length <= level) break;
+    const line = raw.replace(/<!--[\s\S]*?-->/g, '').replace(/&nbsp;/g, ' ').replace(/&ndash;/g, '–').trim();
+
+    if (h) { open(cleanWikitext(h[2])); continue; }
+    const bold = line.match(/^'''([^']+)'''\s*:?$/);
+    if (bold) { open(cleanWikitext(bold[1])); continue; }
+    if (!line.startsWith('*') || total >= PERSONNEL_MAX) continue;
+    if (current && (current as PersonnelGroup).title && TECH_GROUP_RE.test((current as PersonnelGroup).title!)) continue;
+
+    // Номера треков {{small|(1, 3)}} и сноски убираем, остальное — как в статье
+    const text = cleanWikitext(stripRefs(line.replace(/^\*+\s*/, '')).replace(/\{\{\s*small\s*\|[^{}]*\}\}/gi, ''))
+      .replace(/\s+,/g, ',').replace(/\s{2,}/g, ' ').trim();
+    const dash = text.match(/^(.+?)\s*[–—-]\s+(.+)$/) ?? text.match(/^(.+?)\s+[–—]\s*(.+)$/);
+    const name = (dash ? dash[1] : text).trim();
+    const roles = musicalRoles(dash ? dash[2].trim() : null);
+    if (!name || roles === false) continue;
+    if (!current) open(null);
+    current!.people.push({ name, roles });
+    total++;
+  }
+  return groups.filter(g => g.people.length);
+}

@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, ExternalLink } from 'lucide-react';
 import { infoApi, type ArtistInfo, type AlbumInfo, type Localized, type WikiPage, type BandMember } from '../lib/api';
 import { t, lang } from '../i18n';
+import { useInfo } from '../hooks/useInfo';
 
 const SANS: React.CSSProperties = { fontFamily: 'Montserrat, sans-serif' };
 const MONO: React.CSSProperties = { fontFamily: 'JetBrains Mono, monospace' };
@@ -92,42 +93,6 @@ function useMediaQuery(query: string) {
     return () => mq.removeEventListener('change', fn);
   }, [query]);
   return match;
-}
-
-// Сервер не ждёт MusicBrainz дольше 2.5 с; опоздавшие данные он дописывает в кэш
-const PENDING_RETRY_MS = 4000;
-
-// Загрузка справки; null — не найдено или ошибка, панель тогда не показываем
-function useInfo<T extends { pending: boolean }>(
-  load: (fresh: boolean) => Promise<T | null>,
-  peek: () => T | null | undefined,
-  key: string,
-) {
-  const [data, setData] = useState<T | null>(() => peek() ?? null);
-  const [loading, setLoading] = useState(() => peek() === undefined);
-  useEffect(() => {
-    let cancelled = false;
-    let retry: ReturnType<typeof setTimeout> | undefined;
-    const ready = peek();
-    setData(ready ?? null);
-    setLoading(ready === undefined);
-    load(false)
-      .then(d => {
-        if (cancelled) return;
-        setData(d);
-        // Один повтор: к этому времени сервер обычно уже дописал состав / оценку слушателей
-        if (d?.pending) {
-          retry = setTimeout(() => {
-            load(true).then(fresh => { if (!cancelled && fresh) setData(fresh); }).catch(() => {});
-          }, PENDING_RETRY_MS);
-        }
-      })
-      .catch(() => { if (!cancelled) setData(null); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; clearTimeout(retry); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-  return { data, loading };
 }
 
 // ── Pieces ───────────────────────────────────────────────────────────────────
@@ -349,8 +314,124 @@ function certLabel(c: AlbumInfo['certifications'][number]) {
   return `${c.multiplier > 1 ? `${c.multiplier}× ` : ''}${award}${units}`;
 }
 
+const GROUP_TITLES_RU: Record<string, string> = {
+  'technical': 'Технический персонал',
+  'technical personnel': 'Технический персонал',
+  'production': 'Продакшн',
+  'production personnel': 'Продакшн',
+  'artwork': 'Оформление',
+  'design': 'Оформление',
+  'artwork and design': 'Оформление',
+  'packaging': 'Оформление',
+  'other musicians': 'Приглашённые музыканты',
+  'additional musicians': 'Приглашённые музыканты',
+  'additional personnel': 'Приглашённые музыканты',
+  'guest musicians': 'Приглашённые музыканты',
+  'featured artists': 'Приглашённые исполнители',
+  'orchestra': 'Оркестр',
+};
+
+const groupTitle = (title: string) =>
+  lang === 'ru' ? GROUP_TITLES_RU[title.toLowerCase()] ?? title : title;
+
+const PERSONNEL_LIMIT = 8;
+
+// Участники записи из раздела «Personnel»; роли — как в статье, на английском
+function Personnel({ groups }: { groups: AlbumInfo['personnel'] }) {
+  const [all, setAll] = useState(false);
+  const total = groups.reduce((n, g) => n + g.people.length, 0);
+  if (!total) return null;
+
+  // Первыми идут музыканты группы — обычно это первая подгруппа; лимит считаем по людям
+  let budget = all ? Infinity : PERSONNEL_LIMIT;
+  const visible = groups
+    .map(g => {
+      const people = g.people.slice(0, Math.max(0, budget));
+      budget -= people.length;
+      return { ...g, people };
+    })
+    .filter(g => g.people.length);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <span className={LBL} style={SANS}>{t.info_personnel}</span>
+      {visible.map((g, i) => (
+        <div key={`${g.title}-${i}`} className="flex flex-col gap-1.5">
+          {g.title && <span className="text-[11px] font-semibold text-[#2DD4BF]/80" style={SANS}>{groupTitle(g.title)}</span>}
+          {g.people.map((p, j) => (
+            <div key={`${p.name}-${j}`} className="flex flex-col" style={SANS}>
+              <span className="text-[12px] font-semibold text-white">{p.name}</span>
+              {p.roles && <span className="text-[11px] leading-snug text-[#8a8a8a]">{p.roles}</span>}
+            </div>
+          ))}
+        </div>
+      ))}
+      {total > PERSONNEL_LIMIT && (
+        <button
+          onClick={() => setAll(!all)}
+          className="self-start text-[11px] font-semibold text-[#8a8a8a] hover:text-white transition-colors"
+          style={SANS}
+        >
+          {all ? `↑ ${t.info_less}` : `+ ${t.info_show_more} ${total - PERSONNEL_LIMIT}`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Высота — как у треклиста (родитель задаёт её через relative + absolute inset-0),
+// лишнее скрыто под градиентом и раскрывается кнопкой
+function FittedCard({ children }: { children: React.ReactNode }) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    const content = contentRef.current;
+    if (!viewport || !content) return;
+    const check = () => setOverflows(content.scrollHeight > viewport.clientHeight + 1);
+    const ro = new ResizeObserver(check);
+    ro.observe(viewport);
+    ro.observe(content);
+    check();
+    return () => ro.disconnect();
+  }, []);
+
+  const toggle = () => {
+    if (expanded) cardRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    setExpanded(!expanded);
+  };
+
+  return (
+    <div ref={cardRef} className={`${CARD} flex flex-col ${expanded ? '' : 'absolute inset-0'}`} style={CARD_BG}>
+      <div ref={viewportRef} className={`relative flex-1 min-h-0 ${expanded ? '' : 'overflow-hidden'}`}>
+        <div ref={contentRef} className="p-4">{children}</div>
+        {!expanded && overflows && (
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-16"
+            style={{ background: 'linear-gradient(to bottom, rgba(24,24,28,0), rgba(24,24,28,.95))' }}
+          />
+        )}
+      </div>
+      {(overflows || expanded) && (
+        <button
+          onClick={toggle}
+          className="flex items-center justify-center gap-1 py-2.5 border-t border-white/[0.06] text-[11px] font-semibold text-[#8a8a8a] hover:text-white transition-colors flex-shrink-0"
+          style={SANS}
+        >
+          {expanded ? t.info_less : t.info_expand}
+          <ChevronDown size={14} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 // Только факты, без текста статьи — он есть по ссылкам на Википедию
-function AlbumBody({ data }: { data: AlbumInfo }) {
+function AlbumBody({ data, singles }: { data: AlbumInfo; singles: AlbumInfo['singles'] }) {
   const join = (ls: Localized[]) => ls.map(loc).filter(Boolean).join(', ') || null;
 
   return (
@@ -363,11 +444,12 @@ function AlbumBody({ data }: { data: AlbumInfo }) {
       </div>
       <ExpandableRows
         label={t.info_singles}
-        items={data.singles}
+        items={singles}
         rowKey={s => s.title}
         left={s => s.title}
         right={s => fmtDate(s.date)}
       />
+      <Personnel groups={data.personnel} />
       <ExpandableRows
         label={t.info_charts}
         items={sortCharts(data.charts)}
@@ -404,13 +486,36 @@ function AlbumBody({ data }: { data: AlbumInfo }) {
   );
 }
 
-// На десктопе — колонка справа от треклиста, на мобильном — сворачиваемый блок над ним
-export function AlbumInfoPanel({ albumId, title, artistName }: { albumId: string; title: string; artistName?: string }) {
-  const { data, loading } = useInfo<AlbumInfo>(
-    fresh => infoApi.getAlbum(albumId, title, artistName, fresh),
-    () => infoApi.peekAlbum(albumId, title, artistName),
-    albumId,
+type AlbumSingle = AlbumInfo['singles'][number];
+
+function fmtDateShort(d: string | null) {
+  if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return fmtDate(d);
+  return new Date(`${d}T00:00:00Z`)
+    .toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+    .replace(/\s*г\.$/, '');
+}
+
+export function SingleBadge({ single }: { single: AlbumSingle }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      <span
+        className="px-1.5 py-[2px] rounded text-[9px] leading-none font-bold uppercase tracking-[0.08em]"
+        style={{ color: '#2DD4BF', background: 'rgba(45,212,191,.12)', ...SANS }}
+      >
+        {t.info_single_badge}
+      </span>
+      {single.date && <span>{fmtDateShort(single.date)}</span>}
+    </span>
   );
+}
+
+// На десктопе — колонка справа от треклиста, на мобильном — сворачиваемый блок над ним.
+// singles — синглы, которых нет в треклисте (остальные помечены в нём самом)
+export function AlbumInfoPanel({ data, loading, singles }: {
+  data: AlbumInfo | null;
+  loading: boolean;
+  singles: AlbumSingle[];
+}) {
   const wide = useMediaQuery('(min-width: 768px)');
   const [open, setOpen] = useState(false);
 
@@ -419,9 +524,9 @@ export function AlbumInfoPanel({ albumId, title, artistName }: { albumId: string
 
   if (wide) {
     return (
-      <div className={`${CARD} p-4 md:sticky md:top-4`} style={CARD_BG}>
-        <AlbumBody data={data} />
-      </div>
+      <FittedCard>
+        <AlbumBody data={data} singles={singles} />
+      </FittedCard>
     );
   }
 
@@ -436,7 +541,7 @@ export function AlbumInfoPanel({ albumId, title, artistName }: { albumId: string
       <ToggleHeader summary={summary} open={open} onToggle={() => setOpen(!open)} />
       {open && (
         <div className="px-4 pb-4 pt-3 border-t border-white/[0.06]">
-          <AlbumBody data={data} />
+          <AlbumBody data={data} singles={singles} />
         </div>
       )}
     </div>

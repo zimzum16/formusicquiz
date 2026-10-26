@@ -221,6 +221,7 @@ export interface AlbumInfo {
   singles: { title: string; date: string | null }[];
   charts: { chart: string; name: Localized; peak: number }[];
   certifications: { region: Localized; award: string; multiplier: number; units: number | null }[];
+  personnel: { title: string | null; people: { name: string; roles: string | null }[] }[];
   rym_url: string;
   musicbrainz_id: string | null;
   pending: boolean;
