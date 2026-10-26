@@ -218,6 +218,9 @@ export interface AlbumInfo {
   genres: Localized[];
   critic_ratings: { source: string; score: string }[];
   community_rating: { value: number; votes: number } | null;
+  singles: { title: string; date: string | null }[];
+  charts: { chart: string; name: Localized; peak: number }[];
+  certifications: { region: Localized; award: string; multiplier: number; units: number | null }[];
   rym_url: string;
   musicbrainz_id: string | null;
   pending: boolean;

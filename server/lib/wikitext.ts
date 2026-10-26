@@ -1,0 +1,332 @@
+// Разбор вики-разметки английской статьи об альбоме: оценки критиков, синглы, чарты, сертификации
+
+export type Localized = { ru: string | null; en: string | null };
+
+export interface CriticRating {
+  source: string;
+  score: string;
+}
+
+export interface Single {
+  title: string;
+  date: string | null;  // YYYY-MM-DD / YYYY-MM / YYYY, либо исходный текст, если формат не распознан
+}
+
+export interface ChartPeak {
+  chart: string;  // код из шаблона {{Album chart}}: Billboard200, UK2, Australia…
+  name: Localized;
+  peak: number;
+}
+
+export interface Certification {
+  region: Localized;
+  award: string;  // gold / platinum / diamond / silver — как в шаблоне, в нижнем регистре
+  multiplier: number;
+  units: number | null;  // salesamount, если указан в статье
+}
+
+// ── Общие помощники ───────────────────────────────────────────────────────────
+
+export function cleanWikitext(s: string): string {
+  return s
+    .replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1')  // [[Ссылка|текст]] → текст
+    .replace(/\{\{[^{}]*\}\}/g, '')
+    .replace(/'{2,}/g, '')
+    .replace(/<[^>]+>/g, '')
+    .trim();
+}
+
+const stripRefs = (s: string) => s
+  .replace(/<ref[^>]*\/>/g, '')
+  .replace(/<ref[^>]*>[\s\S]*?<\/ref>/g, '');
+
+// Шаблон целиком, начиная с позиции start, с учётом вложенных {{…}}
+function templateAt(wikitext: string, start: number): string {
+  let depth = 0;
+  let end = start;
+  for (; end < wikitext.length - 1; end++) {
+    if (wikitext.startsWith('{{', end)) { depth++; end++; }
+    else if (wikitext.startsWith('}}', end)) { depth--; end++; if (depth === 0) break; }
+  }
+  return wikitext.slice(start, end + 1);
+}
+
+// Именованные поля многострочного шаблона: | key = value на каждой строке
+function multilineFields(block: string): Map<string, string> {
+  const fields = new Map<string, string>();
+  // Закрывающие }} шаблона иначе прилипают к последнему полю
+  for (const line of stripRefs(block).replace(/\}\}\s*$/, '').split(/\n\s*\|/)) {
+    const eq = line.indexOf('=');
+    if (eq > 0) fields.set(line.slice(0, eq).trim().toLowerCase(), line.slice(eq + 1).trim());
+  }
+  return fields;
+}
+
+// Аргументы однострочного шаблона {{name|a|b|key=value}}: позиционные и именованные
+function inlineArgs(template: string): { positional: string[]; named: Map<string, string> } {
+  const inner = stripRefs(template).replace(/^\{\{|\}\}$/g, '');
+  const parts: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (let i = 0; i < inner.length; i++) {
+    const two = inner.slice(i, i + 2);
+    if (two === '{{' || two === '[[') { depth++; current += two; i++; continue; }
+    if (two === '}}' || two === ']]') { depth--; current += two; i++; continue; }
+    if (inner[i] === '|' && depth === 0) { parts.push(current); current = ''; continue; }
+    current += inner[i];
+  }
+  parts.push(current);
+
+  const positional: string[] = [];
+  const named = new Map<string, string>();
+  for (const p of parts.slice(1)) {
+    const eq = p.indexOf('=');
+    if (eq > 0 && /^[\w\s-]+$/.test(p.slice(0, eq))) named.set(p.slice(0, eq).trim().toLowerCase(), p.slice(eq + 1).trim());
+    else positional.push(p.trim());
+  }
+  return { positional, named };
+}
+
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+
+// "August 30, 1993", "30 August 1993", "August 1993", {{Start date|1993|8|30}} → ISO-подобная строка
+function parseEnglishDate(raw: string): string | null {
+  // {{Start date|1993|8|30}}, {{Start date|df=y|1976|12}}
+  const startAt = raw.search(/\{\{\s*start date\s*\|/i);
+  if (startAt >= 0) {
+    const [y, m, d] = inlineArgs(templateAt(raw, startAt)).positional;
+    if (/^\d{4}$/.test(y ?? '')) {
+      return [y, m && /^\d+$/.test(m) ? m.padStart(2, '0') : null, d && /^\d+$/.test(d) ? d.padStart(2, '0') : null]
+        .filter(Boolean).join('-');
+    }
+  }
+
+  const text = cleanWikitext(raw).replace(/\(.*?\)/g, '').trim();
+  if (!text) return null;
+  const month = (name: string) => {
+    const i = MONTHS.indexOf(name.toLowerCase());
+    return i < 0 ? null : String(i + 1).padStart(2, '0');
+  };
+  let m = text.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
+  if (m && month(m[1])) return `${m[3]}-${month(m[1])}-${m[2].padStart(2, '0')}`;
+  m = text.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
+  if (m && month(m[2])) return `${m[3]}-${month(m[2])}-${m[1].padStart(2, '0')}`;
+  m = text.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (m && month(m[1])) return `${m[2]}-${month(m[1])}`;
+  if (/^\d{4}$/.test(text)) return text;
+  return text;
+}
+
+// ── Оценки критиков ───────────────────────────────────────────────────────────
+
+// Шаблон {{Music ratings}} (раньше — {{Album ratings}})
+export function parseCriticRatings(wikitext: string): CriticRating[] {
+  const start = wikitext.search(/\{\{\s*(music|album) ratings/i);
+  if (start < 0) return [];
+  const fields = multilineFields(templateAt(wikitext, start));
+
+  const ratings: CriticRating[] = [];
+  for (let n = 1; fields.has(`rev${n}`); n++) {
+    const source = cleanWikitext(fields.get(`rev${n}`)!);
+    const raw = (fields.get(`rev${n}score`) ?? '').replace(/\}\}\s*$/, '');
+    const stars = raw.match(/\{\{\s*rating\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)/i);
+    const score = stars ? `${stars[1]}/${stars[2]}` : cleanWikitext(raw);
+    if (source && score) ratings.push({ source, score });
+  }
+  return ratings;
+}
+
+// ── Синглы ────────────────────────────────────────────────────────────────────
+
+// Шаблон {{Singles}} в карточке альбома: single1, single1date, single2…
+export function parseSingles(wikitext: string): Single[] {
+  const start = wikitext.search(/\{\{\s*singles\s*\n?\s*\|/i);
+  if (start < 0) return [];
+  const fields = multilineFields(templateAt(wikitext, start));
+
+  const singles: Single[] = [];
+  for (let n = 1; fields.has(`single${n}`); n++) {
+    // [[All Apologies]]" / "[[Rape Me]] → All Apologies / Rape Me
+    const title = cleanWikitext(fields.get(`single${n}`)!)
+      .replace(/"\s*\/\s*"/g, ' / ')
+      .replace(/^"|"$/g, '')
+      .trim();
+    const date = fields.get(`single${n}date`);
+    if (title) singles.push({ title, date: date ? parseEnglishDate(date) : null });
+  }
+  return singles;
+}
+
+// ── Чарты ─────────────────────────────────────────────────────────────────────
+
+const c = (en: string, ru: string): Localized => ({ en, ru });
+
+// Коды шаблона {{Album chart}} → название. Цифры в конце (UK2, Germany4, Ireland3) —
+// версии источника для одного и того же чарта, их отбрасываем при поиске
+const CHART_NAMES: Record<string, Localized> = {
+  billboard200: c('US Billboard 200', 'США — Billboard 200'),
+  billboardcatalog: c('US Top Catalog Albums', 'США — Top Catalog Albums'),
+  billboardrockalbums: c('US Top Rock Albums', 'США — Top Rock Albums'),
+  billboardtoprockalbums: c('US Top Rock Albums', 'США — Top Rock Albums'),
+  billboardalternativealbums: c('US Top Alternative Albums', 'США — Top Alternative Albums'),
+  billboardtopalternativealbums: c('US Top Alternative Albums', 'США — Top Alternative Albums'),
+  billboardvinylalbums: c('US Vinyl Albums', 'США — Vinyl Albums'),
+  billboardindependent: c('US Independent Albums', 'США — Independent Albums'),
+  billboardheatseekers: c('US Heatseekers Albums', 'США — Heatseekers Albums'),
+  billboardrandbhiphop: c('US Top R&B/Hip-Hop Albums', 'США — Top R&B/Hip-Hop Albums'),
+  billboardrap: c('US Top Rap Albums', 'США — Top Rap Albums'),
+  billboardcountry: c('US Top Country Albums', 'США — Top Country Albums'),
+  billboardelectronic: c('US Top Dance/Electronic Albums', 'США — Top Dance/Electronic Albums'),
+  billboardsoundtrack: c('US Soundtrack Albums', 'США — Soundtrack Albums'),
+  billboardrock: c('US Top Rock Albums', 'США — Top Rock Albums'),
+  billboardhardrock: c('US Top Hard Rock Albums', 'США — Top Hard Rock Albums'),
+  billboardalternative: c('US Top Alternative Albums', 'США — Top Alternative Albums'),
+  billboardvinyl: c('US Vinyl Albums', 'США — Vinyl Albums'),
+  billboarddanceelectronic: c('US Top Dance/Electronic Albums', 'США — Top Dance/Electronic Albums'),
+  billboardcanada: c('Canada (Billboard)', 'Канада (Billboard)'),
+  uk: c('UK Albums Chart', 'Великобритания — UK Albums Chart'),
+  ukrock: c('UK Rock & Metal Albums', 'Великобритания — Rock & Metal Albums'),
+  ukindependent: c('UK Independent Albums', 'Великобритания — Independent Albums'),
+  ukvinyl: c('UK Vinyl Albums', 'Великобритания — Vinyl Albums'),
+  ukrandb: c('UK R&B Albums', 'Великобритания — R&B Albums'),
+  'ukr&b': c('UK R&B Albums', 'Великобритания — R&B Albums'),
+  ukamericana: c('UK Americana Albums', 'Великобритания — Americana Albums'),
+  ukdownload: c('UK Album Downloads', 'Великобритания — Album Downloads'),
+  scotland: c('Scotland', 'Шотландия'),
+  ireland: c('Ireland', 'Ирландия'),
+  australia: c('Australia', 'Австралия'),
+  newzealand: c('New Zealand', 'Новая Зеландия'),
+  canada: c('Canada', 'Канада'),
+  canadarpm: c('Canada (RPM)', 'Канада (RPM)'),
+  austria: c('Austria', 'Австрия'),
+  flanders: c('Belgium (Flanders)', 'Бельгия (Фландрия)'),
+  wallonia: c('Belgium (Wallonia)', 'Бельгия (Валлония)'),
+  czech: c('Czech Republic', 'Чехия'),
+  denmark: c('Denmark', 'Дания'),
+  netherlands: c('Netherlands', 'Нидерланды'),
+  finland: c('Finland', 'Финляндия'),
+  france: c('France', 'Франция'),
+  germany: c('Germany', 'Германия'),
+  greece: c('Greece', 'Греция'),
+  hungary: c('Hungary', 'Венгрия'),
+  iceland: c('Iceland', 'Исландия'),
+  italy: c('Italy', 'Италия'),
+  japan: c('Japan', 'Япония'),
+  oricon: c('Japan (Oricon)', 'Япония (Oricon)'),
+  lithuania: c('Lithuania', 'Литва'),
+  mexico: c('Mexico', 'Мексика'),
+  norway: c('Norway', 'Норвегия'),
+  poland: c('Poland', 'Польша'),
+  portugal: c('Portugal', 'Португалия'),
+  croatia: c('Croatia', 'Хорватия'),
+  slovakia: c('Slovakia', 'Словакия'),
+  spain: c('Spain', 'Испания'),
+  sweden: c('Sweden', 'Швеция'),
+  switzerland: c('Switzerland', 'Швейцария'),
+  argentina: c('Argentina', 'Аргентина'),
+  brazil: c('Brazil', 'Бразилия'),
+  southkorea: c('South Korea', 'Южная Корея'),
+  korea: c('South Korea', 'Южная Корея'),
+  taiwan: c('Taiwan', 'Тайвань'),
+  billboardjapan: c('Japan (Billboard Japan)', 'Япония (Billboard Japan)'),
+  europe: c('European Top 100 Albums', 'Европа — Top 100 Albums'),
+};
+
+function chartName(id: string): Localized {
+  const key = id.toLowerCase().replace(/[\s_-]/g, '');
+  const named = CHART_NAMES[key] ?? CHART_NAMES[key.replace(/\d+$/, '')];
+  if (named) return named;
+  // Незнакомый код: BillboardTastemaker → Billboard Tastemaker
+  const pretty = id.replace(/([a-z])([A-Z])/g, '$1 $2');
+  return { en: pretty, ru: pretty };
+}
+
+// Годовые итоги, переиздания и т. п. — не «пиковая позиция альбома»
+const SKIP_SECTION_RE = /year[- ]end|decade|all[- ]time|monthly|anniversary|reissue|re-?release|deluxe|remaster|expanded|edition/i;
+
+// Пики из {{Album chart|код|позиция}} в недельных таблицах оригинального релиза
+export function parseCharts(wikitext: string): ChartPeak[] {
+  const headings: string[] = [];  // headings[level] — текущий заголовок этого уровня
+  let skipTable = false;
+  const peaks = new Map<string, ChartPeak>();
+
+  for (const line of wikitext.split('\n')) {
+    const h = line.match(/^(={2,6})\s*(.*?)\s*\1\s*$/);
+    if (h) {
+      headings.length = h[1].length;
+      headings[h[1].length] = h[2];
+      skipTable = false;
+      continue;
+    }
+    if (line.startsWith('{|')) { skipTable = false; continue; }
+    if (line.startsWith('|+')) { skipTable = SKIP_SECTION_RE.test(line); continue; }
+    if (skipTable || headings.some(t => t && SKIP_SECTION_RE.test(t))) continue;
+
+    for (const m of line.matchAll(/\{\{\s*album ?chart\s*\|/gi)) {
+      const { positional } = inlineArgs(templateAt(line, m.index!));
+      const id = positional[0];
+      const peak = Number(positional[1]);
+      if (!id || !Number.isInteger(peak) || peak < 1) continue;
+      const name = chartName(id);
+      // Один и тот же чарт с разными версиями кода (Germany / Germany4) — оставляем лучшую позицию
+      const key = name.en ?? id;
+      const prev = peaks.get(key);
+      if (!prev || peak < prev.peak) peaks.set(key, { chart: id, name, peak });
+    }
+  }
+  return [...peaks.values()];
+}
+
+// ── Сертификации ──────────────────────────────────────────────────────────────
+
+const REGIONS_RU: Record<string, string> = {
+  'united states': 'США',
+  'united kingdom': 'Великобритания',
+  'canada': 'Канада',
+  'australia': 'Австралия',
+  'new zealand': 'Новая Зеландия',
+  'ireland': 'Ирландия',
+  'germany': 'Германия',
+  'france': 'Франция',
+  'italy': 'Италия',
+  'spain': 'Испания',
+  'portugal': 'Португалия',
+  'netherlands': 'Нидерланды',
+  'belgium': 'Бельгия',
+  'austria': 'Австрия',
+  'switzerland': 'Швейцария',
+  'sweden': 'Швеция',
+  'norway': 'Норвегия',
+  'denmark': 'Дания',
+  'finland': 'Финляндия',
+  'poland': 'Польша',
+  'japan': 'Япония',
+  'argentina': 'Аргентина',
+  'brazil': 'Бразилия',
+  'mexico': 'Мексика',
+  'russia': 'Россия',
+  'south korea': 'Южная Корея',
+  'europe': 'Европа (IFPI)',
+  'worldwide': 'Мир',
+};
+
+const AWARDS = ['diamond', 'platinum', 'gold', 'silver'];
+
+// {{Certification Table Entry|region=…|award=Platinum|number=5|salesamount=…}}
+export function parseCertifications(wikitext: string): Certification[] {
+  const certs: Certification[] = [];
+  for (const m of wikitext.matchAll(/\{\{\s*certification table entry\s*\|/gi)) {
+    const { named } = inlineArgs(templateAt(wikitext, m.index!));
+    const region = cleanWikitext(named.get('region') ?? '');
+    const award = cleanWikitext(named.get('award') ?? '').toLowerCase();
+    if (!region || !AWARDS.includes(award)) continue;
+    const units = Number((named.get('salesamount') ?? '').replace(/[^\d]/g, ''));
+    certs.push({
+      region: { en: region, ru: REGIONS_RU[region.toLowerCase()] ?? region },
+      award,
+      multiplier: Math.max(1, Number(named.get('number')) || 1),
+      units: units > 0 ? units : null,
+    });
+  }
+  return certs;
+}

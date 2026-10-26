@@ -22,10 +22,18 @@ const year = (d: string | null) => d?.slice(0, 4) ?? null;
 
 function fmtDate(d: string | null) {
   if (!d) return null;
-  if (d.length < 10) return d.slice(0, 4);
-  return new Date(`${d}T00:00:00Z`).toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', {
-    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
-  }).replace(/\s*г\.$/, '');
+  const locale = lang === 'ru' ? 'ru-RU' : 'en-US';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    return new Date(`${d}T00:00:00Z`).toLocaleDateString(locale, {
+      day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+    }).replace(/\s*г\.$/, '');
+  }
+  if (/^\d{4}-\d{2}$/.test(d)) {
+    return new Date(`${d}-01T00:00:00Z`).toLocaleDateString(locale, {
+      month: 'long', year: 'numeric', timeZone: 'UTC',
+    }).replace(/\s*г\.$/, '');
+  }
+  return d.length >= 4 && /^\d{4}/.test(d) ? d.slice(0, 4) : d;
 }
 
 const ROLES_RU: Record<string, string> = {
@@ -268,22 +276,30 @@ export function ArtistInfoPanel({ artistId, artistName }: { artistId: string; ar
 
 // ── Album ────────────────────────────────────────────────────────────────────
 
-const RATINGS_LIMIT = 6;
+const LIST_LIMIT = 6;
 
-function CriticRatings({ ratings }: { ratings: AlbumInfo['critic_ratings'] }) {
+// Строки «название — значение» с раскрытием «+ ещё N»
+function ExpandableRows<T>({ label, items, rowKey, left, right, limit = LIST_LIMIT }: {
+  label: string;
+  items: T[];
+  rowKey: (item: T) => string;
+  left: (item: T) => React.ReactNode;
+  right: (item: T) => React.ReactNode;
+  limit?: number;
+}) {
   const [all, setAll] = useState(false);
-  if (!ratings.length) return null;
-  const visible = all ? ratings : ratings.slice(0, RATINGS_LIMIT);
-  const hidden = ratings.length - RATINGS_LIMIT;
+  if (!items.length) return null;
+  const visible = all ? items : items.slice(0, limit);
+  const hidden = items.length - limit;
 
   return (
     <div className="flex flex-col gap-2">
-      <span className={LBL} style={SANS}>{t.info_critics}</span>
+      <span className={LBL} style={SANS}>{label}</span>
       <div className="flex flex-col">
-        {visible.map(r => (
-          <div key={r.source} className="flex items-baseline justify-between gap-3 py-1 border-b border-white/[0.05] last:border-0">
-            <span className="text-[12px] text-white/85 truncate" style={SANS}>{r.source}</span>
-            <span className="text-[12px] font-semibold text-white flex-shrink-0" style={MONO}>{r.score}</span>
+        {visible.map(item => (
+          <div key={rowKey(item)} className="flex items-baseline justify-between gap-3 py-1 border-b border-white/[0.05] last:border-0">
+            <span className="text-[12px] text-white/85 min-w-0" style={SANS}>{left(item)}</span>
+            <span className="text-[12px] font-semibold text-white flex-shrink-0 text-right" style={MONO}>{right(item)}</span>
           </div>
         ))}
       </div>
@@ -300,8 +316,41 @@ function CriticRatings({ ratings }: { ratings: AlbumInfo['critic_ratings'] }) {
   );
 }
 
+// Главные чарты — US Billboard 200 и UK Albums, дальше по позиции
+const chartPriority = (chart: string) => {
+  const key = chart.toLowerCase().replace(/[\s\d]/g, '');
+  return key === 'billboard' ? 0 : key === 'uk' ? 1 : 2;
+};
+
+const sortCharts = (charts: AlbumInfo['charts']) =>
+  [...charts].sort((a, b) =>
+    chartPriority(a.chart) - chartPriority(b.chart) || a.peak - b.peak || (loc(a.name) ?? '').localeCompare(loc(b.name) ?? ''));
+
+const AWARDS: Record<string, Localized> = {
+  diamond: { ru: 'бриллиантовый', en: 'Diamond' },
+  platinum: { ru: 'платиновый', en: 'Platinum' },
+  gold: { ru: 'золотой', en: 'Gold' },
+  silver: { ru: 'серебряный', en: 'Silver' },
+};
+
+const AWARD_WEIGHT: Record<string, number> = { diamond: 10, platinum: 1, gold: 0.5, silver: 0.25 };
+
+// Сначала США и Великобритания, дальше по «весу» сертификата
+const sortCertifications = (certs: AlbumInfo['certifications']) => {
+  const priority = (c: AlbumInfo['certifications'][number]) =>
+    c.region.en === 'United States' ? 0 : c.region.en === 'United Kingdom' ? 1 : 2;
+  const weight = (c: AlbumInfo['certifications'][number]) => (AWARD_WEIGHT[c.award] ?? 0) * c.multiplier;
+  return [...certs].sort((a, b) => priority(a) - priority(b) || weight(b) - weight(a));
+};
+
+function certLabel(c: AlbumInfo['certifications'][number]) {
+  const award = loc(AWARDS[c.award]) ?? c.award;
+  const units = c.units ? ` · ${c.units.toLocaleString(lang === 'ru' ? 'ru-RU' : 'en-US')}` : '';
+  return `${c.multiplier > 1 ? `${c.multiplier}× ` : ''}${award}${units}`;
+}
+
+// Только факты, без текста статьи — он есть по ссылкам на Википедию
 function AlbumBody({ data }: { data: AlbumInfo }) {
-  const page = pageFor(data.wikipedia);
   const join = (ls: Localized[]) => ls.map(loc).filter(Boolean).join(', ') || null;
 
   return (
@@ -312,8 +361,35 @@ function AlbumBody({ data }: { data: AlbumInfo }) {
         <Fact label={t.label_producer} value={join(data.producers)} />
         <Fact label={t.info_genres} value={join(data.genres)} />
       </div>
-      <Extract page={page} />
-      <CriticRatings ratings={data.critic_ratings} />
+      <ExpandableRows
+        label={t.info_singles}
+        items={data.singles}
+        rowKey={s => s.title}
+        left={s => s.title}
+        right={s => fmtDate(s.date)}
+      />
+      <ExpandableRows
+        label={t.info_charts}
+        items={sortCharts(data.charts)}
+        rowKey={c => c.chart}
+        left={c => loc(c.name)}
+        right={c => `#${c.peak}`}
+      />
+      <ExpandableRows
+        label={t.info_certifications}
+        items={sortCertifications(data.certifications)}
+        rowKey={c => `${c.region.en}-${c.award}-${c.multiplier}`}
+        left={c => loc(c.region)}
+        right={certLabel}
+        limit={4}
+      />
+      <ExpandableRows
+        label={t.info_critics}
+        items={data.critic_ratings}
+        rowKey={r => r.source}
+        left={r => r.source}
+        right={r => r.score}
+      />
       {data.community_rating && (
         <div className="flex flex-col gap-0.5">
           <span className={LBL} style={SANS}>{t.info_community}</span>

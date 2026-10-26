@@ -1,5 +1,11 @@
 import { Agent, fetch } from 'undici';
 import { cacheGet, cacheSet } from './cache.js';
+import {
+  parseCriticRatings, parseSingles, parseCharts, parseCertifications,
+  type Localized, type CriticRating, type Single, type ChartPeak, type Certification,
+} from './wikitext.js';
+
+export type { Localized, CriticRating, Single, ChartPeak, Certification };
 
 // Wikimedia без контакта (URL или email) в User-Agent даёт 10 запросов/мин вместо 200
 const UA = process.env.WIKI_USER_AGENT || 'SoundLens/1.0 (https://github.com/zimzum16/formusicquiz)';
@@ -12,8 +18,6 @@ const TIMEOUT = 8000;
 const INFO_TTL_S = 14 * 24 * 60 * 60;
 const PARTIAL_TTL_S = 60 * 60;  // часть источников не ответила — перезапросим скоро
 const MISS_TTL_S = 24 * 60 * 60;
-
-export type Localized = { ru: string | null; en: string | null };
 
 export interface WikiPage {
   title: string;
@@ -43,11 +47,6 @@ export interface ArtistInfo {
   pending: boolean;  // MusicBrainz не успел — состав и дата распада появятся при повторном запросе
 }
 
-export interface CriticRating {
-  source: string;
-  score: string;
-}
-
 export interface AlbumInfo {
   wikidata_id: string;
   title: Localized;
@@ -58,9 +57,12 @@ export interface AlbumInfo {
   genres: Localized[];
   critic_ratings: CriticRating[];
   community_rating: { value: number; votes: number } | null;
+  singles: Single[];
+  charts: ChartPeak[];
+  certifications: Certification[];
   rym_url: string;
   musicbrainz_id: string | null;
-  pending: boolean;  // MusicBrainz не успел — оценка слушателей появится при повторном запросе
+  pending: boolean;  // MusicBrainz не успел — оценка слушателей (и синглы, если их нет в Википедии) появятся позже
 }
 
 // ── HTTP ──────────────────────────────────────────────────────────────────────
@@ -259,51 +261,26 @@ async function wikiPages(e: Entity, state: Soft) {
   return { ru, en };
 }
 
-function cleanWikitext(s: string): string {
-  return s
-    .replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1')  // [[Ссылка|текст]] → текст
-    .replace(/\{\{[^{}]*\}\}/g, '')
-    .replace(/'{2,}/g, '')
-    .replace(/<[^>]+>/g, '')
-    .trim();
+interface EnArticle {
+  critic_ratings: CriticRating[];
+  singles: Single[];
+  charts: ChartPeak[];
+  certifications: Certification[];
 }
 
-// Оценки критиков из шаблона {{Music ratings}} (раньше — {{Album ratings}}) английской статьи
-export function parseCriticRatings(wikitext: string): CriticRating[] {
-  const start = wikitext.search(/\{\{\s*(music|album) ratings/i);
-  if (start < 0) return [];
+const NO_ARTICLE: EnArticle = { critic_ratings: [], singles: [], charts: [], certifications: [] };
 
-  let depth = 0;
-  let end = start;
-  for (; end < wikitext.length - 1; end++) {
-    if (wikitext.startsWith('{{', end)) { depth++; end++; }
-    else if (wikitext.startsWith('}}', end)) { depth--; end++; if (depth === 0) break; }
-  }
-
-  const block = wikitext.slice(start, end + 1)
-    .replace(/<ref[^>]*\/>/g, '')
-    .replace(/<ref[^>]*>[\s\S]*?<\/ref>/g, '');
-
-  const fields = new Map<string, string>();
-  for (const line of block.split(/\n\s*\|/)) {
-    const eq = line.indexOf('=');
-    if (eq > 0) fields.set(line.slice(0, eq).trim().toLowerCase(), line.slice(eq + 1).trim());
-  }
-
-  const ratings: CriticRating[] = [];
-  for (let n = 1; fields.has(`rev${n}`); n++) {
-    const source = cleanWikitext(fields.get(`rev${n}`)!);
-    const raw = (fields.get(`rev${n}score`) ?? '').replace(/\}\}\s*$/, '');
-    const stars = raw.match(/\{\{\s*rating\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)/i);
-    const score = stars ? `${stars[1]}/${stars[2]}` : cleanWikitext(raw);
-    if (source && score) ratings.push({ source, score });
-  }
-  return ratings;
-}
-
-async function criticRatings(enTitle: string): Promise<CriticRating[]> {
+// Одна загрузка английской статьи — все блоки из её разметки
+async function enArticle(enTitle: string): Promise<EnArticle> {
   const res = await request(`https://en.wikipedia.org/w/index.php?title=${encodeURIComponent(enTitle)}&action=raw`);
-  return res ? parseCriticRatings(await res.text()) : [];
+  if (!res) return NO_ARTICLE;
+  const text = await res.text();
+  return {
+    critic_ratings: parseCriticRatings(text),
+    singles: parseSingles(text),
+    charts: parseCharts(text),
+    certifications: parseCertifications(text),
+  };
 }
 
 // ── MusicBrainz ───────────────────────────────────────────────────────────────
@@ -361,9 +338,24 @@ async function mbGroup(mbid: string): Promise<MbGroup> {
   };
 }
 
-async function communityRating(mbid: string): Promise<AlbumInfo['community_rating']> {
-  const d = await mbFetch<{ rating?: { value: number | null; 'votes-count': number } }>(`/release-group/${mbid}?inc=ratings`);
-  return d?.rating?.value != null ? { value: d.rating.value, votes: d.rating['votes-count'] } : null;
+interface MbReleaseGroup {
+  community: AlbumInfo['community_rating'];
+  singles: Single[];  // связь «single from» — запасной источник, если в Википедии нет {{Singles}}
+}
+
+async function mbReleaseGroup(mbid: string): Promise<MbReleaseGroup> {
+  const d = await mbFetch<{
+    rating?: { value: number | null; 'votes-count': number };
+    relations?: { type: string; direction: string; release_group?: { title: string; 'first-release-date'?: string } }[];
+  }>(`/release-group/${mbid}?inc=ratings+release-group-rels`);
+  const singles = (d?.relations ?? [])
+    .filter(r => r.type === 'single from' && r.direction === 'backward' && r.release_group)
+    .map(r => ({ title: r.release_group!.title, date: r.release_group!['first-release-date'] || null }))
+    .sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999'));
+  return {
+    community: d?.rating?.value != null ? { value: d.rating.value, votes: d.rating['votes-count'] } : null,
+    singles,
+  };
 }
 
 // ── Поиск сущности ────────────────────────────────────────────────────────────
@@ -449,15 +441,20 @@ async function buildAlbum(qid: string, artistName: string | undefined, state: So
   const rym = firstString(e, 'P8392');
   const enTitle = e.sitelinks?.enwiki?.title;
 
-  const communityRequest = mbid ? communityRating(mbid) : Promise.resolve(null);
-  communityRequest.catch(() => {});
-  const [labels, wikipedia, ratings] = await Promise.all([
+  const noReleaseGroup: MbReleaseGroup = { community: null, singles: [] };
+  const mbRequest = mbid ? mbReleaseGroup(mbid) : Promise.resolve(noReleaseGroup);
+  mbRequest.catch(() => {});
+  const [labels, wikipedia, article] = await Promise.all([
     soft(labelsOf([...labelIds, ...producerIds, ...genreIds, ...(performerId ? [performerId] : [])]), {} as Record<string, Localized>, state),
     wikiPages(e, state),
-    enTitle ? soft(criticRatings(enTitle), [], state) : [],
+    enTitle ? soft(enArticle(enTitle), NO_ARTICLE, state) : NO_ARTICLE,
   ]);
-  const community = await budgeted(communityRequest, null, state);
-  if (community.late) state.late = communityRequest.then(c => ({ community_rating: c, pending: false }));
+  const mb = await budgeted(mbRequest, noReleaseGroup, state);
+  // Синглы из Википедии точнее (с датами из карточки альбома), MusicBrainz — только если там пусто
+  const pickSingles = (fromMb: Single[]) => (article.singles.length ? article.singles : fromMb);
+  if (mb.late) {
+    state.late = mbRequest.then(r => ({ community_rating: r.community, singles: pickSingles(r.singles), pending: false }));
+  }
 
   const title = localizedLabel(e);
   const performer = artistName?.split(',')[0] ?? (performerId ? labels[performerId]?.en : null) ?? '';
@@ -471,14 +468,17 @@ async function buildAlbum(qid: string, artistName: string | undefined, state: So
     labels: pickLabels(labels, labelIds),
     producers: pickLabels(labels, producerIds),
     genres: pickLabels(labels, genreIds),
-    critic_ratings: ratings,
-    community_rating: community.value,
+    critic_ratings: article.critic_ratings,
+    community_rating: mb.value.community,
+    singles: pickSingles(mb.value.singles),
+    charts: article.charts,
+    certifications: article.certifications,
     // У большинства альбомов RYM ID в Wikidata нет — ведём на поиск, чтобы не получить 404
     rym_url: rym
       ? `https://rateyourmusic.com/release/${encodeURI(rym.replace(/\/+$/, ''))}/`
       : `https://rateyourmusic.com/search?searchtype=l&searchterm=${encodeURIComponent(searchTerm)}`,
     musicbrainz_id: mbid,
-    pending: community.late,
+    pending: mb.late,
   };
 }
 
@@ -507,7 +507,7 @@ export function getArtistInfo(id: string, name?: string): Promise<ArtistInfo | n
 }
 
 export function getAlbumInfo(id: string, title?: string, artist?: string): Promise<AlbumInfo | null> {
-  return cached(`wiki:album:v4:${id}|${title ?? ''}|${artist ?? ''}`, async state => {
+  return cached(`wiki:album:v5:${id}|${title ?? ''}|${artist ?? ''}`, async state => {
     const qid = await resolveAlbum(id, title, artist);
     return qid ? buildAlbum(qid, artist, state) : null;
   });
