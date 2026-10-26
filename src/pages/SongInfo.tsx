@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { tracksApi, type SpotifyTrack, type SpotifyArtistResult, type SearchResults, type ArtistAlbum, type TrackInfo } from '../lib/api';
+import { tracksApi, infoApi, type SpotifyTrack, type SpotifyArtistResult, type SearchResults, type ArtistAlbum, type TrackInfo } from '../lib/api';
 import { CollapsibleList } from '../components/CollapsibleList';
+import { ArtistInfoPanel, AlbumInfoPanel } from '../components/InfoPanel';
 import { t, lang } from '../i18n';
 
 function useIsMobile() {
@@ -414,6 +415,8 @@ export default function SongInfo() {
     try {
       const data = await tracksApi.search(q);
       setSearchResults(data);
+      // Первого артиста открывают чаще всего — справка грузится несколько секунд, начинаем сразу
+      if (data.artists[0]) infoApi.prefetchArtist(data.artists[0].id, data.artists[0].name);
     } catch {
       setError(t.search_error);
     } finally {
@@ -561,6 +564,8 @@ export default function SongInfo() {
             <span className="font-bold text-white text-[15px]" style={SANS}>{selectedArtist?.name}</span>
           </div>
 
+          {selectedArtist && <ArtistInfoPanel artistId={selectedArtist.id} artistName={selectedArtist.name} />}
+
           {albumsLoading && (
             <div className="flex items-center gap-3 px-1 text-[#8a8a8a]">
               <div className="animate-spin w-5 h-5 border-2 border-[#2DD4BF] border-t-transparent rounded-full" />
@@ -578,6 +583,8 @@ export default function SongInfo() {
                 <button
                   key={album.id}
                   onClick={() => handleAlbumClick(album)}
+                  onMouseEnter={() => infoApi.prefetchAlbum(album.id, album.title, selectedArtist?.name)}
+                  onTouchStart={() => infoApi.prefetchAlbum(album.id, album.title, selectedArtist?.name)}
                   className="flex flex-col rounded-[14px] border border-white/[0.08] overflow-hidden hover:bg-white/[0.05] active:scale-[0.98] transition-all text-left"
                   style={{ background: 'rgba(24,24,28,.78)' }}
                 >
@@ -620,6 +627,8 @@ export default function SongInfo() {
                     <button
                       key={artist.id}
                       onClick={() => handleArtistClick(artist)}
+                      onMouseEnter={() => infoApi.prefetchArtist(artist.id, artist.name)}
+                      onTouchStart={() => infoApi.prefetchArtist(artist.id, artist.name)}
                       className="flex flex-col items-center gap-2 p-3 rounded-[16px] border border-white/[0.1] hover:bg-white/[0.05] active:scale-95 transition-all overflow-hidden"
                       style={{ background: 'rgba(24,24,28,.78)', width: 96 }}
                     >
@@ -668,57 +677,65 @@ export default function SongInfo() {
             </div>
           </div>
 
-          {albumTracksLoading && (
-            <div className="flex items-center gap-3 px-1 text-[#8a8a8a]">
-              <div className="animate-spin w-5 h-5 border-2 border-[#2DD4BF] border-t-transparent rounded-full" />
-              <span className="text-[13px]" style={SANS}>{t.loading_short}</span>
-            </div>
-          )}
-
-          {albumTracks && albumTracks.length === 0 && (
-            <p className="text-[#8a8a8a] text-[13px] px-1" style={SANS}>{t.search_error}</p>
-          )}
-
-          {albumTracks && albumTracks.length > 0 && (
-            <div className="rounded-[16px] border border-white/[0.1] overflow-hidden" style={{ background: 'rgba(24,24,28,.95)' }}>
-              {albumTracks.map((track, i) => (
-                <div
-                  key={track.id}
-                  className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.05] transition-colors group"
-                >
-                  <div
-                    className="w-5 flex-shrink-0 flex items-center justify-center cursor-pointer"
-                    onClick={(e) => track.preview_url ? toggleListPreview(e, track) : selectTrack(track)}
-                  >
-                    {track.preview_url ? (
-                      <>
-                        <span className={`text-[11px] text-[#8a8a8a] font-medium group-hover:hidden ${listPlayingId === track.id ? 'hidden' : ''}`} style={MONO}>{i + 1}</span>
-                        <span className={`hidden group-hover:flex items-center ${listPlayingId === track.id ? '!flex' : ''}`}>
-                          {listPlayingId === track.id ? (
-                            <svg width="10" height="10" viewBox="0 0 10 10"><rect x="1" y="0" width="3" height="10" fill="#2DD4BF" /><rect x="6" y="0" width="3" height="10" fill="#2DD4BF" /></svg>
-                          ) : (
-                            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 0l8 5-8 5z" fill="#2DD4BF" /></svg>
-                          )}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-[11px] text-[#8a8a8a] font-medium" style={MONO}>{i + 1}</span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => selectTrack(track)}
-                    className="min-w-0 flex-1 text-left"
-                  >
-                    <p className="font-semibold text-white text-sm truncate" style={SANS}>{track.title}</p>
-                    {track.artist && (
-                      <p className="text-[#8a8a8a] text-xs truncate" style={SANS}>{track.artist}</p>
-                    )}
-                  </button>
-                  <span className="text-xs text-[#8a8a8a] flex-shrink-0" style={MONO}>{fmtMs(track.duration_ms)}</span>
+          {/* Треклист + справка: справа на десктопе, сверху на мобильном */}
+          <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_300px] md:items-start">
+            <div className="min-w-0">
+              {albumTracksLoading && (
+                <div className="flex items-center gap-3 px-1 text-[#8a8a8a]">
+                  <div className="animate-spin w-5 h-5 border-2 border-[#2DD4BF] border-t-transparent rounded-full" />
+                  <span className="text-[13px]" style={SANS}>{t.loading_short}</span>
                 </div>
-              ))}
+              )}
+
+              {albumTracks && albumTracks.length === 0 && (
+                <p className="text-[#8a8a8a] text-[13px] px-1" style={SANS}>{t.search_error}</p>
+              )}
+
+              {albumTracks && albumTracks.length > 0 && (
+                <div className="rounded-[16px] border border-white/[0.1] overflow-hidden" style={{ background: 'rgba(24,24,28,.95)' }}>
+                  {albumTracks.map((track, i) => (
+                    <div
+                      key={track.id}
+                      className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.05] transition-colors group"
+                    >
+                      <div
+                        className="w-5 flex-shrink-0 flex items-center justify-center cursor-pointer"
+                        onClick={(e) => track.preview_url ? toggleListPreview(e, track) : selectTrack(track)}
+                      >
+                        {track.preview_url ? (
+                          <>
+                            <span className={`text-[11px] text-[#8a8a8a] font-medium group-hover:hidden ${listPlayingId === track.id ? 'hidden' : ''}`} style={MONO}>{i + 1}</span>
+                            <span className={`hidden group-hover:flex items-center ${listPlayingId === track.id ? '!flex' : ''}`}>
+                              {listPlayingId === track.id ? (
+                                <svg width="10" height="10" viewBox="0 0 10 10"><rect x="1" y="0" width="3" height="10" fill="#2DD4BF" /><rect x="6" y="0" width="3" height="10" fill="#2DD4BF" /></svg>
+                              ) : (
+                                <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 0l8 5-8 5z" fill="#2DD4BF" /></svg>
+                              )}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-[11px] text-[#8a8a8a] font-medium" style={MONO}>{i + 1}</span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => selectTrack(track)}
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        <p className="font-semibold text-white text-sm truncate" style={SANS}>{track.title}</p>
+                        {track.artist && (
+                          <p className="text-[#8a8a8a] text-xs truncate" style={SANS}>{track.artist}</p>
+                        )}
+                      </button>
+                      <span className="text-xs text-[#8a8a8a] flex-shrink-0" style={MONO}>{fmtMs(track.duration_ms)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+            <div className="order-first md:order-none">
+              <AlbumInfoPanel albumId={selectedAlbum.id} title={selectedAlbum.title} artistName={selectedArtist?.name} />
+            </div>
+          </div>
 
           {/* Other albums strip */}
           {artistAlbums && artistAlbums.length > 1 && (
@@ -729,6 +746,8 @@ export default function SongInfo() {
                   <button
                     key={album.id}
                     onClick={() => handleAlbumClick(album)}
+                    onMouseEnter={() => infoApi.prefetchAlbum(album.id, album.title, selectedArtist?.name)}
+                    onTouchStart={() => infoApi.prefetchAlbum(album.id, album.title, selectedArtist?.name)}
                     className={`w-[88px] flex flex-col rounded-[10px] border overflow-hidden active:scale-[0.97] transition-all text-left ${album.id === selectedAlbum?.id ? 'border-[#2DD4BF]/60' : 'border-white/[0.08] hover:bg-white/[0.05]'}`}
                     style={{ background: album.id === selectedAlbum?.id ? 'rgba(45,212,191,0.08)' : 'rgba(24,24,28,.78)' }}
                   >
@@ -771,6 +790,8 @@ export default function SongInfo() {
                   <button
                     key={artist.id}
                     onClick={() => handleArtistClick(artist)}
+                    onMouseEnter={() => infoApi.prefetchArtist(artist.id, artist.name)}
+                    onTouchStart={() => infoApi.prefetchArtist(artist.id, artist.name)}
                     className="flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-[16px] border border-white/[0.1] hover:bg-white/[0.05] active:scale-95 transition-all w-[108px] overflow-hidden"
                     style={{ background: 'rgba(24,24,28,.78)' }}
                   >

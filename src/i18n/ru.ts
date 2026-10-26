@@ -133,6 +133,21 @@ export const ru = {
   feedback_sending: 'Отправляем…',
   feedback_success: 'Спасибо! Мы получили ваш отзыв.',
   feedback_error: 'Не удалось отправить. Попробуйте позже.',
+
+  // SongInfo page — artist/album info panel
+  info_more: 'Подробнее',
+  info_less: 'Свернуть',
+  info_members: 'Состав',
+  info_show_more: 'ещё',
+  info_present: 'н. в.',
+  info_label: 'Лейбл',
+  info_genres: 'Жанры',
+  info_critics: 'Оценки критиков',
+  info_community: 'Оценка слушателей MusicBrainz',
+  info_votes: 'голосов',
+  info_wiki_ru: 'Википедия RU',
+  info_wiki_en: 'Wikipedia EN',
+  info_source: 'Текст: Википедия, CC BY-SA',
 };
 
 export type Translations = typeof ru;

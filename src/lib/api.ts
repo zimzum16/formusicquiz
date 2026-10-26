@@ -177,6 +177,89 @@ export async function searchItunesDirect(title: string, artist?: string): Promis
   }
 }
 
+// Info types (Wikidata / Wikipedia / MusicBrainz)
+export interface Localized { ru: string | null; en: string | null }
+
+export interface WikiPage {
+  title: string;
+  url: string;
+  description: string | null;
+  extract: string | null;
+  image: string | null;
+}
+
+export interface BandMember {
+  name: string;
+  periods: { begin: string | null; end: string | null }[];
+  roles: string[];
+}
+
+export interface ArtistInfo {
+  wikidata_id: string;
+  name: Localized;
+  wikipedia: { ru: WikiPage | null; en: WikiPage | null };
+  founded: string | null;
+  dissolved: string | null;
+  country: Localized | null;
+  genres: Localized[];
+  members: BandMember[];
+  rym_url: string | null;
+  musicbrainz_id: string | null;
+  pending: boolean;
+}
+
+export interface AlbumInfo {
+  wikidata_id: string;
+  title: Localized;
+  wikipedia: { ru: WikiPage | null; en: WikiPage | null };
+  released: string | null;
+  labels: Localized[];
+  producers: Localized[];
+  genres: Localized[];
+  critic_ratings: { source: string; score: string }[];
+  community_rating: { value: number; votes: number } | null;
+  rym_url: string;
+  musicbrainz_id: string | null;
+  pending: boolean;
+}
+
+// Справка грузится несколько секунд, поэтому её предзагружают заранее (наведение, первый артист
+// в поиске) — повторный вызов с тем же путём получает уже идущий или готовый запрос
+const infoRequests = new Map<string, Promise<unknown>>();
+const infoResolved = new Map<string, unknown>();
+
+function cachedInfo<T>(path: string, fresh = false): Promise<T> {
+  if (fresh) { infoRequests.delete(path); infoResolved.delete(path); }
+  let p = infoRequests.get(path) as Promise<T> | undefined;
+  if (!p) {
+    p = request<T>(path);
+    infoRequests.set(path, p);
+    p.then(v => infoResolved.set(path, v), () => infoRequests.delete(path));
+  }
+  return p;
+}
+
+const artistInfoPath = (id: string, name: string) =>
+  `/api/info/artist/${encodeURIComponent(id)}?${new URLSearchParams({ name })}`;
+
+const albumInfoPath = (id: string, title: string, artist?: string) => {
+  const params = new URLSearchParams({ title });
+  if (artist) params.set('artist', artist);
+  return `/api/info/album/${encodeURIComponent(id)}?${params}`;
+};
+
+export const infoApi = {
+  getArtist: (id: string, name: string, fresh = false) =>
+    cachedInfo<ArtistInfo | null>(artistInfoPath(id, name), fresh),
+  getAlbum: (id: string, title: string, artist?: string, fresh = false) =>
+    cachedInfo<AlbumInfo | null>(albumInfoPath(id, title, artist), fresh),
+  // Уже загруженное — синхронно, чтобы панель не мигала заглушкой
+  peekArtist: (id: string, name: string) => infoResolved.get(artistInfoPath(id, name)) as ArtistInfo | null | undefined,
+  peekAlbum: (id: string, title: string, artist?: string) => infoResolved.get(albumInfoPath(id, title, artist)) as AlbumInfo | null | undefined,
+  prefetchArtist: (id: string, name: string) => { cachedInfo(artistInfoPath(id, name)).catch(() => {}); },
+  prefetchAlbum: (id: string, title: string, artist?: string) => { cachedInfo(albumInfoPath(id, title, artist)).catch(() => {}); },
+};
+
 export const tracksApi = {
   search: (q: string, artist?: string) => {
     const params = new URLSearchParams({ q });

@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
-import { Redis } from '@upstash/redis';
+import { cacheGet, cacheSet } from '../lib/cache.js';
 import { searchTracks, getTrack, searchArtists, getArtistAlbums, getAlbumTracks, type SpotifyArtistResult, type ArtistAlbum } from '../lib/spotify.js';
 import { searchSong, parseTagsFromHtml } from '../lib/genius.js';
 import { extractLyricsText } from '../lib/lyricsCompare.js';
@@ -196,7 +196,6 @@ function parseGeniusLyrics(html: string): GeniusLyricsSection[] {
 
 // ── Cache ─────────────────────────────────────────────────────────────────────
 
-const MEM_TTL = 60 * 60 * 1000;
 const TRACK_TTL_S = 60 * 60; // 1 час
 
 type TrackInfoPayload = {
@@ -207,25 +206,6 @@ type TrackInfoPayload = {
   yandex: z.infer<typeof YandexSchema>;
   apple_music: z.infer<typeof AppleMusicSchema>;
 };
-
-const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
-  ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
-  : null;
-
-// In-memory fallback для локальной разработки без Redis
-const memCache = new Map<string, { data: unknown; ts: number }>();
-
-async function cacheGet<T>(key: string): Promise<T | null> {
-  if (redis) return redis.get<T>(key);
-  const e = memCache.get(key);
-  if (e && Date.now() - e.ts < MEM_TTL) return e.data as T;
-  return null;
-}
-
-async function cacheSet<T>(key: string, data: T, ttlS?: number): Promise<void> {
-  if (redis) { await redis.set(key, data, ttlS ? { ex: ttlS } : undefined); return; }
-  memCache.set(key, { data, ts: Date.now() });
-}
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 

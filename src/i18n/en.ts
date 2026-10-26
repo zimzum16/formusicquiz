@@ -135,4 +135,19 @@ export const en: Translations = {
   feedback_sending: 'Sending…',
   feedback_success: 'Thank you! We received your feedback.',
   feedback_error: 'Failed to send. Please try again later.',
+
+  // SongInfo page — artist/album info panel
+  info_more: 'More',
+  info_less: 'Less',
+  info_members: 'Members',
+  info_show_more: 'more',
+  info_present: 'present',
+  info_label: 'Label',
+  info_genres: 'Genres',
+  info_critics: 'Critic ratings',
+  info_community: 'MusicBrainz user rating',
+  info_votes: 'votes',
+  info_wiki_ru: 'Wikipedia RU',
+  info_wiki_en: 'Wikipedia',
+  info_source: 'Text: Wikipedia, CC BY-SA',
 };
