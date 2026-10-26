@@ -1099,12 +1099,9 @@ export default function SongInfo() {
                   )}
                 </div>
 
-                {/* Позиции в чартах из английской Википедии */}
-                <TrackCharts track={info.spotify} />
-
-                {/* Relations */}
-                <div className="flex flex-col gap-3 flex-1">
-                  {[
+                {/* Связи (сэмплы, каверы…) слева, позиции в чартах справа; если чего-то нет — второе на всю ширину */}
+                {(() => {
+                  const relations = [
                     { items: genius.samples, label: t.rel_samples },
                     { items: genius.sampled_in, label: t.rel_sampled_in },
                     { items: genius.cover_of, label: t.rel_cover_of },
@@ -1114,23 +1111,33 @@ export default function SongInfo() {
                     { items: genius.interpolates, label: t.rel_interpolates },
                     { items: genius.interpolated_by, label: t.rel_interpolated_by },
                     { items: genius.live_version_of, label: t.rel_live_version_of },
-                  ].filter(({ items }) => items.length > 0).map(({ items, label }) => (
-                    <div key={label}>
-                      <div className={`${LBL} mb-1.5`} style={SANS}>
-                        {label}{items.length > 1 ? ` (${items.length})` : ''}
-                      </div>
-                      <CollapsibleList
-                        items={items}
-                        limit={3}
-                        renderItem={(s) => (
-                          <GeniusLink key={s.genius_url} href={s.genius_url}>
-                            {s.artist} — {s.title}
-                          </GeniusLink>
-                        )}
-                      />
+                  ].filter(({ items }) => items.length > 0);
+                  return (
+                    <div className="flex flex-col md:flex-row gap-5 flex-1">
+                      {relations.length > 0 && (
+                        <div className="flex flex-col gap-3 flex-1 min-w-0">
+                          {relations.map(({ items, label }) => (
+                            <div key={label}>
+                              <div className={`${LBL} mb-1.5`} style={SANS}>
+                                {label}{items.length > 1 ? ` (${items.length})` : ''}
+                              </div>
+                              <CollapsibleList
+                                items={items}
+                                limit={3}
+                                renderItem={(s) => (
+                                  <GeniusLink key={s.genius_url} href={s.genius_url}>
+                                    {s.artist} — {s.title}
+                                  </GeniusLink>
+                                )}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <TrackCharts track={info.spotify} />
                     </div>
-                  ))}
-                </div>
+                  );
+                })()}
 
               </div>
             )}

@@ -3,6 +3,7 @@ import { ChevronDown, ExternalLink } from 'lucide-react';
 import { infoApi, type ArtistInfo, type AlbumInfo, type Localized, type WikiPage, type BandMember } from '../lib/api';
 import { t, lang } from '../i18n';
 import { useInfo, useTrackInfo } from '../hooks/useInfo';
+import { ShowMoreButton } from './CollapsibleList';
 
 const SANS: React.CSSProperties = { fontFamily: 'Montserrat, sans-serif' };
 const MONO: React.CSSProperties = { fontFamily: 'JetBrains Mono, monospace' };
@@ -193,13 +194,7 @@ function Members({ members, dissolved }: { members: BandMember[]; dissolved: str
         ))}
       </div>
       {hidden > 0 && (
-        <button
-          onClick={() => setAll(!all)}
-          className="self-start text-[11px] font-semibold text-[#8a8a8a] hover:text-white transition-colors"
-          style={SANS}
-        >
-          {all ? `↑ ${t.info_less}` : `+ ${t.info_show_more} ${hidden}`}
-        </button>
+        <ShowMoreButton expanded={all} hidden={hidden} onToggle={() => setAll(!all)} />
       )}
     </div>
   );
@@ -269,13 +264,7 @@ function ExpandableRows<T>({ label, items, rowKey, left, right, limit = LIST_LIM
         ))}
       </div>
       {hidden > 0 && (
-        <button
-          onClick={() => setAll(!all)}
-          className="self-start text-[11px] font-semibold text-[#8a8a8a] hover:text-white transition-colors"
-          style={SANS}
-        >
-          {all ? `↑ ${t.info_less}` : `+ ${t.info_show_more} ${hidden}`}
-        </button>
+        <ShowMoreButton expanded={all} hidden={hidden} onToggle={() => setAll(!all)} />
       )}
     </div>
   );
@@ -368,13 +357,7 @@ function Personnel({ groups }: { groups: AlbumInfo['personnel'] }) {
         </div>
       ))}
       {total > PERSONNEL_LIMIT && (
-        <button
-          onClick={() => setAll(!all)}
-          className="self-start text-[11px] font-semibold text-[#8a8a8a] hover:text-white transition-colors"
-          style={SANS}
-        >
-          {all ? `↑ ${t.info_less}` : `+ ${t.info_show_more} ${total - PERSONNEL_LIMIT}`}
-        </button>
+        <ShowMoreButton expanded={all} hidden={total - PERSONNEL_LIMIT} onToggle={() => setAll(!all)} />
       )}
     </div>
   );
@@ -549,12 +532,13 @@ export function AlbumInfoPanel({ data, loading, singles }: {
   );
 }
 
-// Позиции песни в чартах для карточки Genius на странице трека; нет данных — ничего не рисуем
+// Позиции песни в чартах для карточки Genius; нет данных — ничего не рисуем,
+// и соседний блок связей занимает всю ширину
 export function TrackCharts({ track }: { track: { id: string; title: string; artist: string } }) {
   const { data } = useTrackInfo(track);
   if (!data?.charts.length) return null;
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex-1 min-w-0">
       <ExpandableRows
         label={t.info_charts}
         items={sortCharts(data.charts)}
@@ -563,16 +547,6 @@ export function TrackCharts({ track }: { track: { id: string; title: string; art
         right={c => `#${c.peak}`}
         limit={5}
       />
-      <a
-        href={data.wikipedia_url}
-        target="_blank"
-        rel="noreferrer"
-        className="self-start inline-flex items-center gap-1 text-[10px] text-[#8a8a8a] hover:text-white transition-colors"
-        style={SANS}
-      >
-        {t.info_charts_source}
-        <ExternalLink size={10} />
-      </a>
     </div>
   );
 }
