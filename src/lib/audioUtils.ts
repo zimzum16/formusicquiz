@@ -1,9 +1,11 @@
 import type { TrimSegment, ProcessedAudioFile } from '../types/audio'
 import { buildID3v2, type ID3WriteTags } from './id3Writer'
+import { cutMp3, framesForRange, nearestEncoderBitrate, sliceFrames, type Mp3FrameIndex } from './mp3Container'
 
-const EXPORT_MP3_KBPS = 128
+// Битрейт перекодирования, когда битрейт исходника неизвестен
+const DEFAULT_MP3_KBPS = 128
 
-function encodeToMP3Worker(leftF32: Float32Array, rightF32: Float32Array | undefined, sampleRate: number): Promise<Blob> {
+function encodeToMP3Worker(leftF32: Float32Array, rightF32: Float32Array | undefined, sampleRate: number, kbps: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL('./audioWorker.ts', import.meta.url), { type: 'module' })
 
@@ -23,7 +25,7 @@ function encodeToMP3Worker(leftF32: Float32Array, rightF32: Float32Array | undef
 
     const transferable: Transferable[] = [leftBuffer]
     if (rightBuffer) transferable.push(rightBuffer)
-    worker.postMessage({ leftBuffer, rightBuffer, sampleRate, kbps: EXPORT_MP3_KBPS }, transferable)
+    worker.postMessage({ leftBuffer, rightBuffer, sampleRate, kbps }, transferable)
   })
 }
 
@@ -31,7 +33,8 @@ export async function processAudioSegment(
   audioBuffer: AudioBuffer,
   segment: TrimSegment,
   tags: ID3WriteTags,
-  index: number
+  index: number,
+  kbps = DEFAULT_MP3_KBPS
 ): Promise<ProcessedAudioFile> {
   const duration = segment.endTime - segment.startTime
   if (!Number.isFinite(duration) || duration <= 0) {
@@ -76,7 +79,11 @@ export async function processAudioSegment(
     rightF32 = isStereo ? rendered.getChannelData(1).slice() : undefined
   }
 
-  const mp3 = await encodeToMP3Worker(leftF32, rightF32, sr)
+  const mp3 = await encodeToMP3Worker(leftF32, rightF32, sr, kbps)
+  return toProcessedFile(segment.id, mp3, duration, tags, index)
+}
+
+function toProcessedFile(id: string, mp3: Blob, duration: number, tags: ID3WriteTags, index: number): ProcessedAudioFile {
   const blob = new Blob([buildID3v2(tags), mp3], { type: 'audio/mpeg' })
 
   const sanitize = (s: string | undefined) => (s ?? '').split('\x00').join('').trim()
@@ -84,12 +91,44 @@ export async function processAudioSegment(
   const t = sanitize(tags.title) || 'Track'
 
   return {
-    id: segment.id,
+    id,
     name: `${a} - ${t} (фрагмент ${index}).mp3`,
     blob,
     url: URL.createObjectURL(blob),
     duration,
   }
+}
+
+// Экспорт по таблице MP3-фреймов: без fade — копирование фреймов как есть (качество и битрейт
+// исходника, без декодирования); с fade — декодируется и перекодируется только нужный кусок
+export async function exportMp3Segment(
+  file: File,
+  frames: Mp3FrameIndex,
+  segment: TrimSegment,
+  tags: ID3WriteTags,
+  index: number
+): Promise<ProcessedAudioFile> {
+  const range = framesForRange(frames, segment.startTime, segment.endTime)
+
+  if (!segment.fadeIn && !segment.fadeOut) {
+    const duration = (range.last - range.first) * frames.frameDuration
+    return toProcessedFile(segment.id, cutMp3(file, frames, range), duration, tags, index)
+  }
+
+  // Фрейм перед началом нужен декодеру: данные фрейма могут лежать в предыдущем (bit reservoir)
+  const chunkRange = { first: Math.max(0, range.first - 1), last: range.last }
+  const chunkStart = chunkRange.first * frames.frameDuration
+  const chunk = await sliceFrames(file, frames, chunkRange).arrayBuffer()
+  // OfflineAudioContext с частотой исходника — decodeAudioData не будет ресемплировать
+  const ctx = new OfflineAudioContext(frames.channels, 1, frames.sampleRate)
+  const buffer = await ctx.decodeAudioData(chunk)
+
+  const local: TrimSegment = {
+    ...segment,
+    startTime: Math.max(0, segment.startTime - chunkStart),
+    endTime: Math.min(buffer.duration, segment.endTime - chunkStart),
+  }
+  return processAudioSegment(buffer, local, tags, index, nearestEncoderBitrate(frames.bitrate, frames.sampleRate))
 }
 
 export function formatTimeDetailed(sec: number): string {

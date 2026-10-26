@@ -74,7 +74,7 @@ npm run dev
 ├── src/                  Фронтенд (React)
 │   ├── components/       Navbar, editor/ (waveform, trim, fade, результаты)
 │   ├── hooks/            useAudioEditor.ts
-│   ├── lib/              api.ts, audioUtils.ts, audioWorker.ts, id3Parser.ts, id3Writer.ts, waveform.ts
+│   ├── lib/              api.ts, audioUtils.ts, audioWorker.ts, mp3Container.ts, id3Parser.ts, id3Writer.ts, waveform.ts
 │   └── pages/            Home, SongInfo, Editor, Pricing, Auth, Profile
 ├── server/               Бэкенд (Hono)
 │   ├── routes/           auth.ts

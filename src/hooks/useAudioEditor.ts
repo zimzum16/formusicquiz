@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import type { AudioFile, TrimSegment, ProcessedAudioFile } from '../types/audio'
-import { processAudioSegment } from '../lib/audioUtils'
+import { exportMp3Segment, processAudioSegment } from '../lib/audioUtils'
+import { scanFrames, type Mp3FrameIndex } from '../lib/mp3Container'
 import { computePeaks } from '../lib/waveform'
 import { fetchCover } from '../lib/id3Writer'
 import { extractID3Tags, parseFilename } from '../lib/id3Parser'
@@ -20,18 +21,25 @@ const UNKNOWN_ARTIST = 'Неизвестный исполнитель'
 
 // Декодирование вынесено в отдельную функцию, чтобы AudioBuffer не попал в замыкания
 // и освобождался сразу после использования: PCM весит ~10 МБ на минуту стерео.
-async function decodeFile(file: File): Promise<AudioBuffer> {
+async function decodeBytes(bytes: ArrayBuffer): Promise<AudioBuffer> {
   const ctx = new AudioContext()
   try {
-    return await ctx.decodeAudioData(await file.arrayBuffer())
+    return await ctx.decodeAudioData(bytes)
   } finally {
     void ctx.close()
   }
 }
 
-async function decodePeaks(file: File): Promise<{ peaks: Float32Array; duration: number }> {
-  const audioBuffer = await decodeFile(file)
-  return { peaks: computePeaks(audioBuffer), duration: audioBuffer.duration }
+async function decodeFile(file: File): Promise<AudioBuffer> {
+  return decodeBytes(await file.arrayBuffer())
+}
+
+async function analyzeFile(file: File): Promise<{ peaks: Float32Array; duration: number; frames: Mp3FrameIndex | null }> {
+  const bytes = await file.arrayBuffer()
+  // Сканируем до декодирования: decodeAudioData забирает (detach) ArrayBuffer
+  const frames = scanFrames(new Uint8Array(bytes))
+  const audioBuffer = await decodeBytes(bytes)
+  return { peaks: computePeaks(audioBuffer), duration: audioBuffer.duration, frames }
 }
 
 export function useAudioEditor() {
@@ -42,6 +50,7 @@ export function useAudioEditor() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [waveformPeaks, setWaveformPeaks] = useState<Float32Array | null>(null)
+  const [mp3Frames, setMp3Frames] = useState<Mp3FrameIndex | null>(null)
   const [songMarkers, setSongMarkers] = useState<SongMarker[]>([])
   const [isAnalyzingStructure, setIsAnalyzingStructure] = useState(false)
 
@@ -61,9 +70,10 @@ export function useAudioEditor() {
     try {
       setUploadProgress(30)
 
-      const { peaks, duration } = await decodePeaks(file)
+      const { peaks, duration, frames } = await analyzeFile(file)
       const url = URL.createObjectURL(file)
       setWaveformPeaks(peaks)
+      setMp3Frames(frames)
 
       setUploadProgress(70)
 
@@ -89,6 +99,8 @@ export function useAudioEditor() {
         file,
         url,
         duration,
+        bitrate: frames?.bitrate,
+        isVbr: frames?.isVbr,
         artist,
         title,
         coverArt: siteTagged ? undefined : id3Tags.coverArt,
@@ -329,8 +341,7 @@ export function useAudioEditor() {
     setError(null)
 
     try {
-      // PCM нужен только на время экспорта — декодируем заново и отпускаем после
-      const [audioBuffer, cover] = await Promise.all([decodeFile(audioFile.file), fetchCover(audioFile.coverArt)])
+      const cover = await fetchCover(audioFile.coverArt)
       const tags = {
         title: audioFile.title,
         artist: audioFile.artist === UNKNOWN_ARTIST ? undefined : audioFile.artist,
@@ -339,9 +350,19 @@ export function useAudioEditor() {
         genre: audioFile.genre,
         cover,
       }
-      const processed = await Promise.all(
-        segments.map((seg, i) => processAudioSegment(audioBuffer, seg, tags, i + 1))
-      )
+      let processed: ProcessedAudioFile[]
+      if (mp3Frames) {
+        processed = await Promise.all(
+          segments.map((seg, i) => exportMp3Segment(audioFile.file, mp3Frames, seg, tags, i + 1))
+        )
+      } else {
+        // Фреймы не распознались — старый путь: полное декодирование и перекодирование.
+        // PCM нужен только на время экспорта — отпускаем после
+        const audioBuffer = await decodeFile(audioFile.file)
+        processed = await Promise.all(
+          segments.map((seg, i) => processAudioSegment(audioBuffer, seg, tags, i + 1))
+        )
+      }
       setProcessedFiles(processed)
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err)
@@ -349,7 +370,7 @@ export function useAudioEditor() {
     } finally {
       setIsProcessing(false)
     }
-  }, [audioFile, segments, processedFiles])
+  }, [audioFile, segments, processedFiles, mp3Frames])
 
   const reset = useCallback(() => {
     if (audioFile?.url) URL.revokeObjectURL(audioFile.url)
@@ -357,6 +378,7 @@ export function useAudioEditor() {
     setAudioFile(null)
     setSegments([])
     setWaveformPeaks(null)
+    setMp3Frames(null)
     setProcessedFiles([])
     setUploadProgress(0)
     setError(null)
