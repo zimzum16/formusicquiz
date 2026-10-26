@@ -1,4 +1,5 @@
 import type { TrimSegment, ProcessedAudioFile } from '../types/audio'
+import { buildID3v2, type ID3WriteTags } from './id3Writer'
 
 const EXPORT_MP3_KBPS = 128
 
@@ -29,8 +30,7 @@ function encodeToMP3Worker(leftF32: Float32Array, rightF32: Float32Array | undef
 export async function processAudioSegment(
   audioBuffer: AudioBuffer,
   segment: TrimSegment,
-  artist: string,
-  title: string,
+  tags: ID3WriteTags,
   index: number
 ): Promise<ProcessedAudioFile> {
   const duration = segment.endTime - segment.startTime
@@ -76,11 +76,12 @@ export async function processAudioSegment(
     rightF32 = isStereo ? rendered.getChannelData(1).slice() : undefined
   }
 
-  const blob = await encodeToMP3Worker(leftF32, rightF32, sr)
+  const mp3 = await encodeToMP3Worker(leftF32, rightF32, sr)
+  const blob = new Blob([buildID3v2(tags), mp3], { type: 'audio/mpeg' })
 
-  const sanitize = (s: string) => s.split('\x00').join('').trim()
-  const a = sanitize(artist) || 'Unknown'
-  const t = sanitize(title) || 'Track'
+  const sanitize = (s: string | undefined) => (s ?? '').split('\x00').join('').trim()
+  const a = sanitize(tags.artist) || 'Unknown'
+  const t = sanitize(tags.title) || 'Track'
 
   return {
     id: segment.id,

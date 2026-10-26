@@ -21,7 +21,7 @@ export default function Editor() {
   const {
     audioFile,
     segments,
-    sharedDecodedBuffer,
+    waveformPeaks,
     isProcessing,
     processedFiles,
     uploadProgress,
@@ -101,7 +101,7 @@ export default function Editor() {
           currentTime={currentTime}
           audioRef={audioRef}
           onSeek={setCurrentTime}
-          prefetchedBuffer={sharedDecodedBuffer}
+          peaks={waveformPeaks}
           playbackEnvelope={playbackEnvelope}
           trimRange={{ startTime: seg0.startTime, endTime: seg0.endTime }}
           trimFade={{ fadeIn: seg0.fadeIn, fadeOut: seg0.fadeOut, fadeInDuration: seg0.fadeInDuration, fadeOutDuration: seg0.fadeOutDuration }}
@@ -139,7 +139,7 @@ export default function Editor() {
           currentTime={currentTime2}
           audioRef={audioRef2}
           onSeek={setCurrentTime2}
-          prefetchedBuffer={sharedDecodedBuffer}
+          peaks={waveformPeaks}
           playbackEnvelope={playbackEnvelope2}
           trimRange={{ startTime: seg1.startTime, endTime: seg1.endTime }}
           trimFade={{ fadeIn: seg1.fadeIn, fadeOut: seg1.fadeOut, fadeInDuration: seg1.fadeInDuration, fadeOutDuration: seg1.fadeOutDuration }}

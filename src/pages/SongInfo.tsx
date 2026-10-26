@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { tracksApi, type SpotifyTrack, type SpotifyArtistResult, type SearchResults, type ArtistAlbum, type TrackInfo } from '../lib/api';
 import { CollapsibleList } from '../components/CollapsibleList';
 import { t, lang } from '../i18n';
@@ -340,8 +340,11 @@ export default function SongInfo() {
       .finally(() => setRelatedLoading(false));
   }, [selectedArtist]);
 
-  useEffect(() => {
-    return () => { audioRef.current?.pause(); };
+  // Стабильный callback-ref: останавливает превью, когда <audio> убирается из DOM
+  // (в cleanup эффекта audioRef.current уже null — React отсоединяет ref раньше)
+  const setAudioEl = useCallback((el: HTMLAudioElement | null) => {
+    if (!el) audioRef.current?.pause();
+    audioRef.current = el;
   }, []);
 
   useEffect(() => {
@@ -913,7 +916,7 @@ export default function SongInfo() {
                 {info.spotify.preview_url ? (
                   <div className="flex items-center gap-3 px-4 py-3 rounded-[14px] border border-white/[0.1] bg-white/[0.05]">
                     <audio
-                      ref={audioRef}
+                      ref={setAudioEl}
                       src={info.spotify.preview_url}
                       onTimeUpdate={handleTimeUpdate}
                       onEnded={handleEnded}

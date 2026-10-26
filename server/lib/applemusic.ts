@@ -33,6 +33,10 @@ function isMatch(a: string, b: string): boolean {
   return na === nb || na.includes(nb) || nb.includes(na);
 }
 
+interface AppleRssResponse {
+  feed?: { results?: Array<{ name?: string; artistName?: string }> };
+}
+
 async function fetchChart(country: Country): Promise<ChartItem[]> {
   const cached = chartCaches.get(country);
   if (cached && Date.now() - cached.ts < CHART_TTL) return cached.data;
@@ -40,9 +44,9 @@ async function fetchChart(country: Country): Promise<ChartItem[]> {
   try {
     const resp = await fetch(`${RSS_BASE}/${country}/music/most-played/100/songs.json`);
     if (!resp.ok) return [];
-    const json = await resp.json() as any;
-    const results: any[] = json?.feed?.results ?? [];
-    const data: ChartItem[] = results.map((r: any, idx: number) => ({
+    const json = await resp.json() as AppleRssResponse;
+    const results = json?.feed?.results ?? [];
+    const data: ChartItem[] = results.map((r, idx) => ({
       name: String(r.name ?? ''),
       artistName: String(r.artistName ?? ''),
       position: idx + 1,

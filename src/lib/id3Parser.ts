@@ -9,18 +9,22 @@ export interface ID3Tags {
 
 export async function extractID3Tags(file: File): Promise<ID3Tags> {
   try {
-    const buffer = await file.arrayBuffer()
-    const view = new DataView(buffer)
+    // Читаем только заголовок, затем сам тег — весь MP3 в память не грузим
+    const head = new DataView(await file.slice(0, 10).arrayBuffer())
+    if (head.byteLength < 10) return {}
 
-    const id3Header = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2))
+    const id3Header = String.fromCharCode(head.getUint8(0), head.getUint8(1), head.getUint8(2))
     if (id3Header !== 'ID3') return {}
 
-    const majorVersion = view.getUint8(3)
+    const majorVersion = head.getUint8(3)
     const tagSize =
-      (view.getUint8(6) << 21) | (view.getUint8(7) << 14) | (view.getUint8(8) << 7) | view.getUint8(9)
+      (head.getUint8(6) << 21) | (head.getUint8(7) << 14) | (head.getUint8(8) << 7) | head.getUint8(9)
+
+    const buffer = await file.slice(0, 10 + tagSize).arrayBuffer()
+    const view = new DataView(buffer)
 
     let offset = 10
-    const tagEnd = offset + tagSize
+    const tagEnd = Math.min(offset + tagSize, buffer.byteLength)
     const tags: ID3Tags = {}
 
     while (offset < tagEnd - 10) {

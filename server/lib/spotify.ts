@@ -208,10 +208,6 @@ export async function getArtistAlbums(artistId: string): Promise<ArtistAlbum[]> 
     }));
 }
 
-export async function getRelatedArtists(_artistId: string): Promise<SpotifyArtistResult[]> {
-  return []; // related-artists deprecated; genre search yields no genres via client_credentials
-}
-
 export async function getAlbumTracks(spotifyAlbumId: string): Promise<SpotifyTrack[]> {
   const token = await getAppToken();
   if (!token) return [];

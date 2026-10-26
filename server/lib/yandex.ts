@@ -64,6 +64,14 @@ function buildSearchUrl(title: string, artist: string): string {
 }
 
 
+interface YandexChartResponse {
+  result?: { blocks?: Array<{ entities?: Array<{ data?: { track?: { id?: number | string }; chart?: { progress?: string } } }> }> };
+}
+
+interface YandexSearchResponse {
+  result?: { tracks?: { results?: Array<{ id: number | string; playCount?: number }> } };
+}
+
 async function fetchChart(): Promise<ChartEntry[]> {
   if (chartCache && Date.now() - chartCache.ts < CHART_TTL) return chartCache.data;
 
@@ -71,17 +79,18 @@ async function fetchChart(): Promise<ChartEntry[]> {
     const resp = await yandexFetch(`${YANDEX_API}/landing3?blocks=chart&lang=ru`);
     if (!resp) return [];
 
-    const json = await resp.json() as any;
-    const entities: any[] = json?.result?.blocks?.[0]?.entities ?? [];
+    const json = await resp.json() as YandexChartResponse;
+    const entities = json?.result?.blocks?.[0]?.entities ?? [];
 
     const data: ChartEntry[] = entities
-      .map((e: any, idx: number) => ({
-        track_id: Number(e?.data?.track?.id),
-        position: idx + 1,
-        progress: (['up', 'down', 'same'].includes(e?.data?.chart?.progress)
-          ? e.data.chart.progress
-          : 'same') as 'up' | 'down' | 'same',
-      }))
+      .map((e, idx) => {
+        const progress = e?.data?.chart?.progress;
+        return {
+          track_id: Number(e?.data?.track?.id),
+          position: idx + 1,
+          progress: (progress === 'up' || progress === 'down' ? progress : 'same') as 'up' | 'down' | 'same',
+        };
+      })
       .filter((e) => e.track_id);
 
     chartCache = { data, ts: Date.now() };
@@ -102,7 +111,7 @@ export async function getTrackInfo(title: string, artist: string): Promise<Yande
 
     if (!resp) return { url: null, search_url, play_count: null, chart: null };
 
-    const json = await resp.json() as any;
+    const json = await resp.json() as YandexSearchResponse;
     const track = json?.result?.tracks?.results?.[0];
 
     if (!track) return { url: null, search_url, play_count: null, chart: null };

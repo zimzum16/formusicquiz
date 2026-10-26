@@ -72,7 +72,7 @@ export function parseTagsFromHtml(html: string): string[] {
     s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
   try {
     // Pattern 1: anchor tags rendered server-side
-    const anchorMatches = [...html.matchAll(/href="https:\/\/genius\.com\/tags\/[^"]+\"[^>]*>([^<]+)<\/a>/g)];
+    const anchorMatches = [...html.matchAll(/href="https:\/\/genius\.com\/tags\/[^"]+"[^>]*>([^<]+)<\/a>/g)];
     if (anchorMatches.length > 0) return anchorMatches.map((m) => decode(m[1]));
 
     // Pattern 2: __NEXT_DATA__ JSON (Next.js Genius pages)
@@ -96,9 +96,6 @@ export function parseTagsFromHtml(html: string): string[] {
 }
 
 async function scrapeTags(lyricsUrl: string): Promise<string[]> {
-  const decode = (s: string) =>
-    s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-
   const fetchHtml = async (): Promise<string> => {
     // Try direct first — free, works when VPS IP isn't blocked
     try {

@@ -53,7 +53,7 @@ interface WaveformDisplayProps {
     | React.ReactNode
     | ((playButtonEl: React.ReactNode, volumeSlot: React.ReactNode | null) => React.ReactNode)
   showPlaybackVolume?: boolean
-  prefetchedBuffer?: AudioBuffer | null
+  peaks: Float32Array | null
   trimRange?: { startTime: number; endTime: number }
   onTrimRangeChange?: (range: { startTime: number; endTime: number }) => void
   trimFade?: {
@@ -82,7 +82,7 @@ export function WaveformDisplay({
   audioRef,
   onSeek,
   playToolbar,
-  prefetchedBuffer = null,
+  peaks,
   trimRange,
   onTrimRangeChange,
   trimFade,
@@ -95,7 +95,6 @@ export function WaveformDisplay({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
-  const bufferRef = useRef<AudioBuffer | null>(null)
   const [isScrubbing, setIsScrubbing] = useState(false)
   const [trimDragging, setTrimDragging] = useState<'start' | 'end' | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -235,45 +234,19 @@ export function WaveformDisplay({
 
   const drawFromBuffer = useCallback(() => {
     const canvas = canvasRef.current
-    const buffer = bufferRef.current
-    if (!canvas || !buffer) return
+    if (!canvas || !peaks) return
     const dpr = window.devicePixelRatio || 1
     const rect = canvas.getBoundingClientRect()
     if (rect.width < 1 || rect.height < 1) return
     canvas.width = rect.width * dpr
     canvas.height = rect.height * dpr
-    drawWaveform(canvas, buffer, trimRange ?? null, trimFade ?? null)
+    drawWaveform(canvas, peaks, audioFile.duration, trimRange ?? null, trimFade ?? null)
 
-  }, [trimRange, trimFade])
+  }, [peaks, audioFile.duration, trimRange, trimFade])
 
   useEffect(() => {
-    if (prefetchedBuffer) {
-      bufferRef.current = prefetchedBuffer
-      drawFromBuffer()
-      return () => { bufferRef.current = null }
-    }
-    let cancelled = false
-    const loadAudioData = async () => {
-      const ac = new AudioContext()
-      try {
-        const response = await fetch(trackUrl)
-        const arrayBuffer = await response.arrayBuffer()
-        const audioBuffer = await ac.decodeAudioData(arrayBuffer.slice(0))
-        if (cancelled) return
-        bufferRef.current = audioBuffer
-        drawFromBuffer()
-      } catch (error) {
-        console.error('Failed to draw waveform:', error)
-      } finally {
-        void ac.close()
-      }
-    }
-    void loadAudioData()
-    return () => {
-      cancelled = true
-      bufferRef.current = null
-    }
-  }, [trackUrl, drawFromBuffer, prefetchedBuffer])
+    drawFromBuffer()
+  }, [drawFromBuffer])
 
   useEffect(() => {
     const el = containerRef.current

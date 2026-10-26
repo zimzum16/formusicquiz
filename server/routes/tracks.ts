@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { Redis } from '@upstash/redis';
-import { searchTracks, getTrack, searchArtists, getArtistAlbums, getAlbumTracks, getRelatedArtists, type SpotifyArtistResult, type ArtistAlbum } from '../lib/spotify.js';
+import { searchTracks, getTrack, searchArtists, getArtistAlbums, getAlbumTracks, type SpotifyArtistResult, type ArtistAlbum } from '../lib/spotify.js';
 import { searchSong, parseTagsFromHtml } from '../lib/genius.js';
 import { extractLyricsText } from '../lib/lyricsCompare.js';
 import { getTrackInfo } from '../lib/lastfm.js';

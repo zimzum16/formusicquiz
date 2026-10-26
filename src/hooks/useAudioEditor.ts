@@ -1,17 +1,37 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import type { AudioFile, TrimSegment, ProcessedAudioFile } from '../types/audio'
 import { processAudioSegment } from '../lib/audioUtils'
+import { computePeaks } from '../lib/waveform'
+import { fetchCover } from '../lib/id3Writer'
 import { extractID3Tags, parseFilename } from '../lib/id3Parser'
 import { tracksApi, searchItunesDirect } from '../lib/api'
 import { analyzeSongStructure, type SongMarker, type SongAnalysis } from '../lib/songStructure'
 
 // Убирает водяные знаки пиратских сайтов из ID3 тегов: [muzmo.ru], [zaycev.net] и т.п.
-const SITE_TAG_RE = /\s*[\[(][^\])\s]{2,50}\.(ru|net|com|org|me|cc|pw)[^\])]*[\])]/gi
+const SITE_TAG_RE = /\s*[[(][^\])\s]{2,50}\.(ru|net|com|org|me|cc|pw)[^\])]*[\])]/gi
 function cleanSiteTag(s: string | undefined): string | undefined {
   if (!s) return s
   const cleaned = s.replace(SITE_TAG_RE, '').trim()
   // Если после очистки строка пустая или только спецсимволы — вернуть undefined
   return cleaned.replace(/[^a-zа-яё0-9\s]/gi, '').trim() ? cleaned : undefined
+}
+
+const UNKNOWN_ARTIST = 'Неизвестный исполнитель'
+
+// Декодирование вынесено в отдельную функцию, чтобы AudioBuffer не попал в замыкания
+// и освобождался сразу после использования: PCM весит ~10 МБ на минуту стерео.
+async function decodeFile(file: File): Promise<AudioBuffer> {
+  const ctx = new AudioContext()
+  try {
+    return await ctx.decodeAudioData(await file.arrayBuffer())
+  } finally {
+    void ctx.close()
+  }
+}
+
+async function decodePeaks(file: File): Promise<{ peaks: Float32Array; duration: number }> {
+  const audioBuffer = await decodeFile(file)
+  return { peaks: computePeaks(audioBuffer), duration: audioBuffer.duration }
 }
 
 export function useAudioEditor() {
@@ -21,11 +41,9 @@ export function useAudioEditor() {
   const [processedFiles, setProcessedFiles] = useState<ProcessedAudioFile[]>([])
   const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
-  const [sharedDecodedBuffer, setSharedDecodedBuffer] = useState<AudioBuffer | null>(null)
+  const [waveformPeaks, setWaveformPeaks] = useState<Float32Array | null>(null)
   const [songMarkers, setSongMarkers] = useState<SongMarker[]>([])
   const [isAnalyzingStructure, setIsAnalyzingStructure] = useState(false)
-
-  const audioContextRef = useRef<AudioContext | null>(null)
 
   const handleFileUpload = useCallback(async (file: File) => {
     setError(null)
@@ -43,16 +61,9 @@ export function useAudioEditor() {
     try {
       setUploadProgress(30)
 
+      const { peaks, duration } = await decodePeaks(file)
       const url = URL.createObjectURL(file)
-      const audioContext = new AudioContext()
-      audioContextRef.current = audioContext
-      await audioContext.resume()
-
-      setUploadProgress(50)
-
-      const arrayBuffer = await file.arrayBuffer()
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0))
-      setSharedDecodedBuffer(audioBuffer)
+      setWaveformPeaks(peaks)
 
       setUploadProgress(70)
 
@@ -68,7 +79,7 @@ export function useAudioEditor() {
       if (!artist || !title) {
         const parsed = parseFilename(file.name)
         const isTrackNumber = parsed.artist ? /^\d{1,3}$/.test(parsed.artist.trim()) : false
-        artist = artist || (isTrackNumber ? undefined : parsed.artist) || 'Неизвестный исполнитель'
+        artist = artist || (isTrackNumber ? undefined : parsed.artist) || UNKNOWN_ARTIST
         title = title || parsed.title || file.name.replace('.mp3', '')
       }
 
@@ -77,7 +88,7 @@ export function useAudioEditor() {
       setAudioFile({
         file,
         url,
-        duration: audioBuffer.duration,
+        duration,
         artist,
         title,
         coverArt: siteTagged ? undefined : id3Tags.coverArt,
@@ -91,7 +102,7 @@ export function useAudioEditor() {
       const defaultSegment: TrimSegment = {
         id: crypto.randomUUID(),
         startTime: 0,
-        endTime: audioBuffer.duration,
+        endTime: duration,
         fadeIn: false,
         fadeOut: false,
         fadeInDuration: 1,
@@ -107,7 +118,7 @@ export function useAudioEditor() {
         let spotifyFound = false
 
         const normalize = (s: string) => s.toLowerCase().replace(/[^a-zа-яё0-9]/gi, '')
-        const searchArtist = artist === 'Неизвестный исполнитель' ? undefined : artist
+        const searchArtist = artist === UNKNOWN_ARTIST ? undefined : artist
 
         // Запускаем iTunes сразу параллельно — прямо из браузера, не ждём Spotify
         const itunesPromise = searchItunesDirect(title, searchArtist).catch((): Awaited<ReturnType<typeof searchItunesDirect>> => [])
@@ -134,7 +145,7 @@ export function useAudioEditor() {
                 return rNorm.includes(aNorm) || aNorm.includes(rNorm)
               })
 
-            let artistMatches = artist === 'Неизвестный исполнитель' ? [] : findArtistMatches(results, artist)
+            let artistMatches = artist === UNKNOWN_ARTIST ? [] : findArtistMatches(results, artist)
 
             // Если совпадений нет и теги не были в файле — порядок мог быть "Title - Artist"
             if (!artistMatches.length && !id3Tags.artist && !id3Tags.title) {
@@ -208,7 +219,7 @@ export function useAudioEditor() {
             console.log('[upload] itunes fallback results:', itunesResults.length)
             if (itunesResults.length) {
               const titleNorm = normalize(confirmedTitle)
-              const artistNorm = confirmedArtist !== 'Неизвестный исполнитель' ? normalize(confirmedArtist) : null
+              const artistNorm = confirmedArtist !== UNKNOWN_ARTIST ? normalize(confirmedArtist) : null
               const albumNorm = id3Tags.album ? normalize(id3Tags.album) : null
 
               const titleMatch = itunesResults.find(r => {
@@ -256,7 +267,7 @@ export function useAudioEditor() {
 
         // Запускаем Genius с подтверждёнными данными от Spotify/iTunes
         setIsAnalyzingStructure(true)
-        analyzeSongStructure(confirmedTitle, confirmedArtist, audioBuffer.duration, (gTitle, gArtist, geniusUrl, isCover) => {
+        analyzeSongStructure(confirmedTitle, confirmedArtist, duration, (gTitle, gArtist, geniusUrl, isCover) => {
           setAudioFile(prev => {
             if (!prev) return prev
             const updates: Partial<typeof prev> = {}
@@ -307,20 +318,29 @@ export function useAudioEditor() {
   }, [])
 
   const processAudio = useCallback(async () => {
-    if (!audioFile || segments.length === 0 || !sharedDecodedBuffer) {
+    if (!audioFile || segments.length === 0) {
       setError('Аудиоданные недоступны. Загрузите файл ещё раз.')
       return
     }
 
     setIsProcessing(true)
+    processedFiles.forEach(f => URL.revokeObjectURL(f.url))
     setProcessedFiles([])
     setError(null)
 
     try {
+      // PCM нужен только на время экспорта — декодируем заново и отпускаем после
+      const [audioBuffer, cover] = await Promise.all([decodeFile(audioFile.file), fetchCover(audioFile.coverArt)])
+      const tags = {
+        title: audioFile.title,
+        artist: audioFile.artist === UNKNOWN_ARTIST ? undefined : audioFile.artist,
+        album: audioFile.album,
+        year: audioFile.year,
+        genre: audioFile.genre,
+        cover,
+      }
       const processed = await Promise.all(
-        segments.map((seg, i) =>
-          processAudioSegment(sharedDecodedBuffer, seg, audioFile.artist, audioFile.title, i + 1)
-        )
+        segments.map((seg, i) => processAudioSegment(audioBuffer, seg, tags, i + 1))
       )
       setProcessedFiles(processed)
     } catch (err) {
@@ -329,29 +349,25 @@ export function useAudioEditor() {
     } finally {
       setIsProcessing(false)
     }
-  }, [audioFile, segments, sharedDecodedBuffer])
+  }, [audioFile, segments, processedFiles])
 
   const reset = useCallback(() => {
     if (audioFile?.url) URL.revokeObjectURL(audioFile.url)
     processedFiles.forEach(f => URL.revokeObjectURL(f.url))
     setAudioFile(null)
     setSegments([])
-    setSharedDecodedBuffer(null)
+    setWaveformPeaks(null)
     setProcessedFiles([])
     setUploadProgress(0)
     setError(null)
     setSongMarkers([])
     setIsAnalyzingStructure(false)
-    if (audioContextRef.current) {
-      audioContextRef.current.close()
-      audioContextRef.current = null
-    }
   }, [audioFile, processedFiles])
 
   return {
     audioFile,
     segments,
-    sharedDecodedBuffer,
+    waveformPeaks,
     isProcessing,
     processedFiles,
     uploadProgress,

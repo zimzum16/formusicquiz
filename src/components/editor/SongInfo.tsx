@@ -10,7 +10,7 @@ interface SongInfoProps {
 const SANS: React.CSSProperties = { fontFamily: 'Montserrat, sans-serif' }
 
 function parseFeat(raw: string): { cleanTitle: string; feat: string | null } {
-  const m = raw.match(/^(.*?)\s*[\(\[](feat\.?|ft\.?|featuring)\s*([^\)\]]+)[\)\]](.*)$/i)
+  const m = raw.match(/^(.*?)\s*[([](feat\.?|ft\.?|featuring)\s*([^)\]]+)[)\]](.*)$/i)
   if (!m) return { cleanTitle: raw, feat: null }
   return { cleanTitle: (m[1] + m[4]).trim(), feat: m[3].trim() }
 }

@@ -49,9 +49,15 @@ GENIUS_ACCESS_TOKEN
 ```
 src/
   App.tsx               — роутер на useState<Page>, восстановление сессии при mount
+  hooks/
+    useAudioEditor.ts   — состояние редактора: загрузка, сегменты, экспорт
   lib/
     api.ts              — fetch-клиент, авто-подстановка JWT из localStorage
-    audioMetadata.ts    — извлечение длительности через Web Audio API
+    audioUtils.ts       — обрезка сегмента (PCM slice / OfflineAudioContext для fade)
+    audioWorker.ts      — Web Worker: кодирование PCM → MP3 (lamejs, 128 kbps)
+    id3Parser.ts        — чтение ID3v2 из исходника (читает только тег, не весь файл)
+    id3Writer.ts        — запись ID3v2.3 в нарезанные фрагменты + загрузка обложки
+    waveform.ts         — пики waveform (computePeaks) и отрисовка на canvas
   pages/
     Auth.tsx            — вход/регистрация → POST /api/auth/login|register
     Profile.tsx         — показывает реальный email из authUser
@@ -78,7 +84,10 @@ server/
 | Auth (register/login/logout/me) | ✅ |
 | Восстановление сессии при перезагрузке | ✅ |
 | Supabase убрать из Editor | ⏳ Этап 2 |
-| Обрезка аудио (Web Audio API) | ⏳ Этап 2 |
+| Обрезка аудио (Web Audio API) | ✅ |
+| ID3-теги в нарезанных файлах | ✅ |
+| Waveform по пикам, без хранения PCM | ✅ |
+| Резка по MP3-фреймам без перекодирования | ⏳ |
 | Spotify + Genius API | ⏳ Этап 3 |
 | nginx.conf + pm2 | ⏳ Этап 4 |
 
@@ -86,6 +95,12 @@ server/
 
 - Supabase был убран в пользу собственного бэкенда на Hono + SQLite
 - Обрезка аудио — в браузере через Web Audio API, серверный FFmpeg не нужен
+- Декодированный `AudioBuffer` не хранится в стейте: при загрузке из него считаются пики
+  (8000 значений) и он отпускается; при экспорте файл декодируется заново и отпускается после.
+  Декодирование вынесено в `decodeFile`/`decodePeaks`, чтобы буфер не попадал в замыкания
+- В нарезанные файлы пишется новый ID3v2.3 (UTF-16) из подтверждённых данных `audioFile`
+  (после очистки от `[muzmo.ru]` и обогащения Spotify/iTunes), а не копия исходного тега.
+  Обложка скачивается по URL; если CORS/сеть не пускает — файл сохраняется без обложки
 - `lastInsertRowid` оборачивается в `Number()` из-за типа `number | bigint` в better-sqlite3
 - `/logout` защищён `requireAuth` — нельзя удалить чужую сессию
 - INSERT в register обёрнут в try-catch на `SQLITE_CONSTRAINT_UNIQUE` (race condition)
