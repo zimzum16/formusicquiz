@@ -47,6 +47,13 @@ export interface ArtistInfo {
   pending: boolean;  // MusicBrainz не успел — состав и дата распада появятся при повторном запросе
 }
 
+export interface TrackInfo {
+  wikidata_id: string;
+  wikipedia_url: string;  // английская статья о песне — источник позиций
+  charts: ChartPeak[];
+  pending: boolean;  // всегда false: MusicBrainz здесь не участвует, поле нужно для общего хука на фронте
+}
+
 export interface AlbumInfo {
   wikidata_id: string;
   title: Localized;
@@ -390,6 +397,23 @@ async function resolveAlbum(id: string, title?: string, artist?: string): Promis
   return qid;
 }
 
+// "Heart-Shaped Box - 2013 Mix", "Get Lucky (feat. Pharrell Williams)" → название песни
+const cleanTrackTitle = (title: string) => title
+  .replace(/\s+-\s+.*$/, '')
+  .replace(EDITION_RE, '')
+  .replace(/\s*[([](feat\.?|ft\.?|with)\s[^)\]]*[)\]]/gi, '')
+  .trim();
+
+async function resolveTrack(id: string, title?: string, artist?: string): Promise<string | null> {
+  let qid: string | null = null;
+  if (SPOTIFY_ID_RE.test(id)) qid = await findByStatement('P2207', id);
+  if (!qid && title && artist) {
+    const artistQid = await findByName(artist.split(',')[0], 'P434');
+    if (artistQid) qid = await findByName(cleanTrackTitle(title), `P175=${artistQid}`);
+  }
+  return qid;
+}
+
 // ── Сборка ответа ─────────────────────────────────────────────────────────────
 
 async function buildArtist(qid: string, state: Soft): Promise<ArtistInfo | null> {
@@ -510,8 +534,30 @@ export function getArtistInfo(id: string, name?: string): Promise<ArtistInfo | n
   });
 }
 
+async function buildTrack(qid: string): Promise<TrackInfo | null> {
+  const enTitle = (await getEntities([qid], 'sitelinks'))[qid]?.sitelinks?.enwiki?.title;
+  if (!enTitle) return null;
+  const res = await request(`https://en.wikipedia.org/w/index.php?title=${encodeURIComponent(enTitle)}&action=raw`);
+  if (!res) return null;
+  const charts = parseCharts(await res.text(), 'single');
+  if (!charts.length) return null;
+  return {
+    wikidata_id: qid,
+    wikipedia_url: `https://en.wikipedia.org/wiki/${encodeURIComponent(enTitle.replace(/ /g, '_'))}`,
+    charts,
+    pending: false,
+  };
+}
+
+export function getTrackInfo(id: string, title?: string, artist?: string): Promise<TrackInfo | null> {
+  return cached(`wiki:track:v1:${id}|${title ?? ''}|${artist ?? ''}`, async () => {
+    const qid = await resolveTrack(id, title, artist);
+    return qid ? buildTrack(qid) : null;
+  });
+}
+
 export function getAlbumInfo(id: string, title?: string, artist?: string): Promise<AlbumInfo | null> {
-  return cached(`wiki:album:v7:${id}|${title ?? ''}|${artist ?? ''}`, async state => {
+  return cached(`wiki:album:v8:${id}|${title ?? ''}|${artist ?? ''}`, async state => {
     const qid = await resolveAlbum(id, title, artist);
     return qid ? buildAlbum(qid, artist, state) : null;
   });

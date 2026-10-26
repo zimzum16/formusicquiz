@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { infoApi, type AlbumInfo } from '../lib/api';
+import { infoApi, type AlbumInfo, type TrackWikiInfo } from '../lib/api';
 
 // Сервер ждёт MusicBrainz недолго; опоздавшие данные он дописывает в кэш
 const PENDING_RETRY_MS = 4000;
@@ -46,5 +46,14 @@ export function useAlbumInfo(album: { id: string; title: string } | null, artist
     fresh => infoApi.getAlbum(album!.id, album!.title, artistName, fresh),
     () => (album ? infoApi.peekAlbum(album.id, album.title, artistName) : null),
     album?.id ?? '',
+  );
+}
+
+// Позиции песни в чартах — для блока на странице трека
+export function useTrackInfo(track: { id: string; title: string; artist: string }) {
+  return useInfo<TrackWikiInfo>(
+    fresh => infoApi.getTrack(track.id, track.title, track.artist, fresh),
+    () => infoApi.peekTrack(track.id, track.title, track.artist),
+    track.id,
   );
 }

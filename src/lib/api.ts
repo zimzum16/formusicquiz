@@ -227,6 +227,13 @@ export interface AlbumInfo {
   pending: boolean;
 }
 
+export interface TrackWikiInfo {
+  wikidata_id: string;
+  wikipedia_url: string;
+  charts: { chart: string; name: Localized; peak: number }[];
+  pending: boolean;
+}
+
 // Справка грузится несколько секунд, поэтому её предзагружают заранее (наведение, первый артист
 // в поиске) — повторный вызов с тем же путём получает уже идущий или готовый запрос
 const infoRequests = new Map<string, Promise<unknown>>();
@@ -246,6 +253,9 @@ function cachedInfo<T>(path: string, fresh = false): Promise<T> {
 const artistInfoPath = (id: string, name: string) =>
   `/api/info/artist/${encodeURIComponent(id)}?${new URLSearchParams({ name })}`;
 
+const trackInfoPath = (id: string, title: string, artist: string) =>
+  `/api/info/track/${encodeURIComponent(id)}?${new URLSearchParams({ title, artist })}`;
+
 const albumInfoPath = (id: string, title: string, artist?: string) => {
   const params = new URLSearchParams({ title });
   if (artist) params.set('artist', artist);
@@ -257,6 +267,10 @@ export const infoApi = {
     cachedInfo<ArtistInfo | null>(artistInfoPath(id, name), fresh),
   getAlbum: (id: string, title: string, artist?: string, fresh = false) =>
     cachedInfo<AlbumInfo | null>(albumInfoPath(id, title, artist), fresh),
+  getTrack: (id: string, title: string, artist: string, fresh = false) =>
+    cachedInfo<TrackWikiInfo | null>(trackInfoPath(id, title, artist), fresh),
+  peekTrack: (id: string, title: string, artist: string) =>
+    infoResolved.get(trackInfoPath(id, title, artist)) as TrackWikiInfo | null | undefined,
   // Уже загруженное — синхронно, чтобы панель не мигала заглушкой
   peekArtist: (id: string, name: string) => infoResolved.get(artistInfoPath(id, name)) as ArtistInfo | null | undefined,
   peekAlbum: (id: string, title: string, artist?: string) => infoResolved.get(albumInfoPath(id, title, artist)) as AlbumInfo | null | undefined,

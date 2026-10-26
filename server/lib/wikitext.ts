@@ -232,9 +232,61 @@ const CHART_NAMES: Record<string, Localized> = {
   europe: c('European Top 100 Albums', 'Европа — Top 100 Albums'),
 };
 
-function chartName(id: string): Localized {
+// Коды шаблона {{Single chart}}; страны берутся из CHART_NAMES
+const SINGLE_CHART_NAMES: Record<string, Localized> = {
+  billboardhot100: c('US Billboard Hot 100', 'США — Billboard Hot 100'),
+  billboardglobal200: c('Billboard Global 200', 'Billboard Global 200'),
+  billboardalternativesongs: c('US Alternative Airplay', 'США — Alternative Airplay'),
+  billboardmodernrock: c('US Alternative Airplay', 'США — Alternative Airplay'),
+  billboardmainstreamrock: c('US Mainstream Rock', 'США — Mainstream Rock'),
+  billboardrocksongs: c('US Hot Rock & Alternative Songs', 'США — Hot Rock & Alternative Songs'),
+  billboardrockairplay: c('US Rock Airplay', 'США — Rock Airplay'),
+  billboardpopsongs: c('US Pop Airplay', 'США — Pop Airplay'),
+  billboardadultpopsongs: c('US Adult Pop Airplay', 'США — Adult Pop Airplay'),
+  billboardadultcontemporary: c('US Adult Contemporary', 'США — Adult Contemporary'),
+  billboardrhythmic: c('US Rhythmic Airplay', 'США — Rhythmic Airplay'),
+  billboardhotrandbhiphop: c('US Hot R&B/Hip-Hop Songs', 'США — Hot R&B/Hip-Hop Songs'),
+  billboardrandbhiphopsongs: c('US Hot R&B/Hip-Hop Songs', 'США — Hot R&B/Hip-Hop Songs'),
+  billboardrapsongs: c('US Hot Rap Songs', 'США — Hot Rap Songs'),
+  billboardcountrysongs: c('US Hot Country Songs', 'США — Hot Country Songs'),
+  billboarddanceclubplay: c('US Dance Club Songs', 'США — Dance Club Songs'),
+  billboardhotdanceelectronicsongs: c('US Hot Dance/Electronic Songs', 'США — Hot Dance/Electronic Songs'),
+  billboardjapanhot100: c('Japan Hot 100', 'Япония — Japan Hot 100'),
+  uksinglesbyname: c('UK Singles Chart', 'Великобритания — UK Singles Chart'),
+  uk: c('UK Singles Chart', 'Великобритания — UK Singles Chart'),
+  ukindie: c('UK Indie', 'Великобритания — Indie'),
+  ukrock: c('UK Rock & Metal Singles', 'Великобритания — Rock & Metal Singles'),
+  dutch40: c('Netherlands (Dutch Top 40)', 'Нидерланды (Dutch Top 40)'),
+  dutch100: c('Netherlands (Single Top 100)', 'Нидерланды (Single Top 100)'),
+  canadatopsingles: c('Canada (Canadian Hot 100)', 'Канада (Canadian Hot 100)'),
+  canadianhot100: c('Canada (Canadian Hot 100)', 'Канада (Canadian Hot 100)'),
+  canadarockalternative: c('Canada Rock', 'Канада — Rock'),
+  germany: c('Germany', 'Германия'),
+  billboardeurodigital: c('Euro Digital Songs', 'Европа — Euro Digital Songs'),
+  cis: c('CIS Airplay (TopHit)', 'СНГ — эфир (TopHit)'),
+  cisairplay: c('CIS Airplay (TopHit)', 'СНГ — эфир (TopHit)'),
+  russiaairplay: c('Russia Airplay (TopHit)', 'Россия — эфир (TopHit)'),
+  ukraineairplay: c('Ukraine Airplay (TopHit)', 'Украина — эфир (TopHit)'),
+  czechdigital: c('Czech Republic (Digital)', 'Чехия (цифровые продажи)'),
+  czechradio: c('Czech Republic (Radio)', 'Чехия (радио)'),
+  slovakdigital: c('Slovakia (Digital)', 'Словакия (цифровые продажи)'),
+  slovakradio: c('Slovakia (Radio)', 'Словакия (радио)'),
+  hungarysingle: c('Hungary (Singles)', 'Венгрия (синглы)'),
+  hungarystream: c('Hungary (Streaming)', 'Венгрия (стриминг)'),
+  hungarydance: c('Hungary (Dance)', 'Венгрия (танцевальный)'),
+  hungaryradio: c('Hungary (Radio)', 'Венгрия (радио)'),
+  polandairplay: c('Poland (Airplay)', 'Польша (эфир)'),
+  japanhot100: c('Japan Hot 100', 'Япония — Japan Hot 100'),
+  southkorea: c('South Korea', 'Южная Корея'),
+};
+
+export type ChartKind = 'album' | 'single';
+
+function chartName(id: string, kind: ChartKind): Localized {
   const key = id.toLowerCase().replace(/[\s_-]/g, '');
-  const named = CHART_NAMES[key] ?? CHART_NAMES[key.replace(/\d+$/, '')];
+  const base = key.replace(/\d+$/, '');
+  const named = (kind === 'single' ? SINGLE_CHART_NAMES[key] ?? SINGLE_CHART_NAMES[base] : undefined)
+    ?? CHART_NAMES[key] ?? CHART_NAMES[base];
   if (named) return named;
   // Незнакомый код: BillboardTastemaker → Billboard Tastemaker
   const pretty = id.replace(/([a-z])([A-Z])/g, '$1 $2');
@@ -244,11 +296,35 @@ function chartName(id: string): Localized {
 // Годовые итоги, переиздания и т. п. — не «пиковая позиция альбома»
 const SKIP_SECTION_RE = /year[- ]end|decade|all[- ]time|monthly|anniversary|reissue|re-?release|deluxe|remaster|expanded|edition/i;
 
-// Пики из {{Album chart|код|позиция}} в недельных таблицах оригинального релиза
-export function parseCharts(wikitext: string): ChartPeak[] {
+// Строка таблицы, набранная вручную: заголовок строки и позиция на следующей строке.
+// Издателя в скобках оставляем: «UK Albums (MRIB)» — другой чарт, не «UK Albums Chart» (OCC).
+// После <br /> обычно идёт сноска мелким шрифтом — её отрезаем
+function manualChartName(header: string): string | null {
+  const text = cleanWikitext(stripRefs(header.replace(/^!\s*(?:[a-z-]+\s*=\s*"[^"]*"\s*)*\|/i, '').split(/<br\s*\/?>/i)[0]))
+    .replace(/\s{2,}/g, ' ').trim();
+  return text || null;
+}
+
+const manualPeak = (cell: string) => {
+  const m = cell.match(/^\|(?:[^|]*\|)?\s*(\d+)\s*(?:<ref.*)?$/);
+  return m ? Number(m[1]) : null;
+};
+
+// Пики в недельных таблицах оригинального релиза: шаблоны {{Album chart}} / {{Single chart}}
+// (в т. ч. слитно — {{singlechart}}) и строки, набранные вручную
+export function parseCharts(wikitext: string, kind: ChartKind = 'album'): ChartPeak[] {
+  const templateRe = kind === 'single' ? /\{\{\s*single ?chart\s*\|/gi : /\{\{\s*album ?chart\s*\|/gi;
   const headings: string[] = [];  // headings[level] — текущий заголовок этого уровня
   let skipTable = false;
+  let pendingName: string | null = null;  // заголовок ручной строки ждёт ячейку с позицией
   const peaks = new Map<string, ChartPeak>();
+
+  const add = (chart: string, name: Localized, peak: number) => {
+    // Один и тот же чарт с разными версиями кода (Germany / Germany4) — оставляем лучшую позицию
+    const key = (name.en ?? chart).toLowerCase();
+    const prev = peaks.get(key);
+    if (!prev || peak < prev.peak) peaks.set(key, { chart, name, peak });
+  };
 
   for (const line of wikitext.split('\n')) {
     const h = line.match(/^(={2,6})\s*(.*?)\s*\1\s*$/);
@@ -256,22 +332,39 @@ export function parseCharts(wikitext: string): ChartPeak[] {
       headings.length = h[1].length;
       headings[h[1].length] = h[2];
       skipTable = false;
+      pendingName = null;
       continue;
     }
-    if (line.startsWith('{|')) { skipTable = false; continue; }
+    if (line.startsWith('{|')) { skipTable = false; pendingName = null; continue; }
     if (line.startsWith('|+')) { skipTable = SKIP_SECTION_RE.test(line); continue; }
     if (skipTable || headings.some(t => t && SKIP_SECTION_RE.test(t))) continue;
 
-    for (const m of line.matchAll(/\{\{\s*album ?chart\s*\|/gi)) {
+    // Ручные строки — только в разделе о чартах, иначе подхватятся, например, таблицы релизов
+    if (headings[2] && /chart/i.test(headings[2])) {
+      if (line.startsWith('!') && !/scope\s*=\s*"col"/i.test(line)) {
+        const [header, inlineCell] = line.split('||');
+        pendingName = manualChartName(header);
+        if (pendingName && inlineCell) {
+          const peak = manualPeak(`|${inlineCell}`);
+          if (peak) add(pendingName, { en: pendingName, ru: pendingName }, peak);
+          pendingName = null;
+        }
+        continue;
+      }
+      if (pendingName && line.startsWith('|') && !line.startsWith('|-')) {
+        const peak = manualPeak(line);
+        if (peak) add(pendingName, { en: pendingName, ru: pendingName }, peak);
+        pendingName = null;
+        continue;
+      }
+    }
+
+    for (const m of line.matchAll(templateRe)) {
       const { positional } = inlineArgs(templateAt(line, m.index!));
       const id = positional[0];
       const peak = Number(positional[1]);
       if (!id || !Number.isInteger(peak) || peak < 1) continue;
-      const name = chartName(id);
-      // Один и тот же чарт с разными версиями кода (Germany / Germany4) — оставляем лучшую позицию
-      const key = name.en ?? id;
-      const prev = peaks.get(key);
-      if (!prev || peak < prev.peak) peaks.set(key, { chart: id, name, peak });
+      add(id, chartName(id, kind), peak);
     }
   }
   return [...peaks.values()];

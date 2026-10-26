@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { tracksApi, infoApi, type SpotifyTrack, type SpotifyArtistResult, type SearchResults, type ArtistAlbum, type TrackInfo } from '../lib/api';
 import { CollapsibleList } from '../components/CollapsibleList';
-import { ArtistInfoPanel, AlbumInfoPanel, SingleBadge } from '../components/InfoPanel';
+import { ArtistInfoPanel, AlbumInfoPanel, SingleBadge, TrackCharts } from '../components/InfoPanel';
 import { useAlbumInfo } from '../hooks/useInfo';
 import { matchSingles } from '../lib/singles';
 import { t, lang } from '../i18n';
@@ -323,6 +323,11 @@ export default function SongInfo() {
   const [previewProgress, setPreviewProgress] = useState(0);
   const [previewTime, setPreviewTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Открытая песня. Поиск / артист / альбом при этом не сбрасываются, а скрываются —
+  // кнопка «Назад» возвращает туда, откуда пришли, с той же прокруткой
+  const [openedTrack, setOpenedTrack] = useState<SpotifyTrack | null>(null);
+  const openedTrackId = useRef<string | null>(null);
+  const scrollBeforeTrack = useRef(0);
 
   // List preview state (hover-play on track rows)
   const [listPlayingId, setListPlayingId] = useState<string | null>(null);
@@ -414,6 +419,7 @@ export default function SongInfo() {
     const q = (overrideQuery ?? query).trim();
     if (!q) return;
     setSearching(true);
+    setOpenedTrack(null);
     setSearchResults(null);
     setSelectedArtist(null);
     setArtistAlbums(null);
@@ -474,11 +480,9 @@ export default function SongInfo() {
   };
 
   const selectTrack = async (track: SpotifyTrack) => {
-    setSearchResults(null);
-    setSelectedArtist(null);
-    setArtistAlbums(null);
-    setSelectedAlbum(null);
-    setAlbumTracks(null);
+    if (!openedTrack) scrollBeforeTrack.current = window.scrollY;
+    setOpenedTrack(track);
+    window.scrollTo(0, 0);
     setInfo(null);
     setSetlistfm(null);
     setSetlistLoading(true);
@@ -491,20 +495,45 @@ export default function SongInfo() {
     listAudioRef.current?.pause();
     setListPlayingId(null);
 
+    // Ответ по предыдущей песне, пришедший после перехода к другой, не должен её подменить
+    const isCurrent = () => openedTrackId.current === track.id;
+    openedTrackId.current = track.id;
+
     tracksApi.getSetlistfm(track.id)
-      .then(data => setSetlistfm(data))
+      .then(data => { if (isCurrent()) setSetlistfm(data); })
       .catch(() => {})
-      .finally(() => setSetlistLoading(false));
+      .finally(() => { if (isCurrent()) setSetlistLoading(false); });
 
     try {
       const data = await tracksApi.getInfo(track.id);
-      setInfo(data);
+      if (isCurrent()) setInfo(data);
     } catch {
-      setError(t.track_error);
+      if (isCurrent()) setError(t.track_error);
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   };
+
+  const handleBackFromTrack = () => {
+    openedTrackId.current = null;
+    setOpenedTrack(null);
+    setInfo(null);
+    setError(null);
+    setLoading(false);
+    setIsPlaying(false);
+    audioRef.current?.pause();
+    const y = scrollBeforeTrack.current;
+    requestAnimationFrame(() => window.scrollTo(0, y));
+  };
+
+  // Куда ведёт «Назад»: в альбом, к артисту или к результатам поиска
+  const backLabel = selectedAlbum
+    ? `${t.back_to_album} ${lang === 'ru' ? `«${selectedAlbum.title}»` : `“${selectedAlbum.title}”`}`
+    : selectedArtist
+      ? `${t.back_to_artist} ${selectedArtist.name}`
+      : searchResults
+        ? t.back_to_search
+        : null;
 
   const genius = info?.genius;
 
@@ -556,7 +585,7 @@ export default function SongInfo() {
       )}
 
       {/* Artist albums view */}
-      {(selectedArtist || albumsLoading) && !selectedAlbum && (
+      {!openedTrack && (selectedArtist || albumsLoading) && !selectedAlbum && (
         <div className="mb-7">
           <div className="flex items-center gap-3 mb-4">
             <button
@@ -665,7 +694,7 @@ export default function SongInfo() {
       )}
 
       {/* Album tracks view */}
-      {selectedAlbum && (
+      {!openedTrack && selectedAlbum && (
         <div className="mb-7">
           {/* Header: back → albums */}
           <div className="flex items-center gap-3 mb-4">
@@ -792,7 +821,7 @@ export default function SongInfo() {
       )}
 
       {/* Search results page */}
-      {searchResults && !selectedArtist && (
+      {!openedTrack && searchResults && !selectedArtist && (
         <div className="mb-7 space-y-5">
 
           {/* Artists section */}
@@ -892,6 +921,24 @@ export default function SongInfo() {
             </div>
           )}
 
+        </div>
+      )}
+
+      {/* Back from track → album / artist / search */}
+      {openedTrack && backLabel && (
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={handleBackFromTrack}
+            aria-label={backLabel}
+            className="w-8 h-8 rounded-full flex items-center justify-center border border-white/[0.12] hover:bg-white/[0.08] transition-colors flex-shrink-0"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M9 2L4 7l5 5" stroke="#8a8a8a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          <button onClick={handleBackFromTrack} className="min-w-0 text-left text-[13px] font-semibold text-[#8a8a8a] hover:text-white transition-colors truncate" style={SANS}>
+            {backLabel}
+          </button>
         </div>
       )}
 
@@ -1051,6 +1098,9 @@ export default function SongInfo() {
                     </div>
                   )}
                 </div>
+
+                {/* Позиции в чартах из английской Википедии */}
+                <TrackCharts track={info.spotify} />
 
                 {/* Relations */}
                 <div className="flex flex-col gap-3 flex-1">

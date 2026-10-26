@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, ExternalLink } from 'lucide-react';
 import { infoApi, type ArtistInfo, type AlbumInfo, type Localized, type WikiPage, type BandMember } from '../lib/api';
 import { t, lang } from '../i18n';
-import { useInfo } from '../hooks/useInfo';
+import { useInfo, useTrackInfo } from '../hooks/useInfo';
 
 const SANS: React.CSSProperties = { fontFamily: 'Montserrat, sans-serif' };
 const MONO: React.CSSProperties = { fontFamily: 'JetBrains Mono, monospace' };
@@ -281,13 +281,14 @@ function ExpandableRows<T>({ label, items, rowKey, left, right, limit = LIST_LIM
   );
 }
 
-// Главные чарты — US Billboard 200 и UK Albums, дальше по позиции
+// Главные чарты — Billboard 200 / Hot 100 и UK Albums / Singles, дальше по позиции
 const chartPriority = (chart: string) => {
   const key = chart.toLowerCase().replace(/[\s\d]/g, '');
-  return key === 'billboard' ? 0 : key === 'uk' ? 1 : 2;
+  if (key === 'billboard' || key === 'billboardhot') return 0;
+  return key === 'uk' || key === 'uksinglesbyname' ? 1 : 2;
 };
 
-const sortCharts = (charts: AlbumInfo['charts']) =>
+const sortCharts = (charts: { chart: string; name: Localized; peak: number }[]) =>
   [...charts].sort((a, b) =>
     chartPriority(a.chart) - chartPriority(b.chart) || a.peak - b.peak || (loc(a.name) ?? '').localeCompare(loc(b.name) ?? ''));
 
@@ -544,6 +545,34 @@ export function AlbumInfoPanel({ data, loading, singles }: {
           <AlbumBody data={data} singles={singles} />
         </div>
       )}
+    </div>
+  );
+}
+
+// Позиции песни в чартах для карточки Genius на странице трека; нет данных — ничего не рисуем
+export function TrackCharts({ track }: { track: { id: string; title: string; artist: string } }) {
+  const { data } = useTrackInfo(track);
+  if (!data?.charts.length) return null;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <ExpandableRows
+        label={t.info_charts}
+        items={sortCharts(data.charts)}
+        rowKey={c => c.chart}
+        left={c => loc(c.name)}
+        right={c => `#${c.peak}`}
+        limit={5}
+      />
+      <a
+        href={data.wikipedia_url}
+        target="_blank"
+        rel="noreferrer"
+        className="self-start inline-flex items-center gap-1 text-[10px] text-[#8a8a8a] hover:text-white transition-colors"
+        style={SANS}
+      >
+        {t.info_charts_source}
+        <ExternalLink size={10} />
+      </a>
     </div>
   );
 }
