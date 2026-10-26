@@ -99,8 +99,6 @@ export function useAudioEditor() {
         file,
         url,
         duration,
-        bitrate: frames?.bitrate,
-        isVbr: frames?.isVbr,
         artist,
         title,
         coverArt: siteTagged ? undefined : id3Tags.coverArt,

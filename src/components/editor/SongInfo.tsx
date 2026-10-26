@@ -32,11 +32,6 @@ export function SongInfo({ audioFile }: SongInfoProps) {
           {year}
         </span>
       )}
-      {audioFile.bitrate && (
-        <span className="inline-flex items-center font-semibold text-white border border-white/[0.1]" style={{ padding: '6px 14px', borderRadius: '999px', background: 'rgba(255,255,255,.07)', fontSize: '13px', ...SANS }}>
-          {audioFile.isVbr ? `VBR ~${audioFile.bitrate}` : audioFile.bitrate} kbps
-        </span>
-      )}
       {isCover && (
         <span className="inline-flex items-center font-semibold border" style={{ padding: '6px 14px', borderRadius: '999px', background: 'rgba(45,212,191,.10)', borderColor: 'rgba(45,212,191,.30)', color: '#2DD4BF', fontSize: '13px', ...SANS }}>
           Cover

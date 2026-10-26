@@ -2,9 +2,6 @@ export interface AudioFile {
   file: File
   url: string
   duration: number
-  // Битрейт исходника, кбит/с (для VBR — средний); undefined, если MP3-фреймы не распознаны
-  bitrate?: number
-  isVbr?: boolean
   artist: string
   title: string
   coverArt?: string
