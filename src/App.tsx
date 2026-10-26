@@ -13,7 +13,11 @@ function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
-  const navigate = (page: Page) => setCurrentPage(page);
+  // Новая страница всегда открывается сверху, а не на прокрутке предыдущей
+  const navigate = (page: Page) => {
+    setCurrentPage(page);
+    window.scrollTo(0, 0);
+  };
 
   const isHome = currentPage === 'home' || currentPage === 'pricing' || currentPage === 'editor';
 

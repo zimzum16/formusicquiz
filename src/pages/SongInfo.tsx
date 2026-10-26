@@ -328,6 +328,10 @@ export default function SongInfo() {
   const [openedTrack, setOpenedTrack] = useState<SpotifyTrack | null>(null);
   const openedTrackId = useRef<string | null>(null);
   const scrollBeforeTrack = useRef(0);
+  // Прокрутка списка, из которого ушли: «Назад» возвращает на то же место
+  const scrollBeforeArtist = useRef(0);  // результаты поиска
+  const scrollBeforeAlbum = useRef(0);   // сетка альбомов артиста
+  const restoreScroll = (y: number) => requestAnimationFrame(() => window.scrollTo(0, y));
 
   // List preview state (hover-play on track rows)
   const [listPlayingId, setListPlayingId] = useState<string | null>(null);
@@ -420,6 +424,7 @@ export default function SongInfo() {
     if (!q) return;
     setSearching(true);
     setOpenedTrack(null);
+    window.scrollTo(0, 0);
     setSearchResults(null);
     setSelectedArtist(null);
     setArtistAlbums(null);
@@ -440,6 +445,8 @@ export default function SongInfo() {
   };
 
   const handleArtistClick = async (artist: SpotifyArtistResult) => {
+    if (!selectedArtist) scrollBeforeArtist.current = window.scrollY;
+    window.scrollTo({ top: 0, behavior: 'smooth' });  // то же для «Похожих артистов» внизу
     setSelectedArtist(artist);
     setArtistAlbums(null);
     setAlbumsLoading(true);
@@ -454,6 +461,9 @@ export default function SongInfo() {
   };
 
   const handleAlbumClick = async (album: ArtistAlbum) => {
+    if (!selectedAlbum) scrollBeforeAlbum.current = window.scrollY;
+    // Из полосы «Альбомы» внизу страницы — иначе новый альбом откроется за пределами экрана
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     setSelectedAlbum(album);
     setAlbumTracks(null);
     setAlbumTracksLoading(true);
@@ -470,6 +480,7 @@ export default function SongInfo() {
   const handleBackToAlbums = () => {
     setSelectedAlbum(null);
     setAlbumTracks(null);
+    restoreScroll(scrollBeforeAlbum.current);
   };
 
   const handleBackToSearch = () => {
@@ -477,6 +488,7 @@ export default function SongInfo() {
     setArtistAlbums(null);
     setSelectedAlbum(null);
     setAlbumTracks(null);
+    restoreScroll(scrollBeforeArtist.current);
   };
 
   const selectTrack = async (track: SpotifyTrack) => {
@@ -522,8 +534,7 @@ export default function SongInfo() {
     setLoading(false);
     setIsPlaying(false);
     audioRef.current?.pause();
-    const y = scrollBeforeTrack.current;
-    requestAnimationFrame(() => window.scrollTo(0, y));
+    restoreScroll(scrollBeforeTrack.current);
   };
 
   // Куда ведёт «Назад»: в альбом, к артисту или к результатам поиска
