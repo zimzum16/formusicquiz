@@ -7,7 +7,7 @@ import { TrimControls } from '../components/editor/TrimControls'
 import { MultiTrimPanel } from '../components/editor/MultiTrimPanel'
 import { ProcessButton } from '../components/editor/ProcessButton'
 import { ProcessedResults } from '../components/editor/ProcessedResults'
-import { SongInfo } from '../components/editor/SongInfo'
+import { TrackSummary } from '../components/editor/TrackSummary'
 import { FileUpload } from '../components/editor/FileUpload'
 import { SongStructurePanel } from '../components/editor/SongStructurePanel'
 import type { AudioFile, TrimSegment } from '../types/audio'
@@ -144,7 +144,7 @@ export default function Editor() {
 
         {audioFile && (
           <>
-            <SongInfo audioFile={audioFile} />
+            <TrackSummary audioFile={audioFile} />
             <div className="rounded-[18px] border border-white/[0.1] overflow-hidden" style={{ background: 'rgba(24,24,28,.78)' }}>
               <AudioPlayer ref={audioRef} audioFile={audioFile} onTimeUpdate={setCurrentTime} />
             </div>

@@ -3,7 +3,7 @@ import { ImageSearchBlock } from './ImageSearchBlock'
 import { t, lang } from '../../i18n'
 import { toCyrillicArtist } from '../../lib/cyrillicNames'
 
-interface SongInfoProps {
+interface TrackSummaryProps {
   audioFile: AudioFile
 }
 
@@ -21,7 +21,8 @@ function parseFeat(raw: string): { cleanTitle: string; feat: string | null } {
   return { cleanTitle: (m[1] + m[4]).trim(), feat: m[3].trim() }
 }
 
-export function SongInfo({ audioFile }: SongInfoProps) {
+// Карточка загруженного трека в редакторе: обложка, название, исполнитель, альбом, ссылка на Genius
+export function TrackSummary({ audioFile }: TrackSummaryProps) {
   const { title: rawTitle, album, coverArt, year, geniusUrl, isCover } = audioFile
   const artist = lang === 'ru' ? toCyrillicArtist(audioFile.artist) : audioFile.artist
   const { cleanTitle: title, feat } = parseFeat(rawTitle)
