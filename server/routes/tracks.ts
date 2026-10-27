@@ -2,6 +2,8 @@ import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { cacheGet, cacheSet } from '../lib/cache.js';
 import { searchTracks, getTrack, searchArtists, getArtistAlbums, getAlbumTracks, type SpotifyArtistResult, type ArtistAlbum } from '../lib/spotify.js';
 import { searchSong, parseTagsFromHtml } from '../lib/genius.js';
+import { fetchGeniusHtml } from '../lib/scrape.js';
+import { normKey, namesOverlap } from '../lib/text.js';
 import { extractLyricsText } from '../lib/lyricsCompare.js';
 import { getTrackInfo } from '../lib/lastfm.js';
 import { getTrackInfo as getYandexTrackInfo } from '../lib/yandex.js';
@@ -330,8 +332,6 @@ router.openapi(lrcRoute, async (c) => {
   try {
     type LrcResult = { syncedLyrics: string | null; artistName?: string; trackName?: string };
 
-    const normName = (s: string) => s.toLowerCase().replace(/[^a-zа-яё0-9]/gi, '');
-
     const fetchLrc = async (params: URLSearchParams, preferArtist?: string) => {
       try {
         const res = await fetch(`https://lrclib.net/api/search?${params}`, {
@@ -344,8 +344,7 @@ router.openapi(lrcRoute, async (c) => {
         if (!withLyrics.length) return null;
         // Если есть предпочтительный исполнитель — ищем совпадение по нему
         if (preferArtist) {
-          const norm = normName(preferArtist);
-          const match = withLyrics.find(r => normName(r.artistName ?? '').includes(norm) || norm.includes(normName(r.artistName ?? '')));
+          const match = withLyrics.find(r => namesOverlap(r.artistName ?? '', preferArtist));
           if (match) return match;
         }
         return withLyrics[0];
@@ -423,61 +422,8 @@ router.openapi(lyricsRoute, async (c) => {
   if (cachedByUrl) return c.json({ ...cachedByUrl, url: lyricsUrl }, 200);
 
   try {
-    const scraperapiKeys = [
-      ...(process.env.SCRAPERAPI_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean),
-      ...(process.env.SCRAPERAPI_KEY ? [process.env.SCRAPERAPI_KEY] : []),
-    ];
-    const scraperbeeKeys = (process.env.SCRAPERBEE_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean);
-    const proxyBase = process.env.SCRAPE_PROXY_URL;
-
-    const directHeaders = {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.5',
-    };
-
-    let html = '';
-
-    for (const key of scraperbeeKeys) {
-      const res = await fetch(`https://app.scrapingbee.com/api/v1/?api_key=${key}&url=${encodeURIComponent(lyricsUrl)}&render_js=false`, { signal: AbortSignal.timeout(15000) });
-      console.log('[lyrics] scraperbee status:', res.status);
-      if (res.ok) { html = await res.text(); break; }
-    }
-
-    if (!html) {
-      for (const key of scraperapiKeys) {
-        const res = await fetch(`http://api.scraperapi.com?api_key=${key}&url=${encodeURIComponent(lyricsUrl)}`, { signal: AbortSignal.timeout(15000) });
-        console.log('[lyrics] scraperapi status:', res.status);
-        if (res.ok) { html = await res.text(); break; }
-      }
-    }
-
-    if (!html) {
-      const scraperdoKeys = [
-        ...(process.env.SCRAPERDO_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean),
-        ...(process.env.SCRAPERDO_KEY ? [process.env.SCRAPERDO_KEY] : []),
-      ];
-      for (const key of scraperdoKeys) {
-        try {
-          const res = await fetch(`https://api.scrape.do?token=${key}&url=${encodeURIComponent(lyricsUrl)}`, { signal: AbortSignal.timeout(30000) });
-          console.log('[lyrics] scrapedo status:', res.status);
-          if (res.ok) { html = await res.text(); break; }
-        } catch { /* try next */ }
-      }
-    }
-
-    if (!html && proxyBase) {
-      const res = await fetch(`${proxyBase}/api/scrape?url=${encodeURIComponent(lyricsUrl)}`, { signal: AbortSignal.timeout(15000) });
-      console.log('[lyrics] proxy status:', res.status);
-      if (res.ok) html = await res.text();
-    }
-
-    if (!html) {
-      const res = await fetch(lyricsUrl, { headers: directHeaders, signal: AbortSignal.timeout(15000) });
-      console.log('[lyrics] direct status:', res.status);
-      if (!res.ok) return c.json({ sections: [] }, 200);
-      html = await res.text();
-    }
+    const html = await fetchGeniusHtml(lyricsUrl);
+    if (!html) return c.json({ sections: [] }, 200);
     console.log('[lyrics] html length:', html.length, 'has container:', html.includes('data-lyrics-container'));
     const sections = parseGeniusLyrics(html);
     console.log('[lyrics] parsed sections:', sections.length);
@@ -497,8 +443,6 @@ router.openapi(lyricsRoute, async (c) => {
 
 router.openapi(searchRoute, async (c) => {
   const { q, artist } = c.req.valid('query');
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-
   // Запрашиваем Spotify-треки, iTunes-треки и артистов параллельно
   const [spotifyTracks, itunesTracks, spotifyArtists, itunesArtists] = await Promise.all([
     searchTracks(q, artist).catch(() => [] as Awaited<ReturnType<typeof searchTracks>>),
@@ -514,10 +458,10 @@ router.openapi(searchRoute, async (c) => {
   if (spotifyTracks.length > 0) {
     // Enrich Spotify tracks with iTunes previews and covers
     const tryMatch = (track: (typeof spotifyTracks)[0]) => {
-      const tNorm = norm(track.title);
-      const aNorm = norm(track.artist.split(',')[0]);
+      const tNorm = normKey(track.title);
+      const mainArtist = track.artist.split(',')[0];
       return itunesTracks.find(it =>
-        norm(it.title) === tNorm && (norm(it.artist.split(',')[0]).includes(aNorm) || aNorm.includes(norm(it.artist.split(',')[0])))
+        normKey(it.title) === tNorm && namesOverlap(it.artist.split(',')[0], mainArtist)
       );
     };
     let enriched = spotifyTracks.map(t => {
@@ -544,18 +488,14 @@ router.openapi(searchRoute, async (c) => {
     }
 
     // Append unique iTunes tracks not covered by Spotify (полезно для русского контента)
-    const seenKey = new Set(enriched.map(t => norm(t.title) + '|' + norm(t.artist.split(',')[0])));
-    const extraItunes = itunesTracks.filter(t =>
-      !seenKey.has(norm(t.title) + '|' + norm(t.artist.split(',')[0]))
-    );
+    const trackKey = (t: { title: string; artist: string }) => normKey(t.title) + '|' + normKey(t.artist.split(',')[0]);
+    const seenKey = new Set(enriched.map(trackKey));
+    const extraItunes = itunesTracks.filter(t => !seenKey.has(trackKey(t)));
     allTracks = [...enriched, ...extraItunes];
   } else {
     // Spotify недоступен — используем iTunes напрямую
     allTracks = itunesTracks;
   }
-
-  // Нормализация без отбрасывания кириллицы — для сопоставления имён
-  const normFull = (s: string) => s.toLowerCase().replace(/[\s\-_.,!?'"]/g, '');
 
   // Доминирующий жанр из iTunes-артистов этого поиска (fallback для Spotify без жанров)
   const genreFreq = new Map<string, number>();
@@ -565,16 +505,8 @@ router.openapi(searchRoute, async (c) => {
 
   // Обогащаем артиста: фото из треков, жанр из iTunes (точное совпадение → fallback)
   const enrichArtist = (a: SpotifyArtistResult): SpotifyArtistResult => {
-    const aNorm = norm(a.name);
-    const aNormFull = normFull(a.name);
-    const itunesMatch = itunesArtists.find(it => {
-      const itFull = normFull(it.name);
-      return itFull === aNormFull || itFull.includes(aNormFull) || aNormFull.includes(itFull);
-    });
-    const trackMatch = a.image_url ? null : allTracks.find(it => {
-      const tArtist = norm(it.artist.split(',')[0]);
-      return tArtist.includes(aNorm) || aNorm.includes(tArtist);
-    });
+    const itunesMatch = itunesArtists.find(it => namesOverlap(it.name, a.name));
+    const trackMatch = a.image_url ? null : allTracks.find(it => namesOverlap(it.artist.split(',')[0], a.name));
     const genres = a.genres.length > 0 ? a.genres
       : itunesMatch?.genres.length ? itunesMatch.genres
       : fallbackGenre;
@@ -583,24 +515,24 @@ router.openapi(searchRoute, async (c) => {
 
   // Объединяем артистов: Spotify первый (лучше данные), затем уникальные из iTunes
   const enrichedSpotify = spotifyArtists.map(enrichArtist);
-  const seenArtistNorm = new Set(enrichedSpotify.map(a => norm(a.name)));
+  const seenArtistNorm = new Set(enrichedSpotify.map(a => normKey(a.name)));
   const uniqueItunes = itunesArtists
     .map(enrichArtist)
     // iTunes: только если запрос есть в имени (убирает нерелевантные вроде 五月天)
     .filter(a => {
-      const n = norm(a.name);
+      const n = normKey(a.name);
       if (seenArtistNorm.has(n)) return false;
       seenArtistNorm.add(n);
       return true;
     });
 
   // Дополнительно: артисты из треков у которых запрос встречается в имени (ловит "Black Stone Cherry" при поиске "stone")
-  const qNorm = norm(q);
+  const qNorm = normKey(q);
   const fromTracks: SpotifyArtistResult[] = [];
-  const seenFromTracks = new Set([...seenArtistNorm, ...uniqueItunes.map(a => norm(a.name))]);
+  const seenFromTracks = new Set([...seenArtistNorm, ...uniqueItunes.map(a => normKey(a.name))]);
   for (const t of allTracks) {
     for (const part of t.artist.split(/,|feat\.|&/i).map(s => s.trim())) {
-      const pNorm = norm(part);
+      const pNorm = normKey(part);
       if (!pNorm || !pNorm.includes(qNorm) || seenFromTracks.has(pNorm)) continue;
       seenFromTracks.add(pNorm);
       fromTracks.push({
@@ -619,7 +551,7 @@ router.openapi(searchRoute, async (c) => {
   const seenImg = new Set<string>();
   const seenFinalName = new Set<string>();
   const dedupedArtists = [...enrichedSpotify, ...uniqueItunes, ...fromTracks].filter(a => {
-    const n = norm(a.name);
+    const n = normKey(a.name);
     if (seenFinalName.has(n)) return false;
     seenFinalName.add(n);
     if (a.image_url) {
@@ -631,8 +563,8 @@ router.openapi(searchRoute, async (c) => {
 
   // Сортировка: сначала по близости к запросу, затем по популярности
   const scored = dedupedArtists.map(a => {
-    const n = norm(a.name);
-    const qn = norm(q);
+    const n = normKey(a.name);
+    const qn = normKey(q);
     let score = 0;
     if (n === qn) score += 2000;
     else if (n.startsWith(qn)) score += 1000;
@@ -793,13 +725,13 @@ router.openapi(relatedArtistsRoute, async (c) => {
   const tracks = await searchTracksItunes(genre, undefined, 50, country).catch(() => []);
   if (!tracks.length) return c.json([], 200);
 
-  const normName = name.toLowerCase().replace(/[^a-zа-я0-9]/gi, '');
+  const normName = normKey(name);
   const seen = new Map<string, { cover_url: string | null; count: number }>();
 
   for (const t of tracks) {
     const parts = t.artist.split(/,|&/).map(s => s.trim()).filter(Boolean);
     for (const part of parts) {
-      const key = part.toLowerCase().replace(/[^a-zа-я0-9]/gi, '');
+      const key = normKey(part);
       if (!key || key.includes(normName) || normName.includes(key)) continue;
       const existing = seen.get(key);
       if (existing) { existing.count++; }
@@ -814,7 +746,7 @@ router.openapi(relatedArtistsRoute, async (c) => {
   const result: SpotifyArtistResult[] = sorted.map(([key, v]) => {
     const originalName = tracks
       .flatMap(t => t.artist.split(/,|&/).map(s => s.trim()))
-      .find(s => s.toLowerCase().replace(/[^a-zа-я0-9]/gi, '') === key) ?? key;
+      .find(s => normKey(s) === key) ?? key;
     return {
       id: `itunes:related:${encodeURIComponent(originalName)}`,
       name: originalName,

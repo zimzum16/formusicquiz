@@ -1,9 +1,7 @@
-const BASE = 'https://api.genius.com';
+import { fetchGeniusHtml } from './scrape.js';
+import { namesOverlap } from './text.js';
 
-const PAGE_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Accept': 'text/html',
-};
+const BASE = 'https://api.genius.com';
 
 interface GeniusArtistRef {
   name: string;
@@ -59,14 +57,6 @@ function toRelated(s: { title: string; primary_artist: { name: string }; url: st
   return { title: s.title, artist: s.primary_artist.name, genius_url: s.url };
 }
 
-function artistMatches(resultArtist: string, searchArtist: string): boolean {
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
-  const a = norm(resultArtist);
-  const b = norm(searchArtist);
-  if (a.length === 0 || b.length === 0) return false;
-  return a.includes(b) || b.includes(a);
-}
-
 export function parseTagsFromHtml(html: string): string[] {
   const decode = (s: string) =>
     s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
@@ -96,65 +86,9 @@ export function parseTagsFromHtml(html: string): string[] {
 }
 
 async function scrapeTags(lyricsUrl: string): Promise<string[]> {
-  const fetchHtml = async (): Promise<string> => {
-    // Try direct first — free, works when VPS IP isn't blocked
-    try {
-      const res = await fetch(lyricsUrl, { headers: PAGE_HEADERS, signal: AbortSignal.timeout(10000) });
-      console.log('[genius] scrapeTags direct status:', res.status);
-      if (res.ok) return res.text();
-    } catch { /* blocked, fall through to proxy */ }
-
-    // ScraperBee keys — parallel: whichever responds first wins, failed key is skipped
-    const scraperbeeKeys = (process.env.SCRAPERBEE_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean);
-    if (scraperbeeKeys.length > 0) {
-      try {
-        const html = await Promise.any(
-          scraperbeeKeys.map(key =>
-            fetch(`https://app.scrapingbee.com/api/v1/?api_key=${key}&url=${encodeURIComponent(lyricsUrl)}&render_js=false`, { signal: AbortSignal.timeout(9000) })
-              .then(res => {
-                console.log('[genius] scrapeTags scraperbee status:', res.status, `(key ...${key.slice(-6)})`);
-                if (!res.ok) return Promise.reject(new Error(`scraperbee ${res.status}`));
-                return res.text();
-              })
-          )
-        );
-        if (html) return html;
-      } catch { /* all ScraperBee keys failed */ }
-    }
-
-    // ScraperAPI keys — sequential (keys have separate quotas)
-    const scraperKeys = [
-      ...(process.env.SCRAPERAPI_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean),
-      ...(process.env.SCRAPERAPI_KEY ? [process.env.SCRAPERAPI_KEY] : []),
-    ];
-    for (const key of scraperKeys) {
-      try {
-        const res = await fetch(`http://api.scraperapi.com?api_key=${key}&url=${encodeURIComponent(lyricsUrl)}`, { signal: AbortSignal.timeout(9000) });
-        console.log('[genius] scrapeTags scraperapi status:', res.status);
-        if (res.ok) return res.text();
-      } catch { /* try next */ }
-    }
-
-    // ScraperDo keys — sequential
-    const scraperdoKeys = [
-      ...(process.env.SCRAPERDO_KEYS ?? '').split(',').map(k => k.trim()).filter(Boolean),
-      ...(process.env.SCRAPERDO_KEY ? [process.env.SCRAPERDO_KEY] : []),
-    ];
-    for (const key of scraperdoKeys) {
-      try {
-        const res = await fetch(`https://api.scrape.do?token=${key}&url=${encodeURIComponent(lyricsUrl)}`, { signal: AbortSignal.timeout(30000) });
-        console.log('[genius] scrapeTags scrapedo status:', res.status);
-        if (res.ok) return res.text();
-      } catch { /* try next */ }
-    }
-    return '';
-  };
-
   try {
-    const html = await fetchHtml();
-    if (!html) return [];
-
-    return parseTagsFromHtml(html);
+    const html = await fetchGeniusHtml(lyricsUrl);
+    return html ? parseTagsFromHtml(html) : [];
   } catch (e) {
     console.error('[genius] scrapeTags error:', e);
     return [];
@@ -182,9 +116,9 @@ function pickHit(hits: GeniusHit[], artist: string): GeniusHit | null {
   const lyricHits = hits.filter((h) => h.result.url.endsWith('-lyrics'));
   // Prefer artist match, then any lyrics page, then any hit as last resort
   return (
-    lyricHits.find((h) => artistMatches(h.result.primary_artist.name, artist)) ??
+    lyricHits.find((h) => namesOverlap(h.result.primary_artist.name, artist)) ??
     lyricHits[0] ??
-    hits.find((h) => artistMatches(h.result.primary_artist.name, artist)) ??
+    hits.find((h) => namesOverlap(h.result.primary_artist.name, artist)) ??
     null
   );
 }

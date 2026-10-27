@@ -1,3 +1,5 @@
+import { namesOverlap } from './text.js';
+
 const BASE = 'https://www.googleapis.com/youtube/v3';
 
 export interface YoutubeResult {
@@ -27,13 +29,6 @@ async function fetchStats(videoId: string, key: string) {
   return data.items?.[0]?.statistics ?? null;
 }
 
-function artistMatch(channelTitle: string, artist: string): boolean {
-  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const ch = normalize(channelTitle);
-  const ar = normalize(artist);
-  return ch.includes(ar) || ar.includes(ch);
-}
-
 export async function findVideo(title: string, artist: string): Promise<YoutubeResult> {
   const search_url = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${artist} ${title} official`)}`;
 
@@ -53,7 +48,7 @@ export async function findVideo(title: string, artist: string): Promise<YoutubeR
   }
 
   // Prefer a result from the artist's own channel
-  const official = items.find(item => artistMatch(item.snippet.channelTitle, artist));
+  const official = items.find(item => namesOverlap(item.snippet.channelTitle, artist));
   const best = official ?? items[0];
   const videoId = best.id.videoId;
 

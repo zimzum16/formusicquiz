@@ -75,7 +75,9 @@ server/
   app.ts                — Hono-приложение: роуты, CORS, /api/scrape, /api/img, OpenAPI (/docs)
   index.ts              — точка входа для Node; api/index.ts — для Vercel
   routes/               — tracks, info, feedback; auth.ts (написан, но не смонтирован в app.ts)
-  lib/                  — клиенты внешних API, cache.ts (память + Upstash)
+  lib/                  — клиенты внешних API, cache.ts (память + Upstash),
+                          scrape.ts (fetchGeniusHtml: каскад direct → прокси → скрейперы),
+                          text.ts (normKey/namesOverlap — сравнение имён, любой алфавит)
   db.ts, middleware/session.ts — SQLite users/sessions и JWT, нужны только auth
 ```
 

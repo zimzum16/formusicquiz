@@ -1,3 +1,5 @@
+import { namesOverlap } from './text.js';
+
 const RSS_BASE = 'https://rss.applemarketingtools.com/api/v2';
 const CHART_TTL = 60 * 60 * 1000;
 
@@ -17,21 +19,8 @@ export interface AppleMusicData {
 
 const chartCaches = new Map<Country, { data: ChartItem[]; ts: number }>();
 
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/\(feat\..*?\)/gi, '')
-    .replace(/[^a-z0-9\s]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function isMatch(a: string, b: string): boolean {
-  const na = normalize(a);
-  const nb = normalize(b);
-  if (!na || !nb) return false;
-  return na === nb || na.includes(nb) || nb.includes(na);
-}
+const stripFeat = (s: string) => s.replace(/\(feat\..*?\)/gi, '');
+const isMatch = (a: string, b: string) => namesOverlap(stripFeat(a), stripFeat(b));
 
 interface AppleRssResponse {
   feed?: { results?: Array<{ name?: string; artistName?: string }> };
