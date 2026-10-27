@@ -5,7 +5,7 @@
 **Функции:**
 - Поиск трека — метаданные через Spotify API, текст через Genius API
 - Аудиоредактор — загрузка MP3, выбор фрагментов, fade in/out, скачивание результата
-- Авторизация — регистрация и вход через собственный бэкенд
+- Авторизация — бэкенд-роуты register/login/logout/me написаны, но пока не подключены в `server/app.ts` и не используются фронтом
 
 ## Стек
 
@@ -15,7 +15,7 @@
 | Бэкенд | Node.js, Hono, better-sqlite3 |
 | База данных | SQLite (`db.sqlite`) |
 | Внешние API | Spotify API, Genius API |
-| Деплой | VPS, nginx, pm2 |
+| Деплой | Docker (VPS) + nginx или Vercel (serverless) |
 
 ## Быстрый старт
 
@@ -63,48 +63,42 @@ npm run dev
 | Переменная | Где | Описание |
 |---|---|---|
 | `VITE_API_URL` | `.env` (фронт) | URL бэкенда |
-| `JWT_SECRET` | `.env` (бэкенд) | Секрет для JWT — менять в продакшне |
-| `SPOTIFY_CLIENT_ID` | `.env` (бэкенд) | Spotify API |
-| `SPOTIFY_CLIENT_SECRET` | `.env` (бэкенд) | Spotify API |
+| `VITE_LANG` | `.env` (фронт) | Язык интерфейса: `ru` / `en` |
+| `SPOTIFY_CLIENT_ID` / `SECRET` | `.env` (бэкенд) | Spotify API |
 | `GENIUS_ACCESS_TOKEN` | `.env` (бэкенд) | Genius API |
+| `JWT_SECRET` | `.env` (бэкенд) | Секрет для JWT (auth) — менять в продакшне |
+
+Остальные ключи (Last.fm, Setlist.fm, YouTube, Яндекс Музыка, скрейперы, Upstash, ntfy) — в `.env.example`.
 
 ## Структура проекта
 
 ```
 ├── src/                  Фронтенд (React)
-│   ├── components/       Navbar, editor/ (waveform, trim, fade, результаты)
-│   ├── hooks/            useAudioEditor.ts
-│   ├── lib/              api.ts, audioUtils.ts, audioWorker.ts, mp3Container.ts, id3Parser.ts, id3Writer.ts, waveform.ts
-│   └── pages/            Home, SongInfo, Editor, Pricing, Auth, Profile
+│   ├── components/       Navbar, InfoPanel, FeedbackModal, editor/ (waveform, trim, fade, структура песни)
+│   ├── hooks/            useAudioEditor.ts, useInfo.ts
+│   ├── i18n/             ru/en-строки, язык из VITE_LANG
+│   ├── lib/              api.ts, аудио (mp3Container, id3*, waveform, audioWorker), songStructure, imageSearch
+│   └── pages/            Home, SongInfo, Editor, Pricing
 ├── server/               Бэкенд (Hono)
-│   ├── routes/           auth.ts
-│   ├── middleware/        session.ts
-│   ├── db.ts             SQLite-схема
-│   └── index.ts          Точка входа
+│   ├── app.ts            Hono-приложение: роуты, CORS, /api/scrape, /api/img, OpenAPI
+│   ├── index.ts          Точка входа для Node (VPS/Docker)
+│   ├── routes/           tracks, info, feedback; auth (не подключён)
+│   ├── lib/              клиенты Spotify, Genius, iTunes, Last.fm, Setlist.fm, YouTube, Яндекс, Apple Music, Wiki; cache
+│   ├── middleware/       session.ts (JWT, для auth)
+│   └── db.ts             SQLite-схема users/sessions (для auth)
+├── api/index.ts          Точка входа для Vercel
 ├── .env.example          Шаблон переменных окружения
 └── db.sqlite             База данных (не коммитится)
 ```
 
-## Деплой на VPS
+## Деплой
 
-```bash
-# Собрать фронтенд
-npm run build            # → dist/
+**Docker (VPS):** `Dockerfile.frontend` собирает фронт и отдаёт его через nginx (`nginx.conf`, `/api/*` проксируется на `api.trackslice.ru`); `server/Dockerfile` собирает бэкенд (SQLite в `/data/db.sqlite`).
 
-# Собрать бэкенд
-cd server && npm run build   # → server/dist/
-
-# Запустить бэкенд через pm2
-pm2 start server/dist/index.js --name soundlens-api
-
-# nginx: / → dist/, /api/* → localhost:3001
-```
-
-Пример конфига nginx — см. `nginx.conf.example` (появится в Этапе 4).
+**Vercel:** `vercel.json` + `api/index.ts` — бэкенд как serverless-функция. Genius блокирует IP Vercel, поэтому скрейпинг идёт через `SCRAPE_PROXY_URL` (VPS-эндпоинт `/api/scrape`), кэш — Upstash Redis.
 
 ## Безопасность
 
 - `.env` и `db.sqlite` не коммитятся (прописано в `.gitignore`)
 - API-ключи Spotify и Genius хранятся только на сервере, фронт их не видит
-- Пароли хэшируются через bcrypt
-- Сессии хранятся в SQLite, JWT подписан `JWT_SECRET`
+- Auth (когда будет подключён): пароли через bcrypt, сессии в SQLite, JWT подписан `JWT_SECRET`

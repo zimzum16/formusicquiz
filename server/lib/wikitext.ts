@@ -27,7 +27,7 @@ export interface Certification {
 
 // ── Общие помощники ───────────────────────────────────────────────────────────
 
-export function cleanWikitext(s: string): string {
+function cleanWikitext(s: string): string {
   return s
     .replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1')  // [[Ссылка|текст]] → текст
     .replace(/\{\{[^{}]*\}\}/g, '')

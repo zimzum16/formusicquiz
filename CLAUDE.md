@@ -13,10 +13,11 @@ MVP музыкального сервиса: поиск информации о 
 **База данных:** SQLite — файл `db.sqlite` в корне, не коммитится
 
 **Внешние API** — только через бэкенд, ключи не на фронте:
-- Spotify API (поиск, метаданные, обложки)
-- Genius API (текст, авторы)
+- Spotify, iTunes, Apple Music (поиск, метаданные, обложки)
+- Genius (API + скрейпинг страниц через ScrapingBee/ScraperAPI/scrape.do)
+- Last.fm, Setlist.fm, YouTube, Яндекс Музыка, Wikidata/Wikipedia/MusicBrainz
 
-**Деплой:** собственный VPS, nginx, pm2
+**Деплой:** два варианта, оба поддерживаются — Docker на VPS (`Dockerfile.frontend` + nginx, `server/Dockerfile`) и Vercel (`vercel.json`, `api/index.ts`)
 
 ## Команды
 
@@ -37,40 +38,44 @@ cd server && npx tsc --noEmit            # проверка типов
 
 ```
 VITE_API_URL            — URL бэкенда (фронт)
+VITE_LANG               — язык интерфейса ru | en (фронт)
 PORT                    — порт бэкенда (по умолчанию 3001)
-FRONTEND_URL            — для CORS (по умолчанию http://localhost:5173)
-JWT_SECRET              — менять в продакшне
-SPOTIFY_CLIENT_ID/SECRET
-GENIUS_ACCESS_TOKEN
+FRONTEND_URL            — для CORS
+JWT_SECRET, DB_PATH     — для auth (роуты пока не подключены)
+SPOTIFY_CLIENT_ID/SECRET, GENIUS_ACCESS_TOKEN, LASTFM_API_KEY, SETLISTFM_API_KEY,
+YOUTUBE_API_KEY, YANDEX_MUSIC_TOKEN, WIKI_USER_AGENT
+SCRAPERBEE_KEYS, SCRAPERAPI_KEY(S), SCRAPERDO_KEY(S), SCRAPE_PROXY_URL — скрейпинг Genius
+UPSTASH_REDIS_REST_URL/TOKEN — кэш (без них — в памяти)
+NTFY_TOPIC              — уведомления о фидбеке
 ```
 
 ## Структура
 
 ```
 src/
-  App.tsx               — роутер на useState<Page>, восстановление сессии при mount
+  App.tsx               — роутер на useState<Page>, футер с переключением языка и фидбеком
+  i18n/                 — ru/en-строки, язык из VITE_LANG
   hooks/
     useAudioEditor.ts   — состояние редактора: загрузка, сегменты, экспорт
+    useInfo.ts          — загрузка инфо об артисте/альбоме
   lib/
-    api.ts              — fetch-клиент, авто-подстановка JWT из localStorage
+    api.ts              — fetch-клиент и типы ответов бэкенда
     audioUtils.ts       — экспорт сегмента: по фреймам (exportMp3Segment) или через PCM (processAudioSegment)
     audioWorker.ts      — Web Worker: кодирование PCM → MP3 (lamejs), битрейт передаётся снаружи
     mp3Container.ts     — разбор MP3-фреймов, битрейт/VBR, нарезка без перекодирования, Xing-заголовок
     id3Parser.ts        — чтение ID3v2 из исходника (читает только тег, не весь файл)
     id3Writer.ts        — запись ID3v2.3 в нарезанные фрагменты + загрузка обложки
     waveform.ts         — пики waveform (computePeaks) и отрисовка на canvas
-  pages/
-    Auth.tsx            — вход/регистрация → POST /api/auth/login|register
-    Profile.tsx         — показывает реальный email из authUser
-    Editor.tsx          — загрузка MP3, сегменты, fade (Supabase убрать в Этапе 2)
-    SongInfo.tsx        — поиск трека (mock, подключить API в Этапе 3)
-    Home.tsx, Pricing.tsx
+    songStructure.ts    — разметка куплет/припев/бридж по тексту
+  components/           — Navbar, InfoPanel, FeedbackModal, editor/*
+  pages/                — Home, SongInfo, Editor, Pricing
 
 server/
-  index.ts              — Hono, CORS, логгер, порт
-  db.ts                 — SQLite, таблицы users + sessions
-  routes/auth.ts        — /register, /login, /logout (requireAuth), /me
-  middleware/session.ts — JWT-верификация + проверка сессии в БД
+  app.ts                — Hono-приложение: роуты, CORS, /api/scrape, /api/img, OpenAPI (/docs)
+  index.ts              — точка входа для Node; api/index.ts — для Vercel
+  routes/               — tracks, info, feedback; auth.ts (написан, но не смонтирован в app.ts)
+  lib/                  — клиенты внешних API, cache.ts (память + Upstash)
+  db.ts, middleware/session.ts — SQLite users/sessions и JWT, нужны только auth
 ```
 
 ## Роутинг
@@ -82,19 +87,18 @@ server/
 | Фича | Статус |
 |---|---|
 | UI все страницы | ✅ |
-| Auth (register/login/logout/me) | ✅ |
-| Восстановление сессии при перезагрузке | ✅ |
-| Supabase убрать из Editor | ⏳ Этап 2 |
+| Auth (register/login/logout/me) | ⏳ код на бэкенде есть, не подключён к app.ts и фронту |
 | Обрезка аудио (Web Audio API) | ✅ |
 | ID3-теги в нарезанных файлах | ✅ |
 | Waveform по пикам, без хранения PCM | ✅ |
 | Резка по MP3-фреймам без перекодирования | ✅ |
-| Spotify + Genius API | ⏳ Этап 3 |
-| nginx.conf + pm2 | ⏳ Этап 4 |
+| Spotify + Genius + прочие источники | ✅ |
+| Деплой: Docker/nginx и Vercel | ✅ |
 
 ## Важные решения
 
-- Supabase был убран в пользу собственного бэкенда на Hono + SQLite
+- Supabase убран в пользу собственного бэкенда на Hono
+- Vercel и auth сохраняются намеренно, даже если сейчас не используются
 - Обрезка аудио — в браузере через Web Audio API, серверный FFmpeg не нужен
 - Резка MP3 — по границам фреймов (~26 мс), без декодирования: битрейт и качество исходника
   сохраняются один в один. При загрузке `scanFrames` строит таблицу фреймов (`mp3Frames` в хуке).
