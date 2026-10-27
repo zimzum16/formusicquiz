@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { Page } from '../App';
 import { t } from '../i18n';
 
@@ -50,22 +50,69 @@ const SmallWaveformIcon = () => (
   </svg>
 );
 
-const SongInfoPreview = ({ onClick }: { onClick: () => void }) => (
-  <img
-    src="/preview-song-info.png"
-    alt="track"
-    onClick={e => { e.stopPropagation(); onClick(); }}
-    style={{ width: '100%', borderRadius: 14, display: 'block', cursor: 'zoom-in' }}
-  />
-);
+interface FeatureCardProps {
+  label: string;
+  icon: ReactNode;
+  title: string;          // \n — перенос строки
+  desc: string;
+  preview: { src: string; alt: string };
+  isMobile: boolean;
+  titleOffset?: number;   // marginTop заголовка; в вёрстке он был только у slicer
+  onOpen: () => void;
+  onZoom: (src: string) => void;
+}
 
-const EditorPreview = ({ onClick }: { onClick: () => void }) => (
-  <img
-    src="/preview-editor.png"
-    alt="slicer"
-    onClick={e => { e.stopPropagation(); onClick(); }}
-    style={{ width: '100%', borderRadius: 14, display: 'block', cursor: 'zoom-in' }}
-  />
+const FeatureCard = ({ label, icon, title, desc, preview, isMobile, titleOffset, onOpen, onZoom }: FeatureCardProps) => (
+  <div
+    onClick={onOpen}
+    style={{
+      background: 'rgba(14,15,18,.95)',
+      border: '1px solid rgba(255,255,255,.07)',
+      borderRadius: 24, overflow: 'hidden',
+      display: 'flex', flexDirection: 'column',
+      cursor: 'pointer', transition: 'border-color .2s',
+    }}
+    onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(45,212,191,.25)')}
+    onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)')}
+  >
+    <div style={{ padding: '32px 32px 24px', textAlign: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 }}>
+        <div style={{
+          width: 28, height: 28, borderRadius: 8,
+          background: 'rgba(45,212,191,.12)',
+          border: '1px solid rgba(45,212,191,.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          overflow: 'hidden',
+        }}>
+          {icon}
+        </div>
+        <span style={{
+          fontFamily: 'Montserrat, sans-serif',
+          fontSize: 13, fontWeight: 700,
+          letterSpacing: '.16em', textTransform: 'uppercase',
+          color: '#2DD4BF',
+        }}>{label}</span>
+      </div>
+      <h2 style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-.03em', color: '#aaa', marginBottom: isMobile ? 0 : 8, lineHeight: 1.2, marginTop: titleOffset }}>
+        {title.split('\n').map((line, i, arr) => (
+          <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
+        ))}
+      </h2>
+      {!isMobile && (
+        <p style={{ fontSize: 13, color: '#999', fontWeight: 500, lineHeight: 1.6 }}>
+          {desc}
+        </p>
+      )}
+    </div>
+    <div style={{ padding: '0 20px 20px', flex: 1 }}>
+      <img
+        src={preview.src}
+        alt={preview.alt}
+        onClick={e => { e.stopPropagation(); onZoom(preview.src); }}
+        style={{ width: '100%', borderRadius: 14, display: 'block', cursor: 'zoom-in' }}
+      />
+    </div>
+  </div>
 );
 
 export default function Home({ navigate }: HomeProps) {
@@ -117,96 +164,27 @@ export default function Home({ navigate }: HomeProps) {
         {/* Two cards */}
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 16 : 20 }}>
 
-          {/* track */}
-          <div
-            onClick={() => navigate('song-info')}
-            style={{
-              background: 'rgba(14,15,18,.95)',
-              border: '1px solid rgba(255,255,255,.07)',
-              borderRadius: 24, overflow: 'hidden',
-              display: 'flex', flexDirection: 'column',
-              cursor: 'pointer', transition: 'border-color .2s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(45,212,191,.25)')}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)')}
-          >
-            <div style={{ padding: '32px 32px 24px', textAlign: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: 8,
-                  background: 'rgba(45,212,191,.12)',
-                  border: '1px solid rgba(45,212,191,.2)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <SearchIcon />
-                </div>
-                <span style={{
-                  fontFamily: 'Montserrat, sans-serif',
-                  fontSize: 13, fontWeight: 700,
-                  letterSpacing: '.16em', textTransform: 'uppercase',
-                  color: '#2DD4BF',
-                }}>track</span>
-              </div>
-              <h2 style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-.03em', color: '#aaa', marginBottom: isMobile ? 0 : 8, lineHeight: 1.2 }}>
-                {t.home_track_title}
-              </h2>
-              {!isMobile && (
-                <p style={{ fontSize: 13, color: '#999', fontWeight: 500, lineHeight: 1.6 }}>
-                  {t.home_track_desc}
-                </p>
-              )}
-            </div>
-            <div style={{ padding: '0 20px 20px', flex: 1 }}>
-              <SongInfoPreview onClick={() => setLightbox('/preview-song-info.png')} />
-            </div>
-          </div>
-
-          {/* slicer */}
-          <div
-            onClick={() => navigate('editor')}
-            style={{
-              background: 'rgba(14,15,18,.95)',
-              border: '1px solid rgba(255,255,255,.07)',
-              borderRadius: 24, overflow: 'hidden',
-              display: 'flex', flexDirection: 'column',
-              cursor: 'pointer', transition: 'border-color .2s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(45,212,191,.25)')}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,.07)')}
-          >
-            <div style={{ padding: '32px 32px 24px', textAlign: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: 8,
-                  background: 'rgba(45,212,191,.12)',
-                  border: '1px solid rgba(45,212,191,.2)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  overflow: 'hidden',
-                }}>
-                  <SmallWaveformIcon />
-                </div>
-                <span style={{
-                  fontFamily: 'Montserrat, sans-serif',
-                  fontSize: 13, fontWeight: 700,
-                  letterSpacing: '.16em', textTransform: 'uppercase',
-                  color: '#2DD4BF',
-                }}>slicer</span>
-              </div>
-              <h2 style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-.03em', color: '#aaa', marginBottom: isMobile ? 0 : 8, lineHeight: 1.2, marginTop: 8 }}>
-                {t.home_slicer_title.split('\n').map((line, i, arr) => (
-                  <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
-                ))}
-              </h2>
-              {!isMobile && (
-                <p style={{ fontSize: 13, color: '#999', fontWeight: 500, lineHeight: 1.6 }}>
-                  {t.home_slicer_desc}
-                </p>
-              )}
-            </div>
-            <div style={{ padding: '0 20px 20px', flex: 1 }}>
-              <EditorPreview onClick={() => setLightbox('/preview-editor.png')} />
-            </div>
-          </div>
+          <FeatureCard
+            label="track"
+            icon={<SearchIcon />}
+            title={t.home_track_title}
+            desc={t.home_track_desc}
+            preview={{ src: '/preview-song-info.png', alt: 'track' }}
+            isMobile={isMobile}
+            onOpen={() => navigate('song-info')}
+            onZoom={setLightbox}
+          />
+          <FeatureCard
+            label="slicer"
+            icon={<SmallWaveformIcon />}
+            title={t.home_slicer_title}
+            desc={t.home_slicer_desc}
+            preview={{ src: '/preview-editor.png', alt: 'slicer' }}
+            isMobile={isMobile}
+            titleOffset={8}
+            onOpen={() => navigate('editor')}
+            onZoom={setLightbox}
+          />
 
         </div>
       </div>

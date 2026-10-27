@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, type ReactNode, type RefObject } from 'react'
 import { t } from '../i18n'
 import { useAudioEditor } from '../hooks/useAudioEditor'
 import { AudioPlayer } from '../components/editor/AudioPlayer'
@@ -10,6 +10,71 @@ import { ProcessedResults } from '../components/editor/ProcessedResults'
 import { SongInfo } from '../components/editor/SongInfo'
 import { FileUpload } from '../components/editor/FileUpload'
 import { SongStructurePanel } from '../components/editor/SongStructurePanel'
+import type { AudioFile, TrimSegment } from '../types/audio'
+import type { SongMarker } from '../lib/songStructure'
+
+const CENTERED = 'max-w-[1060px] mx-auto w-full px-4 sm:px-6 lg:px-8'
+
+interface SegmentWaveformProps {
+  audioFile: AudioFile
+  segment: TrimSegment
+  canRemove: boolean
+  peaks: Float32Array | null
+  markers: SongMarker[]
+  isAnalyzing: boolean
+  audioRef: RefObject<HTMLAudioElement | null>
+  currentTime: number
+  onSeek: (t: number) => void
+  onUpdate: (updates: Partial<TrimSegment>) => void
+  onRemove: () => void
+  inlineTrailingSlot?: ReactNode
+}
+
+// Waveform одного фрагмента со своим плеером, разметкой песни и панелью обрезки
+function SegmentWaveform({
+  audioFile, segment, canRemove, peaks, markers, isAnalyzing,
+  audioRef, currentTime, onSeek, onUpdate, onRemove, inlineTrailingSlot,
+}: SegmentWaveformProps) {
+  const range = { startTime: segment.startTime, endTime: segment.endTime }
+  const fade = { fadeIn: segment.fadeIn, fadeOut: segment.fadeOut, fadeInDuration: segment.fadeInDuration, fadeOutDuration: segment.fadeOutDuration }
+  return (
+    <WaveformDisplay
+      audioFile={audioFile}
+      currentTime={currentTime}
+      audioRef={audioRef}
+      onSeek={onSeek}
+      peaks={peaks}
+      playbackEnvelope={{ range, fade }}
+      trimRange={range}
+      trimFade={fade}
+      onTrimRangeChange={onUpdate}
+      markers={markers}
+      bottomSlot={
+        <SongStructurePanel
+          markers={markers}
+          isAnalyzing={isAnalyzing}
+          duration={audioFile.duration}
+          onApplySegment={(s, e) => onUpdate({ startTime: s, endTime: e })}
+        />
+      }
+      playToolbar={(playBtn, volumeSlot) => (
+        <div className={CENTERED}>
+          <TrimControls
+            variant="inline"
+            segment={segment}
+            audioFile={audioFile}
+            canRemove={canRemove}
+            onUpdate={onUpdate}
+            onRemove={onRemove}
+            playSlot={playBtn}
+            volumeSlot={volumeSlot}
+            inlineTrailingSlot={inlineTrailingSlot}
+          />
+        </div>
+      )}
+    />
+  )
+}
 
 export default function Editor() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -53,21 +118,18 @@ export default function Editor() {
   const seg0 = segments[0]
   const seg1 = segments[1]
 
-  const playbackEnvelope = seg0 ? {
-    range: { startTime: seg0.startTime, endTime: seg0.endTime },
-    fade: { fadeIn: seg0.fadeIn, fadeOut: seg0.fadeOut, fadeInDuration: seg0.fadeInDuration, fadeOutDuration: seg0.fadeOutDuration },
-  } : null
-
-  const playbackEnvelope2 = seg1 ? {
-    range: { startTime: seg1.startTime, endTime: seg1.endTime },
-    fade: { fadeIn: seg1.fadeIn, fadeOut: seg1.fadeOut, fadeInDuration: seg1.fadeInDuration, fadeOutDuration: seg1.fadeOutDuration },
-  } : null
-
-  const centered = 'max-w-[1060px] mx-auto w-full px-4 sm:px-6 lg:px-8'
+  // Общее для обоих фрагментов
+  const waveformProps = audioFile && {
+    audioFile,
+    canRemove: segments.length > 1,
+    peaks: waveformPeaks,
+    markers: songMarkers,
+    isAnalyzing: isAnalyzingStructure,
+  }
 
   return (
     <div className="py-8 space-y-4">
-      <div className={`${centered} space-y-4`}>
+      <div className={`${CENTERED} space-y-4`}>
         {error && (
           <div className="p-4 rounded-[14px] border border-red-500/30 bg-red-500/10">
             <p className="text-red-400 text-sm" style={{ fontFamily: 'Montserrat, sans-serif' }}>{error}</p>
@@ -95,94 +157,44 @@ export default function Editor() {
         )}
       </div>
 
-      {audioFile && seg0 && (
-        <WaveformDisplay
-          audioFile={audioFile}
-          currentTime={currentTime}
+      {waveformProps && seg0 && (
+        <SegmentWaveform
+          {...waveformProps}
+          segment={seg0}
           audioRef={audioRef}
+          currentTime={currentTime}
           onSeek={setCurrentTime}
-          peaks={waveformPeaks}
-          playbackEnvelope={playbackEnvelope}
-          trimRange={{ startTime: seg0.startTime, endTime: seg0.endTime }}
-          trimFade={{ fadeIn: seg0.fadeIn, fadeOut: seg0.fadeOut, fadeInDuration: seg0.fadeInDuration, fadeOutDuration: seg0.fadeOutDuration }}
-          onTrimRangeChange={(r) => updateSegment(seg0.id, r)}
-          markers={songMarkers}
-          bottomSlot={
-            <SongStructurePanel
-              markers={songMarkers}
-              isAnalyzing={isAnalyzingStructure}
-              duration={audioFile.duration}
-              onApplySegment={(s, e) => updateSegment(seg0.id, { startTime: s, endTime: e })}
-            />
-          }
-          playToolbar={(playBtn, volumeSlot) => (
-            <div className={centered}>
-              <TrimControls
-                variant="inline"
-                segment={seg0}
-                audioFile={audioFile}
-                canRemove={segments.length > 1}
-                onUpdate={(updates) => updateSegment(seg0.id, updates)}
-                onRemove={() => removeSegment(seg0.id)}
-                playSlot={playBtn}
-                volumeSlot={volumeSlot}
-              />
-            </div>
-          )}
+          onUpdate={(updates) => updateSegment(seg0.id, updates)}
+          onRemove={() => removeSegment(seg0.id)}
         />
       )}
 
-      {audioFile && seg1 && (
-        <WaveformDisplay
+      {waveformProps && seg1 && (
+        <SegmentWaveform
           key={seg1.id}
-          audioFile={audioFile}
-          currentTime={currentTime2}
+          {...waveformProps}
+          segment={seg1}
           audioRef={audioRef2}
+          currentTime={currentTime2}
           onSeek={setCurrentTime2}
-          peaks={waveformPeaks}
-          playbackEnvelope={playbackEnvelope2}
-          trimRange={{ startTime: seg1.startTime, endTime: seg1.endTime }}
-          trimFade={{ fadeIn: seg1.fadeIn, fadeOut: seg1.fadeOut, fadeInDuration: seg1.fadeInDuration, fadeOutDuration: seg1.fadeOutDuration }}
-          onTrimRangeChange={(r) => updateSegment(seg1.id, r)}
-          markers={songMarkers}
-          bottomSlot={
-            <SongStructurePanel
-              markers={songMarkers}
-              isAnalyzing={isAnalyzingStructure}
-              duration={audioFile.duration}
-              onApplySegment={(s, e) => updateSegment(seg1.id, { startTime: s, endTime: e })}
-            />
+          onUpdate={(updates) => updateSegment(seg1.id, updates)}
+          onRemove={() => removeSegment(seg1.id)}
+          inlineTrailingSlot={
+            <button
+              type="button"
+              onClick={() => removeSegment(seg1.id)}
+              className="text-sm font-medium text-[#2DD4BF] hover:opacity-70 transition-opacity"
+              style={{ fontFamily: 'Montserrat, sans-serif' }}
+              aria-label={t.close}
+            >
+              {t.close}
+            </button>
           }
-          playToolbar={(playBtn, volumeSlot) => (
-            <div className={centered}>
-              <TrimControls
-                variant="inline"
-                segment={seg1}
-                audioFile={audioFile}
-                canRemove={segments.length > 1}
-                onUpdate={(updates) => updateSegment(seg1.id, updates)}
-                onRemove={() => removeSegment(seg1.id)}
-                playSlot={playBtn}
-                volumeSlot={volumeSlot}
-                inlineTrailingSlot={
-                  <button
-                    type="button"
-                    onClick={() => removeSegment(seg1.id)}
-                    className="text-sm font-medium text-[#2DD4BF] hover:opacity-70 transition-opacity"
-                    style={{ fontFamily: 'Montserrat, sans-serif' }}
-                    aria-label={t.close}
-                  >
-                    {t.close}
-                  </button>
-                }
-              />
-            </div>
-          )}
         />
       )}
 
       {audioFile && (
-        <div className={`${centered} space-y-4`}>
+        <div className={`${CENTERED} space-y-4`}>
           <MultiTrimPanel
             segments={segments}
             audioFile={audioFile}

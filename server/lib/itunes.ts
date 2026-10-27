@@ -146,20 +146,8 @@ export async function getAlbumTracksItunes(albumId: string): Promise<SpotifyTrac
     const albumCover = albumMeta?.artworkUrl100?.replace('100x100bb', '600x600bb') ?? null;
     return data.results
       .filter(r => r.kind === 'song')
-      .sort((a, b) => ((a as { trackNumber?: number }).trackNumber ?? 0) - ((b as { trackNumber?: number }).trackNumber ?? 0))
-      .map(t => ({
-        id: `itunes:${t.trackId}`,
-        title: t.trackName,
-        artist: t.artistName,
-        artist_id: String(t.artistId ?? ''),
-        album: t.collectionName ?? '',
-        release_date: t.releaseDate ? t.releaseDate.split('T')[0] : '',
-        duration_ms: t.trackTimeMillis ?? 0,
-        preview_url: t.previewUrl ?? null,
-        cover_url: albumCover,
-        spotify_url: t.trackViewUrl ?? '',
-        popularity: null,
-      }));
+      .sort((a, b) => (a.trackNumber ?? 0) - (b.trackNumber ?? 0))
+      .map(t => ({ ...normalize(t), cover_url: albumCover }));
   } catch {
     return [];
   }
