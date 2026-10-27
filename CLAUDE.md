@@ -61,6 +61,7 @@ src/
   hooks/
     useAudioEditor.ts   — состояние редактора: загрузка, сегменты, экспорт
     useInfo.ts          — загрузка инфо об артисте/альбоме
+    useMediaQuery.ts    — useMediaQuery и useIsMobile (< 640px)
   lib/
     api.ts              — fetch-клиент; типы ответов — алиасы на api-types.ts
     api-types.ts        — сгенерирован из OpenAPI (npm run gen:types), руками не править
@@ -71,7 +72,10 @@ src/
     id3Writer.ts        — запись ID3v2.3 в нарезанные фрагменты + загрузка обложки
     waveform.ts         — пики waveform (computePeaks) и отрисовка на canvas
     songStructure.ts    — разметка куплет/припев/бридж по тексту
-  components/           — Navbar, InfoPanel, FeedbackModal, editor/*
+    text.ts             — normKey/translitKey/namesOverlap (копия server/lib/text.ts + транслит)
+    geniusCountries.ts  — теги стран Genius → флаг и название
+  components/           — Navbar, LogoIcon, InfoPanel, FeedbackModal, editor/* (TrackSummary — карточка трека),
+                          songinfo/* (мелкие блоки страницы трека)
   pages/                — Home, SongInfo, Editor, Pricing
 
 server/
