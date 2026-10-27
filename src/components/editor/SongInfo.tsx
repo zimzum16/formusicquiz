@@ -9,6 +9,12 @@ interface SongInfoProps {
 
 const SANS: React.CSSProperties = { fontFamily: 'Montserrat, sans-serif' }
 
+const Chip = ({ children }: { children: React.ReactNode }) => (
+  <span className="inline-flex items-center font-semibold text-white border border-white/[0.1]" style={{ padding: '6px 14px', borderRadius: '999px', background: 'rgba(255,255,255,.07)', fontSize: '13px', ...SANS }}>
+    {children}
+  </span>
+)
+
 function parseFeat(raw: string): { cleanTitle: string; feat: string | null } {
   const m = raw.match(/^(.*?)\s*[([](feat\.?|ft\.?|featuring)\s*([^)\]]+)[)\]](.*)$/i)
   if (!m) return { cleanTitle: raw, feat: null }
@@ -22,16 +28,8 @@ export function SongInfo({ audioFile }: SongInfoProps) {
 
   const chips = (
     <div className="flex flex-wrap gap-2 mb-3 sm:mb-4">
-      {album && (
-        <span className="inline-flex items-center font-semibold text-white border border-white/[0.1]" style={{ padding: '6px 14px', borderRadius: '999px', background: 'rgba(255,255,255,.07)', fontSize: '13px', ...SANS }}>
-          {album}
-        </span>
-      )}
-      {year && (
-        <span className="inline-flex items-center font-semibold text-white border border-white/[0.1]" style={{ padding: '6px 14px', borderRadius: '999px', background: 'rgba(255,255,255,.07)', fontSize: '13px', ...SANS }}>
-          {year}
-        </span>
-      )}
+      {album && <Chip>{album}</Chip>}
+      {year && <Chip>{year}</Chip>}
       {isCover && (
         <span className="inline-flex items-center font-semibold border" style={{ padding: '6px 14px', borderRadius: '999px', background: 'rgba(45,212,191,.10)', borderColor: 'rgba(45,212,191,.30)', color: '#2DD4BF', fontSize: '13px', ...SANS }}>
           Cover

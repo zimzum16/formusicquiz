@@ -1,4 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
+import { VolumeIcon } from './VolumeIcon'
+import { formatTime } from '../../lib/audioUtils'
 import type { ProcessedAudioFile } from '../../types/audio'
 import { t } from '../../i18n'
 
@@ -11,12 +13,6 @@ const DEFAULT_STATE: AudioPlayerState = { isPlaying: false, currentTime: 0 }
 
 const SANS: React.CSSProperties = { fontFamily: 'Montserrat, sans-serif' }
 const MONO: React.CSSProperties = { fontFamily: 'JetBrains Mono, monospace' }
-
-function fmt(seconds: number) {
-  const m = Math.floor(seconds / 60)
-  const s = Math.floor(seconds % 60)
-  return `${m}:${String(s).padStart(2, '0')}`
-}
 
 interface ProcessedResultsProps {
   files: ProcessedAudioFile[]
@@ -139,7 +135,7 @@ export function ProcessedResults({ files }: ProcessedResultsProps) {
                 {file.name}
               </div>
               <div className="mb-[12px] text-[11px] font-bold uppercase tracking-[.09em]" style={{ color: '#8a8a8a', ...SANS }}>
-                {t.duration_label}: {fmt(file.duration)}
+                {t.duration_label}: {formatTime(file.duration)}
               </div>
 
               {/* Mini player */}
@@ -169,7 +165,7 @@ export function ProcessedResults({ files }: ProcessedResultsProps) {
                     <div style={{ width: `${progress}%`, height: '100%', borderRadius: '3px', background: '#2DD4BF', transition: 'width .1s linear' }} />
                   </div>
                   <span className="shrink-0 text-[11px]" style={{ color: '#8a8a8a', ...MONO }}>
-                    {fmt(file.duration)}
+                    {formatTime(file.duration)}
                   </span>
                 </div>
 
@@ -181,18 +177,7 @@ export function ProcessedResults({ files }: ProcessedResultsProps) {
                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}
                     aria-label={getMuted(file.id) ? t.unmute_aria : t.mute_aria}
                   >
-                    {getMuted(file.id) ? (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <path d="M4 9v6h4l5 4V5L8 9H4z" fill="#8a8a8a" />
-                        <line x1="18" y1="9" x2="23" y2="15" stroke="#8a8a8a" strokeWidth="1.8" strokeLinecap="round" />
-                        <line x1="23" y1="9" x2="18" y2="15" stroke="#8a8a8a" strokeWidth="1.8" strokeLinecap="round" />
-                      </svg>
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <path d="M4 9v6h4l5 4V5L8 9H4z" fill="#8a8a8a" />
-                        <path d="M16 8c1.5 1.5 1.5 6.5 0 8" stroke="#8a8a8a" strokeWidth="1.6" strokeLinecap="round" />
-                      </svg>
-                    )}
+                    <VolumeIcon muted={getMuted(file.id)} size={16} />
                   </button>
                   <input
                     type="range" min="0" max="1" step="0.01"

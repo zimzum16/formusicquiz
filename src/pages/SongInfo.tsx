@@ -4,6 +4,7 @@ import { CollapsibleList } from '../components/CollapsibleList';
 import { ArtistInfoPanel, AlbumInfoPanel, SingleBadge, TrackCharts } from '../components/InfoPanel';
 import { useAlbumInfo } from '../hooks/useInfo';
 import { matchSingles } from '../lib/singles';
+import { formatTime } from '../lib/audioUtils';
 import { t, lang } from '../i18n';
 
 function useIsMobile() {
@@ -14,11 +15,6 @@ function useIsMobile() {
     return () => window.removeEventListener('resize', fn);
   }, []);
   return v;
-}
-
-function fmtMs(ms: number) {
-  const s = Math.floor(ms / 1000);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
 function fmtNum(n: number) {
@@ -417,8 +413,6 @@ export default function SongInfo() {
     setPreviewTime(0);
   };
 
-  const fmtSec = (s: number) => `0:${String(Math.floor(s)).padStart(2, '0')}`;
-
   const handleSearch = async (overrideQuery?: string) => {
     const q = (overrideQuery ?? query).trim();
     if (!q) return;
@@ -782,7 +776,7 @@ export default function SongInfo() {
                           <p className="text-[#8a8a8a] text-xs truncate" style={SANS}>{track.artist}</p>
                         )}
                       </button>
-                      <span className="text-xs text-[#8a8a8a] flex-shrink-0" style={MONO}>{fmtMs(track.duration_ms)}</span>
+                      <span className="text-xs text-[#8a8a8a] flex-shrink-0" style={MONO}>{formatTime(track.duration_ms / 1000)}</span>
                     </div>
                   ))}
                 </div>
@@ -925,7 +919,7 @@ export default function SongInfo() {
                       <p className="font-semibold text-white text-sm truncate" style={SANS}>{track.title}</p>
                       <p className="text-[#8a8a8a] text-xs truncate" style={SANS}>{track.artist} · {track.album} · {track.release_date.slice(0, 4)}</p>
                     </button>
-                    <span className="text-xs text-[#8a8a8a] flex-shrink-0" style={MONO}>{fmtMs(track.duration_ms)}</span>
+                    <span className="text-xs text-[#8a8a8a] flex-shrink-0" style={MONO}>{formatTime(track.duration_ms / 1000)}</span>
                   </div>
                 ))}
               </div>
@@ -1002,7 +996,7 @@ export default function SongInfo() {
                     {info.spotify.title}
                   </div>
                   <span className="text-[12px] text-[#8a8a8a] font-semibold flex-shrink-0" style={MONO}>
-                    {fmtMs(info.spotify.duration_ms)}
+                    {formatTime(info.spotify.duration_ms / 1000)}
                   </span>
                 </div>
                 <div className="text-[13px] text-[#8a8a8a] font-medium mb-4" style={SANS}>
@@ -1035,7 +1029,7 @@ export default function SongInfo() {
                       </div>
                     </div>
                     <span className="text-[11px] text-[#8a8a8a]" style={MONO}>
-                      {fmtSec(previewTime)} / 0:30
+                      {formatTime(previewTime)} / 0:30
                     </span>
                   </div>
                 ) : (

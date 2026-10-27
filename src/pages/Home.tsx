@@ -1,52 +1,17 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { Page } from '../App';
 import { t } from '../i18n';
+import { LogoIcon } from '../components/LogoIcon';
 
 interface HomeProps {
   navigate: (page: Page) => void;
 }
-
-const WaveformIcon = ({ size = 46 }: { size?: number }) => (
-  <svg width={size} height={Math.round(size * 30 / 46)} viewBox="0 0 60 40" fill="none">
-    <rect x="1"  y="12" width="3.5" height="16" rx="1.75" fill="rgba(255,255,255,0.14)"/>
-    <rect x="7"  y="7"  width="3.5" height="26" rx="1.75" fill="rgba(255,255,255,0.14)"/>
-    <rect x="13" y="14" width="3.5" height="12" rx="1.75" fill="rgba(255,255,255,0.14)"/>
-    <line x1="19.5" y1="1" x2="19.5" y2="39" stroke="#2DD4BF" strokeWidth="1.3" strokeDasharray="2.5 2" opacity=".8"/>
-    <g transform="translate(0,-6)">
-      <rect x="21" y="11" width="3.5" height="24" rx="1.75" fill="#2DD4BF"/>
-      <rect x="27" y="5"  width="3.5" height="36" rx="1.75" fill="#2DD4BF"/>
-      <rect x="33" y="10" width="3.5" height="26" rx="1.75" fill="#2DD4BF"/>
-      <rect x="39" y="14" width="3.5" height="18" rx="1.75" fill="#2DD4BF" opacity=".8"/>
-    </g>
-    <line x1="45.5" y1="1" x2="45.5" y2="39" stroke="#2DD4BF" strokeWidth="1.3" strokeDasharray="2.5 2" opacity=".8"/>
-    <rect x="47" y="15" width="3.5" height="10" rx="1.75" fill="rgba(255,255,255,0.14)"/>
-    <rect x="53" y="10" width="3.5" height="20" rx="1.75" fill="rgba(255,255,255,0.14)"/>
-  </svg>
-);
 
 const SearchIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
     <circle cx="10" cy="10" r="6" stroke="#2DD4BF" strokeWidth="1.8"/>
     <path d="M15 15l4 4" stroke="#2DD4BF" strokeWidth="1.8" strokeLinecap="round"/>
     <path d="M10 7v3l2 1" stroke="#2DD4BF" strokeWidth="1.5" strokeLinecap="round"/>
-  </svg>
-);
-
-const SmallWaveformIcon = () => (
-  <svg width="18" height="12" viewBox="0 0 60 40" fill="none">
-    <rect x="1"  y="12" width="3.5" height="16" rx="1.75" fill="rgba(255,255,255,0.25)"/>
-    <rect x="7"  y="7"  width="3.5" height="26" rx="1.75" fill="rgba(255,255,255,0.25)"/>
-    <rect x="13" y="14" width="3.5" height="12" rx="1.75" fill="rgba(255,255,255,0.25)"/>
-    <line x1="19.5" y1="0" x2="19.5" y2="40" stroke="#2DD4BF" strokeWidth="2" strokeDasharray="3 2" opacity=".9"/>
-    <g transform="translate(0,-6)">
-      <rect x="21" y="11" width="3.5" height="24" rx="1.75" fill="#2DD4BF"/>
-      <rect x="27" y="5"  width="3.5" height="36" rx="1.75" fill="#2DD4BF"/>
-      <rect x="33" y="10" width="3.5" height="26" rx="1.75" fill="#2DD4BF"/>
-      <rect x="39" y="14" width="3.5" height="18" rx="1.75" fill="#2DD4BF" opacity=".8"/>
-    </g>
-    <line x1="45.5" y1="0" x2="45.5" y2="40" stroke="#2DD4BF" strokeWidth="2" strokeDasharray="3 2" opacity=".9"/>
-    <rect x="47" y="15" width="3.5" height="10" rx="1.75" fill="rgba(255,255,255,0.25)"/>
-    <rect x="53" y="10" width="3.5" height="20" rx="1.75" fill="rgba(255,255,255,0.25)"/>
   </svg>
 );
 
@@ -145,7 +110,7 @@ export default function Home({ navigate }: HomeProps) {
               background: 'rgba(45,212,191,.09)',
               filter: 'blur(18px)', borderRadius: '50%',
             }} />
-            <WaveformIcon size={46} />
+            <LogoIcon variant="hero" />
           </div>
 
           <div style={{ fontSize: isMobile ? 34 : 46, fontWeight: 900, letterSpacing: '-.05em', lineHeight: 1 }}>
@@ -176,7 +141,7 @@ export default function Home({ navigate }: HomeProps) {
           />
           <FeatureCard
             label="slicer"
-            icon={<SmallWaveformIcon />}
+            icon={<LogoIcon variant="card" />}
             title={t.home_slicer_title}
             desc={t.home_slicer_desc}
             preview={{ src: '/preview-editor.png', alt: 'slicer' }}

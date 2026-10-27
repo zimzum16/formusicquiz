@@ -5,6 +5,7 @@ import { drawWaveform, fadeEnvelopeMultiplier } from '../../lib/waveform'
 import { formatTimeDetailed, formatTimeDetailedComma } from '../../lib/audioUtils'
 import { t } from '../../i18n'
 import type { SongMarker, SectionType } from '../../lib/songStructure'
+import { VolumeIcon } from './VolumeIcon'
 
 const MIN_TRIM_DURATION = 0.05
 
@@ -262,20 +263,6 @@ export function WaveformDisplay({
     return audioFile.duration
   }, [audioFile.duration, audioRef])
 
-  const seekToClientX = useCallback((clientX: number) => {
-    const track = trackRef.current
-    const audio = audioRef.current
-    if (!track || !audio) return
-    const r = track.getBoundingClientRect()
-    if (r.width <= 0) return
-    const duration = getDuration()
-    if (duration <= 0) return
-    const x = Math.max(0, Math.min(clientX - r.left, r.width))
-    const t = (x / r.width) * duration
-    audio.currentTime = t
-    onSeek?.(t)
-  }, [audioRef, getDuration, onSeek])
-
   const clientXToTime = useCallback((clientX: number): number | null => {
     const track = trackRef.current
     if (!track) return null
@@ -286,6 +273,14 @@ export function WaveformDisplay({
     const x = Math.max(0, Math.min(clientX - r.left, r.width))
     return (x / r.width) * duration
   }, [getDuration])
+
+  const seekToClientX = useCallback((clientX: number) => {
+    const audio = audioRef.current
+    const t = audio ? clientXToTime(clientX) : null
+    if (!audio || t === null) return
+    audio.currentTime = t
+    onSeek?.(t)
+  }, [audioRef, clientXToTime, onSeek])
 
   const applyTrimDrag = useCallback((clientX: number, edge: 'start' | 'end') => {
     if (!trimRange || !onTrimRangeChange) return
@@ -360,14 +355,8 @@ export function WaveformDisplay({
   }
 
   const onTrackMouseMove = (e: React.MouseEvent) => {
-    const track = trackRef.current
-    if (!track) return
-    const r = track.getBoundingClientRect()
-    if (r.width <= 0) return
-    const duration = getDuration()
-    if (duration <= 0) return
-    const x = Math.max(0, Math.min(e.clientX - r.left, r.width))
-    setHoverSeek({ pct: (x / r.width) * 100, time: (x / r.width) * duration })
+    const time = clientXToTime(e.clientX)
+    if (time !== null) setHoverSeek({ pct: (time / getDuration()) * 100, time })
   }
 
   const onTrackMouseLeave = () => setHoverSeek(null)
@@ -429,18 +418,7 @@ export function WaveformDisplay({
         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         aria-label={isMuted ? t.unmute_aria : t.mute_aria}
       >
-        {isMuted ? (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M4 9v6h4l5 4V5L8 9H4z" fill="#8a8a8a" />
-            <line x1="18" y1="9" x2="23" y2="15" stroke="#8a8a8a" strokeWidth="1.8" strokeLinecap="round" />
-            <line x1="23" y1="9" x2="18" y2="15" stroke="#8a8a8a" strokeWidth="1.8" strokeLinecap="round" />
-          </svg>
-        ) : (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M4 9v6h4l5 4V5L8 9H4z" fill="#8a8a8a" />
-            <path d="M16 8c1.5 1.5 1.5 6.5 0 8" stroke="#8a8a8a" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
-        )}
+        <VolumeIcon muted={isMuted} size={20} />
       </button>
       <input
         type="range" min="0" max="1" step="0.01" value={isMuted ? 0 : volume}
