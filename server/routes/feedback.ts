@@ -39,22 +39,19 @@ router.post('/', async (c) => {
 
   const { message, contact } = parsed.data;
 
+  // Архив в Redis — не критичен: если Upstash недоступен, уведомление всё равно уходит
   if (redis) {
     await redis.lpush('feedback', JSON.stringify({
       message,
       contact: contact ?? null,
       created_at: Date.now(),
-    }));
+    })).catch((e) => console.error('[feedback] redis error:', e?.message ?? e));
   }
 
-  const tgText = [
-    '📬 <b>Новый фидбек</b>',
-    '',
-    message,
-    contact ? `\n<i>Контакт: ${contact}</i>` : '',
-  ].join('\n');
+  // ntfy принимает text/plain — разметка Telegram (<b>, <i>) показывалась бы буквально
+  const text = contact ? `${message}\n\nКонтакт: ${contact}` : message;
 
-  sendNotification(tgText).catch((e) => console.error('[ntfy] error:', e?.message ?? e));
+  sendNotification(text).catch((e) => console.error('[ntfy] error:', e?.message ?? e));
 
   return c.json({ ok: true });
 });
