@@ -38,24 +38,24 @@ describe('extractLyricsText', () => {
 });
 
 describe('parseGeniusLyrics', () => {
-  it('делит текст на секции с типом и русской меткой', () => {
+  it('делит текст на секции и определяет их тип', () => {
     const html = page('[Intro]<br>Yeah<br>[Verse 1: Drake]<br>A<br>B<br>[Pre-Chorus]<br>C<br>[Chorus]<br>D<br>[Bridge]<br>E');
     expect(parseGeniusLyrics(html)).toEqual([
-      { type: 'intro', label: 'Интро', lines: ['Yeah'] },
-      { type: 'verse', label: 'Куплет 1', lines: ['A', 'B'] },
-      { type: 'pre-chorus', label: 'Пред-припев', lines: ['C'] },
-      { type: 'chorus', label: 'Припев', lines: ['D'] },
-      { type: 'bridge', label: 'Бридж', lines: ['E'] },
+      { type: 'intro', lines: ['Yeah'] },
+      { type: 'verse', lines: ['A', 'B'] },
+      { type: 'pre-chorus', lines: ['C'] },
+      { type: 'chorus', lines: ['D'] },
+      { type: 'bridge', lines: ['E'] },
     ]);
   });
 
   it('отделяет маркер секции, приклеенный к тексту', () => {
     const html = page('Read More [Verse 1]<br>Line');
-    expect(parseGeniusLyrics(html)).toEqual([{ type: 'verse', label: 'Куплет 1', lines: ['Line'] }]);
+    expect(parseGeniusLyrics(html)).toEqual([{ type: 'verse', lines: ['Line'] }]);
   });
 
   it('пустые секции пропускаются, без контейнеров — пустой список', () => {
-    expect(parseGeniusLyrics(page('[Intro]<br>[Verse]<br>X'))).toEqual([{ type: 'verse', label: 'Куплет', lines: ['X'] }]);
+    expect(parseGeniusLyrics(page('[Intro]<br>[Verse]<br>X'))).toEqual([{ type: 'verse', lines: ['X'] }]);
     expect(parseGeniusLyrics('<html></html>')).toEqual([]);
   });
 });

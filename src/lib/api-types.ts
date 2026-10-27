@@ -76,7 +76,6 @@ export interface paths {
                         "application/json": {
                             sections: {
                                 type: string;
-                                label: string;
                                 lines: string[];
                             }[];
                             title?: string;

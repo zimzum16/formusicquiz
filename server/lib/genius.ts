@@ -215,7 +215,6 @@ type SectionType = 'intro' | 'verse' | 'pre-chorus' | 'chorus' | 'post-chorus' |
 
 export interface GeniusLyricsSection {
   type: SectionType;
-  label: string;
   lines: string[];
 }
 
@@ -230,24 +229,6 @@ function mapSectionType(name: string): SectionType {
   if (/post-chorus|post chorus|пост.припев/.test(lower)) return 'post-chorus';
   if (/chorus|припев|refrain|hook/.test(lower)) return 'chorus';
   return 'unknown';
-}
-
-function formatSectionLabel(name: string): string {
-  // Strip artist attribution after colon: "Verse 1: Drake" → "Verse 1"
-  const clean = name.split(':')[0].trim();
-  return clean
-    // pre/post must come before chorus to avoid partial substitution
-    .replace(/\bpre-chorus\b/i, 'Пред-припев')
-    .replace(/\bpost-chorus\b/i, 'Пост-припев')
-    .replace(/\bpre chorus\b/i, 'Пред-припев')
-    .replace(/\bpost chorus\b/i, 'Пост-припев')
-    .replace(/\bverse\b/i, 'Куплет')
-    .replace(/\bchorus\b/i, 'Припев')
-    .replace(/\bbridge\b/i, 'Бридж')
-    .replace(/\bintro\b/i, 'Интро')
-    .replace(/\boutro\b/i, 'Аутро')
-    .replace(/\bhook\b/i, 'Хук')
-    .replace(/\brefrain\b/i, 'Припев');
 }
 
 export function parseGeniusLyrics(html: string): GeniusLyricsSection[] {
@@ -269,7 +250,7 @@ export function parseGeniusLyrics(html: string): GeniusLyricsSection[] {
     if (sectionMatch) {
       if (current && current.lines.length > 0) sections.push(current);
       const name = sectionMatch[1];
-      current = { type: mapSectionType(name), label: formatSectionLabel(name), lines: [] };
+      current = { type: mapSectionType(name), lines: [] };
     } else if (current) {
       current.lines.push(line);
     }

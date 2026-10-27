@@ -4,7 +4,6 @@ export interface SongMarker {
   start: number
   end: number
   type: SectionType
-  label: string
 }
 
 export interface SongAnalysis {
@@ -19,7 +18,6 @@ interface LrcLine { time: number; text: string }
 
 interface GeniusSection {
   type: SectionType
-  label: string
   lines: string[]
 }
 
@@ -33,29 +31,13 @@ interface GeniusResult {
   isCover?: boolean
 }
 
-function inferTypeFromLabel(label: string): SectionType {
-  const l = label.toLowerCase()
-  if (/пост.припев|post.chorus/.test(l)) return 'post-chorus'
-  if (/пред.припев|pre.chorus/.test(l)) return 'pre-chorus'
-  if (/куплет|verse/.test(l)) return 'verse'
-  if (/припев|chorus|refrain|hook/.test(l)) return 'chorus'
-  if (/бридж|bridge/.test(l)) return 'bridge'
-  if (/интро|intro/.test(l)) return 'intro'
-  if (/аутро|outro/.test(l)) return 'outro'
-  return 'unknown'
-}
-
 async function fetchGeniusSections(title: string, artist: string): Promise<GeniusResult> {
   try {
     const params = new URLSearchParams({ title, artist })
     const res = await fetch(`${BASE}/api/tracks/lyrics?${params}`)
     if (!res.ok) return { sections: [], title: '', artist: '' }
     const data: GeniusResult = await res.json()
-    const sections = (data.sections ?? []).map(s => ({
-      ...s,
-      type: s.type === 'unknown' ? inferTypeFromLabel(s.label) : s.type,
-    }))
-    return { sections, title: data.title ?? '', artist: data.artist ?? '', url: data.url, isCover: data.isCover }
+    return { sections: data.sections ?? [], title: data.title ?? '', artist: data.artist ?? '', url: data.url, isCover: data.isCover }
   } catch {
     return { sections: [], title: '', artist: '' }
   }
@@ -183,7 +165,6 @@ function alignSections(
         start: lrcLines[bestIdx].time,
         end: 0,
         type: section.type,
-        label: section.label,
       })
       // Advance past a minimum gap so the next section cannot start within
       // the first 10 s of this one (prevents pre-chorus from anchoring on
@@ -211,7 +192,7 @@ function alignSections(
     if (markers[0].type === 'intro') {
       markers[0] = { ...markers[0], start: 0 }
     } else {
-      markers.unshift({ start: 0, end: markers[0].start, type: 'intro', label: 'Интро' })
+      markers.unshift({ start: 0, end: markers[0].start, type: 'intro' })
     }
   }
 
@@ -223,7 +204,7 @@ function alignSections(
     if (lastSectionEnd >= 0 && lastSectionEnd < lrcLines.length - 1) {
       const outroStart = lrcLines[lastSectionEnd].time
       markers[markers.length - 1] = { ...last, end: outroStart }
-      markers.push({ start: outroStart, end: duration, type: 'outro', label: 'Аутро' })
+      markers.push({ start: outroStart, end: duration, type: 'outro' })
     }
   }
 

@@ -218,7 +218,6 @@ const lyricsRoute = createRoute({
           schema: z.object({
             sections: z.array(z.object({
               type: z.string(),
-              label: z.string(),
               lines: z.array(z.string()),
             })),
             title: z.string().optional(),

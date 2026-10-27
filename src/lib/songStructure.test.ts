@@ -18,10 +18,10 @@ const LRC = [
 
 const CHORUS = ['Oh, oh, sing it loud', 'Sing it all night long', 'Hearts on fire']
 const SECTIONS = [
-  { type: 'verse', label: 'Куплет 1', lines: ['Walking down the empty street tonight', 'Lights are fading out of sight', 'Nobody knows where I belong'] },
-  { type: 'chorus', label: 'Припев', lines: CHORUS },
-  { type: 'unknown', label: 'Куплет 2', lines: ['Morning comes, the city wakes', 'Every step a new mistake', 'Still I carry on and on'] },
-  { type: 'chorus', label: 'Припев', lines: CHORUS },
+  { type: 'verse', lines: ['Walking down the empty street tonight', 'Lights are fading out of sight', 'Nobody knows where I belong'] },
+  { type: 'chorus', lines: CHORUS },
+  { type: 'verse', lines: ['Morning comes, the city wakes', 'Every step a new mistake', 'Still I carry on and on'] },
+  { type: 'chorus', lines: CHORUS },
 ]
 
 function stubApi(lyrics: unknown, lrc: unknown) {
@@ -44,7 +44,7 @@ describe('analyzeSongStructure', () => {
       [0, 12, 'intro'],
       [12, 40, 'verse'],
       [40, 70, 'chorus'],
-      [70, 100, 'verse'], // тип 'unknown' выведен из метки «Куплет 2»
+      [70, 100, 'verse'],
       [100, 130, 'chorus'],
     ])
     expect(onResolved).toHaveBeenCalledWith('Song', 'Band', 'https://genius.com/x', undefined)
