@@ -26,6 +26,7 @@ MVP музыкального сервиса: поиск информации о 
 npm install && npm run dev        # http://localhost:5173
 npm run typecheck && npm run lint
 npm test                          # vitest: src/**/*.test.ts и server/**/*.test.ts
+npm run gen:types                 # src/lib/api-types.ts из zod-схем роутов (сервер запускать не нужно)
 
 # Бэкенд
 cd server && npm install && npm run dev   # http://localhost:3001
@@ -61,7 +62,8 @@ src/
     useAudioEditor.ts   — состояние редактора: загрузка, сегменты, экспорт
     useInfo.ts          — загрузка инфо об артисте/альбоме
   lib/
-    api.ts              — fetch-клиент и типы ответов бэкенда
+    api.ts              — fetch-клиент; типы ответов — алиасы на api-types.ts
+    api-types.ts        — сгенерирован из OpenAPI (npm run gen:types), руками не править
     audioUtils.ts       — экспорт сегмента: по фреймам (exportMp3Segment) или через PCM (processAudioSegment)
     audioWorker.ts      — Web Worker: кодирование PCM → MP3 (lamejs), битрейт передаётся снаружи
     mp3Container.ts     — разбор MP3-фреймов, битрейт/VBR, нарезка без перекодирования, Xing-заголовок
@@ -101,6 +103,9 @@ server/
 
 ## Важные решения
 
+- Контракт API — zod-схемы роутов (`@hono/zod-openapi` проверяет обработчики по ним при компиляции).
+  Типы фронта генерируются из них; `server/spec.test.ts` падает, если `api-types.ts` устарел.
+  Docker-сборка фронта не видит `server/` (`.dockerignore`), поэтому `api-types.ts` коммитится
 - Supabase убран в пользу собственного бэкенда на Hono
 - Vercel и auth сохраняются намеренно, даже если сейчас не используются
 - Обрезка аудио — в браузере через Web Audio API, серверный FFmpeg не нужен

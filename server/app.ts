@@ -70,10 +70,12 @@ app.get('/api/img', async (c) => {
   }
 });
 
-app.doc('/api/spec', {
+export const SPEC_CONFIG = {
   openapi: '3.0.0',
   info: { title: 'Trackslice API', version: '1.0.0' },
-});
+};
+
+app.doc('/api/spec', SPEC_CONFIG);
 
 app.get('/docs', swaggerUI({ url: '/api/spec' }));
 

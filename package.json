@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "gen:types": "openapi-typescript http://localhost:3001/api/spec -o src/lib/api-types.ts",
+    "gen:types": "mkdir -p node_modules/.cache && (cd server && npx tsx scripts/spec.ts) > node_modules/.cache/openapi.json && openapi-typescript node_modules/.cache/openapi.json -o src/lib/api-types.ts",
     "test": "vitest run"
   },
   "dependencies": {

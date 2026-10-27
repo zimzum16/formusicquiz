@@ -1,3 +1,5 @@
+import type { paths } from './api-types';
+
 const BASE = import.meta.env.VITE_API_URL ?? '';
 
 const PROXY_HOSTS = ['i.scdn.co', 'mosaic.scdn.co', 'lineup-images.scdn.co', 'is1-ssl.mzstatic.com', 'is2-ssl.mzstatic.com', 'is3-ssl.mzstatic.com', 'is4-ssl.mzstatic.com', 'is5-ssl.mzstatic.com'];
@@ -27,124 +29,16 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return data;
 }
 
-// Tracks types
-export interface SpotifyArtistResult {
-  id: string;
-  name: string;
-  popularity: number;
-  followers: number;
-  genres: string[];
-  image_url: string | null;
-  spotify_url: string;
-}
+// Типы ответов — из OpenAPI-спецификации бэкенда (src/lib/api-types.ts, `npm run gen:types`).
+// Руками не дублируем: при изменении zod-схемы на сервере перегенерировать
+type Json<P extends keyof paths> = paths[P]['get']['responses'][200]['content']['application/json'];
 
-export interface SearchResults {
-  artists: SpotifyArtistResult[];
-  tracks: SpotifyTrack[];
-}
-
-export interface ArtistAlbum {
-  id: string;
-  title: string;
-  year: string;
-  cover_url: string | null;
-  track_count: number;
-}
-
-export interface SpotifyTrack {
-  id: string;
-  title: string;
-  artist: string;
-  artist_id: string;
-  album: string;
-  release_date: string;
-  duration_ms: number;
-  preview_url: string | null;
-  cover_url: string | null;
-  spotify_url: string;
-  popularity: number | null;
-}
-
-
-export interface ArtistRef { name: string; url: string }
-export interface RelatedSong { title: string; artist: string; genius_url: string }
-export interface GeniusMedia { type: string; url: string }
-
-export interface GeniusSong {
-  lyrics_url: string;
-  description: string | null;
-  release_date: string | null;
-  release_year: number | null;
-  language: string | null;
-  tags: string[];
-  pageviews: number | null;
-  song_art_image_url: string | null;
-  media: GeniusMedia[];
-  writer_artists: ArtistRef[];
-  producer_artists: ArtistRef[];
-  featured_artists: ArtistRef[];
-  samples: RelatedSong[];
-  sampled_in: RelatedSong[];
-  interpolates: RelatedSong[];
-  interpolated_by: RelatedSong[];
-  cover_of: RelatedSong[];
-  covered_by: RelatedSong[];
-  remix_of: RelatedSong[];
-  remixes: RelatedSong[];
-  live_version_of: RelatedSong[];
-}
-
-export interface LastfmTrack {
-  listeners: number;
-  playcount: number;
-  url: string;
-  tags: { name: string; url: string }[];
-  similar: { title: string; artist: string; url: string }[];
-}
-
-export interface Performance {
-  date: string;
-  venue: string;
-  city: string;
-  tour: string | null;
-}
-
-export interface SetlistStats {
-  total_performances: number;
-  url: string;
-  first_performance: Performance | null;
-  last_performance: Performance | null;
-}
-
-export interface YoutubeResult {
-  video_id: string | null;
-  url: string;
-  search_url: string;
-  view_count: number | null;
-  like_count: number | null;
-}
-
-export interface YandexResult {
-  url: string | null;
-  search_url: string;
-  play_count: number | null;
-  chart: { position: number; progress: 'up' | 'down' | 'same' } | null;
-}
-
-export interface AppleMusicResult {
-  search_url: string;
-  charts: { position: number; country: string }[];
-}
-
-export interface TrackInfo {
-  spotify: SpotifyTrack;
-
-  genius: GeniusSong | null;
-  lastfm: LastfmTrack | null;
-  youtube: YoutubeResult;
-  yandex: YandexResult;
-  apple_music: AppleMusicResult;
-}
+export type SearchResults = Json<'/api/tracks/search'>;
+export type SpotifyArtistResult = SearchResults['artists'][number];
+export type SpotifyTrack = SearchResults['tracks'][number];
+export type ArtistAlbum = Json<'/api/tracks/artists/:id/albums'>[number];
+export type TrackInfo = Json<'/api/tracks/:id/info'>;
+export type SetlistStats = Json<'/api/tracks/:id/setlistfm'>;
 
 export async function searchItunesDirect(title: string, artist?: string): Promise<SpotifyTrack[]> {
   const term = artist ? `${title} ${artist}` : title;
@@ -177,62 +71,12 @@ export async function searchItunesDirect(title: string, artist?: string): Promis
   }
 }
 
-// Info types (Wikidata / Wikipedia / MusicBrainz)
-export interface Localized { ru: string | null; en: string | null }
-
-export interface WikiPage {
-  title: string;
-  url: string;
-  description: string | null;
-  extract: string | null;
-  image: string | null;
-}
-
-export interface BandMember {
-  name: string;
-  periods: { begin: string | null; end: string | null }[];
-  roles: string[];
-}
-
-export interface ArtistInfo {
-  wikidata_id: string;
-  name: Localized;
-  wikipedia: { ru: WikiPage | null; en: WikiPage | null };
-  founded: string | null;
-  dissolved: string | null;
-  country: Localized | null;
-  genres: Localized[];
-  members: BandMember[];
-  rym_url: string | null;
-  musicbrainz_id: string | null;
-  pending: boolean;
-}
-
-export interface AlbumInfo {
-  wikidata_id: string;
-  title: Localized;
-  wikipedia: { ru: WikiPage | null; en: WikiPage | null };
-  released: string | null;
-  labels: Localized[];
-  producers: Localized[];
-  genres: Localized[];
-  critic_ratings: { source: string; score: string }[];
-  community_rating: { value: number; votes: number } | null;
-  singles: { title: string; date: string | null }[];
-  charts: { chart: string; name: Localized; peak: number }[];
-  certifications: { region: Localized; award: string; multiplier: number; units: number | null }[];
-  personnel: { title: string | null; people: { name: string; roles: string | null }[] }[];
-  rym_url: string;
-  musicbrainz_id: string | null;
-  pending: boolean;
-}
-
-export interface TrackWikiInfo {
-  wikidata_id: string;
-  wikipedia_url: string;
-  charts: { chart: string; name: Localized; peak: number }[];
-  pending: boolean;
-}
+export type ArtistInfo = NonNullable<Json<'/api/info/artist/:id'>>;
+export type AlbumInfo = NonNullable<Json<'/api/info/album/:id'>>;
+export type TrackWikiInfo = NonNullable<Json<'/api/info/track/:id'>>;
+export type Localized = ArtistInfo['name'];
+export type WikiPage = NonNullable<ArtistInfo['wikipedia']['en']>;
+export type BandMember = ArtistInfo['members'][number];
 
 // Справка грузится несколько секунд, поэтому её предзагружают заранее (наведение, первый артист
 // в поиске) — повторный вызов с тем же путём получает уже идущий или готовый запрос
