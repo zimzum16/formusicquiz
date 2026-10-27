@@ -8,6 +8,7 @@ import { fetchCover } from '../lib/id3Writer'
 import { extractID3Tags, parseFilename } from '../lib/id3Parser'
 import { tracksApi, searchItunesDirect } from '../lib/api'
 import { analyzeSongStructure, type SongMarker, type SongAnalysis } from '../lib/songStructure'
+import { namesOverlap, translitKey } from '../lib/text'
 
 // Убирает водяные знаки пиратских сайтов из ID3 тегов: [muzmo.ru], [zaycev.net] и т.п.
 const SITE_TAG_RE = /\s*[[(][^\])\s]{2,50}\.(ru|net|com|org|me|cc|pw)[^\])]*[\])]/gi
@@ -128,7 +129,6 @@ export function useAudioEditor() {
         let confirmedArtist = artist
         let spotifyFound = false
 
-        const normalize = (s: string) => s.toLowerCase().replace(/[^a-zа-яё0-9]/gi, '')
         const searchArtist = artist === UNKNOWN_ARTIST ? undefined : artist
 
         // Запускаем iTunes сразу параллельно — прямо из браузера, не ждём Spotify
@@ -138,22 +138,9 @@ export function useAudioEditor() {
           const { tracks: results } = await tracksApi.search(title, searchArtist)
 
           if (results.length) {
-            // Сравниваем без учёта алфавита (Alisa ≈ Алиса — одинаковые символы после strip)
-            const latinToCyrillic: Record<string, string> = {
-              a:'а',b:'б',v:'в',g:'г',d:'д',e:'е',z:'з',i:'и',
-              k:'к',l:'л',m:'м',n:'н',o:'о',p:'п',r:'р',s:'с',
-              t:'т',u:'у',f:'ф',h:'х',c:'ц',y:'ы',
-            }
-            const normArtist = (s: string) => s.toLowerCase()
-              .replace(/[^a-zа-яё]/gi, '')
-              .replace(/[a-z]/g, c => latinToCyrillic[c] ?? c)
-
+            // Исполнителя сравниваем без учёта алфавита: Alisa ≈ Алиса
             const findArtistMatches = (res: typeof results, artistName: string) =>
-              res.filter(r => {
-                const rNorm = normArtist(r.artist)
-                const aNorm = normArtist(artistName)
-                return rNorm.includes(aNorm) || aNorm.includes(rNorm)
-              })
+              res.filter(r => namesOverlap(r.artist, artistName, translitKey))
 
             let artistMatches = artist === UNKNOWN_ARTIST ? [] : findArtistMatches(results, artist)
 
@@ -171,22 +158,16 @@ export function useAudioEditor() {
 
             // Фолбэк: ищем хотя бы по названию трека
             if (!artistMatches.length) {
-              const titleNorm = normalize(confirmedTitle)
-              const byTitle = results.find(r => {
-                const rn = normalize(r.title)
-                return rn === titleNorm || rn.includes(titleNorm) || titleNorm.includes(rn)
-              })
+              const byTitle = results.find(r => namesOverlap(r.title, confirmedTitle))
               if (byTitle) artistMatches = [byTitle]
             }
 
             if (artistMatches.length) {
               const COMPILATION_RE = /greatest hits|best of|collection|anthology|compilation|platinum|hits|essential|сборник/i
               let match = artistMatches[0]
-              if (id3Tags.album) {
-                const albumNorm = normalize(id3Tags.album)
-                const albumMatch = artistMatches.find(r =>
-                  normalize(r.album).includes(albumNorm) || albumNorm.includes(normalize(r.album))
-                )
+              const album = id3Tags.album
+              if (album) {
+                const albumMatch = artistMatches.find(r => namesOverlap(r.album, album))
                 if (albumMatch) match = albumMatch
               } else {
                 const nonCompilation = artistMatches.find(r => !COMPILATION_RE.test(r.album))
@@ -197,14 +178,13 @@ export function useAudioEditor() {
               confirmedTitle = match.title
               confirmedArtist = match.artist.split(',')[0].trim()
 
-              // Берём обложку от Spotify, при отсутствии ждём iTunes
+              // Берём обложку от Spotify, при отсутствии ждём iTunes: сначала тот же трек,
+              // затем любой трек того же исполнителя (обложку чужого трека не берём)
               const spotifyCover = match.cover_url
               const itunesResults = await itunesPromise
-              const itunesCover = itunesResults.find(r => {
-                const rn = normalize(r.title)
-                const tn = normalize(confirmedTitle)
-                return rn === tn || rn.includes(tn) || tn.includes(rn)
-              })?.cover_url ?? itunesResults.find(r => r.cover_url)?.cover_url ?? null
+              const itunesCover = itunesResults.find(r => r.cover_url && namesOverlap(r.title, confirmedTitle))?.cover_url
+                ?? itunesResults.find(r => r.cover_url && namesOverlap(r.artist, confirmedArtist, translitKey))?.cover_url
+                ?? null
 
               setAudioFile(prev => prev ? {
                 ...prev,
@@ -223,25 +203,14 @@ export function useAudioEditor() {
           try {
             const itunesResults = await itunesPromise
             if (itunesResults.length) {
-              const titleNorm = normalize(confirmedTitle)
-              const artistNorm = confirmedArtist !== UNKNOWN_ARTIST ? normalize(confirmedArtist) : null
-              const albumNorm = id3Tags.album ? normalize(id3Tags.album) : null
+              const knownArtist = confirmedArtist !== UNKNOWN_ARTIST ? confirmedArtist : null
+              const album = id3Tags.album
 
-              const titleMatch = itunesResults.find(r => {
-                const rn = normalize(r.title)
-                return rn === titleNorm || rn.includes(titleNorm) || titleNorm.includes(rn)
-              })
-              const titleArtistMatch = titleMatch && artistNorm
-                ? (() => { const rn = normalize(titleMatch.artist); return rn.includes(artistNorm) || artistNorm.includes(rn) })()
-                : false
+              const titleMatch = itunesResults.find(r => namesOverlap(r.title, confirmedTitle))
+              const titleArtistMatch = !!titleMatch && !!knownArtist && namesOverlap(titleMatch.artist, knownArtist, translitKey)
 
-              const artistAlbumMatch = artistNorm && albumNorm
-                ? itunesResults.find(r => {
-                    const rArtist = normalize(r.artist)
-                    const rAlbum = r.album ? normalize(r.album) : ''
-                    return (rArtist.includes(artistNorm) || artistNorm.includes(rArtist))
-                      && (rAlbum.includes(albumNorm) || albumNorm.includes(rAlbum))
-                  })
+              const artistAlbumMatch = knownArtist && album
+                ? itunesResults.find(r => namesOverlap(r.artist, knownArtist, translitKey) && namesOverlap(r.album, album))
                 : null
 
               if (titleMatch && titleArtistMatch) {
