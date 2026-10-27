@@ -18,6 +18,50 @@ interface TrimControlsProps {
   inlineTrailingSlot?: React.ReactNode
 }
 
+const LABEL_STYLE = { fontFamily: 'Montserrat, sans-serif', color: '#8a8a8a' }
+
+// Поле времени: пока в фокусе — свободный ввод, на blur/Enter значение уходит наверх, Escape — откат
+function TimeField({ label, seconds, onCommit, resetKey, className, labelCl, inputCl, subCl }: {
+  label: string
+  seconds: number
+  onCommit: (value: string) => void
+  resetKey: string
+  className?: string
+  labelCl: string
+  inputCl: string
+  subCl?: string  // подпись с точным временем под полем; нет — не показываем
+}) {
+  const [draft, setDraft] = useState<string | null>(null)  // null — поле не редактируется
+  const skipBlurRef = useRef(false)
+
+  useEffect(() => { setDraft(null) }, [resetKey])
+
+  return (
+    <div className={className}>
+      <label className={labelCl} style={LABEL_STYLE}>{label}</label>
+      <input
+        type="text" value={draft ?? formatTimeDetailed(seconds)} placeholder="00:00.0" className={inputCl}
+        inputMode="decimal" autoComplete="off"
+        onFocus={() => setDraft(formatTimeDetailed(seconds))}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={() => {
+          if (skipBlurRef.current) { skipBlurRef.current = false; return }
+          if (draft !== null) onCommit(draft)
+          setDraft(null)
+        }}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() }
+          if (e.key === 'Escape') {
+            e.preventDefault(); skipBlurRef.current = true
+            setDraft(null); e.currentTarget.blur()
+          }
+        }}
+      />
+      {subCl && <p className={subCl}>{formatTimeDetailed(seconds)}</p>}
+    </div>
+  )
+}
+
 function TrimTimeFields({
   segment, handleStartTimeChange, handleEndTimeChange, error, size, columns = 'both',
 }: {
@@ -28,21 +72,9 @@ function TrimTimeFields({
   size: 'default' | 'compact'
   columns?: 'both' | 'start' | 'end'
 }) {
-  const [focused, setFocused] = useState<'start' | 'end' | null>(null)
-  const [draftStart, setDraftStart] = useState('')
-  const [draftEnd, setDraftEnd] = useState('')
-  const skipStartBlurRef = useRef(false)
-  const skipEndBlurRef = useRef(false)
-
-  useEffect(() => { setFocused(null) }, [segment.id])
-
-  const startDisplay = focused === 'start' ? draftStart : formatTimeDetailed(segment.startTime)
-  const endDisplay = focused === 'end' ? draftEnd : formatTimeDetailed(segment.endTime)
-
   const isCompact = size === 'compact'
   const slimCol = columns !== 'both' && isCompact
 
-  const LABEL_STYLE = { fontFamily: 'Montserrat, sans-serif', color: '#8a8a8a' }
   const labelCl = isCompact
     ? slimCol
       ? 'block mb-1 w-full text-center text-xs font-medium'
@@ -54,62 +86,13 @@ function TrimTimeFields({
     ? slimCol ? `${inputBase} text-center` : inputBase
     : 'box-border w-full max-w-[8ch] px-3 py-2.5 font-mono text-sm tabular-nums leading-none rounded-xl bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#2DD4BF] focus:border-transparent transition-all'
   const subCl = isCompact
-    ? 'mt-0.5 w-[14ch] max-w-full text-[10px] font-mono text-neutral-500 tabular-nums dark:text-neutral-500 text-center'
+    ? undefined
     : 'mt-1 max-w-[8ch] text-xs font-mono text-neutral-500 tabular-nums dark:text-neutral-500'
   const colOuter = slimCol ? 'shrink-0 flex flex-col items-center' : columns === 'both' ? undefined : 'shrink-0'
 
-  const onStartBlur = () => {
-    if (skipStartBlurRef.current) { skipStartBlurRef.current = false; return }
-    handleStartTimeChange(draftStart)
-    setFocused(f => f === 'start' ? null : f)
-  }
-  const onEndBlur = () => {
-    if (skipEndBlurRef.current) { skipEndBlurRef.current = false; return }
-    handleEndTimeChange(draftEnd)
-    setFocused(f => f === 'end' ? null : f)
-  }
-
-  const startBlock = (
-    <div className={colOuter}>
-      <label className={labelCl} style={LABEL_STYLE}>{t.trim_start}</label>
-      <input
-        type="text" value={startDisplay} placeholder="00:00.0" className={inputCl}
-        inputMode="decimal" autoComplete="off"
-        onFocus={() => { setFocused('start'); setDraftStart(formatTimeDetailed(segment.startTime)) }}
-        onChange={e => setDraftStart(e.target.value)}
-        onBlur={onStartBlur}
-        onKeyDown={e => {
-          if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() }
-          if (e.key === 'Escape') {
-            e.preventDefault(); skipStartBlurRef.current = true
-            setDraftStart(formatTimeDetailed(segment.startTime)); setFocused(null); e.currentTarget.blur()
-          }
-        }}
-      />
-      {!isCompact && <p className={subCl}>{formatTimeDetailed(segment.startTime)}</p>}
-    </div>
-  )
-
-  const endBlock = (
-    <div className={colOuter}>
-      <label className={labelCl} style={LABEL_STYLE}>{t.trim_end}</label>
-      <input
-        type="text" value={endDisplay} placeholder="00:00.0" className={inputCl}
-        inputMode="decimal" autoComplete="off"
-        onFocus={() => { setFocused('end'); setDraftEnd(formatTimeDetailed(segment.endTime)) }}
-        onChange={e => setDraftEnd(e.target.value)}
-        onBlur={onEndBlur}
-        onKeyDown={e => {
-          if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() }
-          if (e.key === 'Escape') {
-            e.preventDefault(); skipEndBlurRef.current = true
-            setDraftEnd(formatTimeDetailed(segment.endTime)); setFocused(null); e.currentTarget.blur()
-          }
-        }}
-      />
-      {!isCompact && <p className={subCl}>{formatTimeDetailed(segment.endTime)}</p>}
-    </div>
-  )
+  const field = { resetKey: segment.id, className: colOuter, labelCl, inputCl, subCl }
+  const startBlock = <TimeField {...field} label={t.trim_start} seconds={segment.startTime} onCommit={handleStartTimeChange} />
+  const endBlock = <TimeField {...field} label={t.trim_end} seconds={segment.endTime} onCommit={handleEndTimeChange} />
 
   if (columns === 'start') return <>{startBlock}</>
   if (columns === 'end') return <>{endBlock}</>
