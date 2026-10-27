@@ -63,15 +63,6 @@ interface WaveformDisplayProps {
     fadeInDuration: number
     fadeOutDuration: number
   }
-  playbackEnvelope?: {
-    range: { startTime: number; endTime: number }
-    fade: {
-      fadeIn: boolean
-      fadeOut: boolean
-      fadeInDuration: number
-      fadeOutDuration: number
-    }
-  } | null
   playbackFadeEnvelope?: boolean
   markers?: SongMarker[]
   bottomSlot?: React.ReactNode
@@ -87,7 +78,6 @@ export function WaveformDisplay({
   trimRange,
   onTrimRangeChange,
   trimFade,
-  playbackEnvelope = null,
   playbackFadeEnvelope = true,
   showPlaybackVolume = true,
   markers,
@@ -155,15 +145,15 @@ export function WaveformDisplay({
       return
     }
     const base = sharedPlaybackVolumeUi
-    const range = playbackEnvelope?.range ?? trimRange ?? null
-    const fade = playbackEnvelope?.fade ?? trimFade ?? null
+    const range = trimRange ?? null
+    const fade = trimFade ?? null
     if (range && fade && (fade.fadeIn || fade.fadeOut)) {
       const env = fadeEnvelopeMultiplier(audio.currentTime, range, fade)
       audio.volume = Math.min(1, base * env)
     } else {
       audio.volume = base
     }
-  }, [trimRange, trimFade, playbackEnvelope, audioRef])
+  }, [trimRange, trimFade, audioRef])
 
   useEffect(() => {
     applyFadeAwareVolume()
@@ -172,8 +162,8 @@ export function WaveformDisplay({
   useEffect(() => {
     const audio = audioRef.current
     if (!audio || !playbackFadeEnvelope) return
-    const range = playbackEnvelope?.range ?? trimRange ?? null
-    const fade = playbackEnvelope?.fade ?? trimFade ?? null
+    const range = trimRange ?? null
+    const fade = trimFade ?? null
     const hasFadeRamp = !!(range && fade && (fade.fadeIn || fade.fadeOut))
     const onSeeked = () => applyFadeAwareVolume()
     if (!hasFadeRamp) {
@@ -201,7 +191,7 @@ export function WaveformDisplay({
       audio.removeEventListener('ended', stopTick)
       audio.removeEventListener('seeked', onSeeked)
     }
-  }, [playbackFadeEnvelope, playbackEnvelope, trimRange, trimFade, trackUrl, applyFadeAwareVolume, audioRef])
+  }, [playbackFadeEnvelope, trimRange, trimFade, trackUrl, applyFadeAwareVolume, audioRef])
 
   const togglePlayPause = () => {
     const audio = audioRef.current

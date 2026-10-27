@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, type ReactNode, type RefObject } from 'react'
+import { useRef, useState, useEffect, useMemo, type ReactNode, type RefObject } from 'react'
 import { t } from '../i18n'
 import { useAudioEditor } from '../hooks/useAudioEditor'
 import { AudioPlayer } from '../components/editor/AudioPlayer'
@@ -35,8 +35,14 @@ function SegmentWaveform({
   audioFile, segment, canRemove, peaks, markers, isAnalyzing,
   audioRef, currentTime, onSeek, onUpdate, onRemove, inlineTrailingSlot,
 }: SegmentWaveformProps) {
-  const range = { startTime: segment.startTime, endTime: segment.endTime }
-  const fade = { fadeIn: segment.fadeIn, fadeOut: segment.fadeOut, fadeInDuration: segment.fadeInDuration, fadeOutDuration: segment.fadeOutDuration }
+  // Стабильные объекты: иначе каждое обновление currentTime перезапускает эффекты fade
+  // и перерисовку waveform внутри WaveformDisplay
+  const { startTime, endTime, fadeIn, fadeOut, fadeInDuration, fadeOutDuration } = segment
+  const range = useMemo(() => ({ startTime, endTime }), [startTime, endTime])
+  const fade = useMemo(
+    () => ({ fadeIn, fadeOut, fadeInDuration, fadeOutDuration }),
+    [fadeIn, fadeOut, fadeInDuration, fadeOutDuration],
+  )
   return (
     <WaveformDisplay
       audioFile={audioFile}
@@ -44,7 +50,6 @@ function SegmentWaveform({
       audioRef={audioRef}
       onSeek={onSeek}
       peaks={peaks}
-      playbackEnvelope={{ range, fade }}
       trimRange={range}
       trimFade={fade}
       onTrimRangeChange={onUpdate}
