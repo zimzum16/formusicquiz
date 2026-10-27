@@ -21,17 +21,24 @@ app.route('/api/info', infoRouter);
 
 app.get('/api/health', (c) => c.json({ ok: true, v: 2 }));
 
+// Хост URL — один из разрешённых или их поддомен. Некорректный URL не разрешён
+function isAllowedHost(url: string, hosts: string[]): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return hosts.some(h => hostname === h || hostname.endsWith(`.${h}`));
+  } catch {
+    return false;
+  }
+}
+
 // Прокси для скрапинга — используется Vercel-функцией, которая блокируется Genius
 // Сам эндпоинт работает только когда запускается на VPS (там IP не заблокирован)
 const ALLOWED_SCRAPE_HOSTS = ['genius.com'];
 app.get('/api/scrape', async (c) => {
   const url = c.req.query('url');
   if (!url) return c.json({ error: 'url required' }, 400);
+  if (!isAllowedHost(url, ALLOWED_SCRAPE_HOSTS)) return c.json({ error: 'host not allowed' }, 403);
   try {
-    const { hostname } = new URL(url);
-    if (!ALLOWED_SCRAPE_HOSTS.some(h => hostname === h || hostname.endsWith(`.${h}`))) {
-      return c.json({ error: 'host not allowed' }, 403);
-    }
     const res = await fetch(url, {
       headers: BROWSER_HEADERS,
       signal: AbortSignal.timeout(12000),
@@ -49,11 +56,8 @@ const ALLOWED_IMG_HOSTS = ['i.scdn.co', 'mosaic.scdn.co', 'lineup-images.scdn.co
 app.get('/api/img', async (c) => {
   const url = c.req.query('url');
   if (!url) return c.json({ error: 'url required' }, 400);
+  if (!isAllowedHost(url, ALLOWED_IMG_HOSTS)) return c.json({ error: 'host not allowed' }, 403);
   try {
-    const { hostname } = new URL(url);
-    if (!ALLOWED_IMG_HOSTS.some(h => hostname === h || hostname.endsWith(`.${h}`))) {
-      return c.json({ error: 'host not allowed' }, 403);
-    }
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return c.body(null, res.status as 404);
     const ct = res.headers.get('content-type') || 'image/jpeg';

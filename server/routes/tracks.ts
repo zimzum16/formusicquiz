@@ -125,6 +125,9 @@ const TrackInfoSchema = z.object({
 
 const ErrorSchema = z.object({ error: z.string() });
 
+// Трек по id из поиска: itunes:<id> — iTunes, иначе Spotify
+const getTrackById = (id: string) => id.startsWith('itunes:') ? getTrackItunes(id) : getTrack(id);
+
 // ── Cache ─────────────────────────────────────────────────────────────────────
 
 const TRACK_TTL_S = 60 * 60; // 1 час
@@ -508,9 +511,7 @@ router.openapi(infoRoute, async (c) => {
   const cached = await cacheGet<TrackInfoPayload>(`track:${id}`);
   if (cached) return c.json(cached, 200);
 
-  const spotifyTrack = id.startsWith('itunes:')
-    ? await getTrackItunes(id)
-    : await getTrack(id);
+  const spotifyTrack = await getTrackById(id);
   if (!spotifyTrack) return c.json({ error: 'Track not found' }, 404);
 
   const { title: rawTitle, artist } = spotifyTrack;
@@ -558,9 +559,7 @@ router.openapi(setlistfmRoute, async (c) => {
   const cached = await cacheGet<z.infer<typeof SetlistfmSchema>>(`setlist:${id}`);
   if (cached) return c.json(cached, 200);
 
-  const spotifyTrack = id.startsWith('itunes:')
-    ? await getTrackItunes(id)
-    : await getTrack(id);
+  const spotifyTrack = await getTrackById(id);
   if (!spotifyTrack) return c.json(null, 200);
 
   const { title: rawTitle, artist } = spotifyTrack;
