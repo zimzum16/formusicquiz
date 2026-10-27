@@ -4,6 +4,7 @@ import { infoApi, type ArtistInfo, type AlbumInfo, type Localized, type WikiPage
 import { t, lang } from '../i18n';
 import { useInfo, useTrackInfo } from '../hooks/useInfo';
 import { ShowMoreButton } from './CollapsibleList';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
 const SANS: React.CSSProperties = { fontFamily: 'Montserrat, sans-serif' };
 const MONO: React.CSSProperties = { fontFamily: 'JetBrains Mono, monospace' };
@@ -83,17 +84,6 @@ function tenure(m: BandMember, dissolved: string | null) {
     const b = Number(year(p.begin));
     return b ? sum + (Number(year(p.end)) || now) - b : sum;
   }, 0);
-}
-
-function useMediaQuery(query: string) {
-  const [match, setMatch] = useState(() => window.matchMedia(query).matches);
-  useEffect(() => {
-    const mq = window.matchMedia(query);
-    const fn = () => setMatch(mq.matches);
-    mq.addEventListener('change', fn);
-    return () => mq.removeEventListener('change', fn);
-  }, [query]);
-  return match;
 }
 
 // ── Pieces ───────────────────────────────────────────────────────────────────

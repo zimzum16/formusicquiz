@@ -1,7 +1,8 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Page } from '../App';
 import { t } from '../i18n';
 import { LogoIcon } from '../components/LogoIcon';
+import { useIsMobile } from '../hooks/useMediaQuery';
 
 interface HomeProps {
   navigate: (page: Page) => void;
@@ -82,13 +83,7 @@ const FeatureCard = ({ label, icon, title, desc, preview, isMobile, titleOffset,
 
 export default function Home({ navigate }: HomeProps) {
   const [lightbox, setLightbox] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
-
-  useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 640);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
+  const isMobile = useIsMobile();
 
   return (
     <>
