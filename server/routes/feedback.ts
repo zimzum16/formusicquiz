@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { Redis } from '@upstash/redis';
+import { redis } from '../lib/cache.js';
 
 const router = new Hono();
 
@@ -8,10 +8,6 @@ const schema = z.object({
   message: z.string().min(1).max(2000),
   contact: z.string().max(200).optional(),
 });
-
-const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
-  ? new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN })
-  : null;
 
 async function sendNotification(text: string) {
   const topic = process.env.NTFY_TOPIC;
