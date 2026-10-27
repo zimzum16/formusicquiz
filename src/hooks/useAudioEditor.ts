@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { t } from '../i18n'
 import type { AudioFile, TrimSegment, ProcessedAudioFile } from '../types/audio'
 import { exportMp3Segment, processAudioSegment } from '../lib/audioUtils'
 import { scanFrames, type Mp3FrameIndex } from '../lib/mp3Container'
@@ -17,7 +18,7 @@ function cleanSiteTag(s: string | undefined): string | undefined {
   return cleaned.replace(/[^a-zа-яё0-9\s]/gi, '').trim() ? cleaned : undefined
 }
 
-const UNKNOWN_ARTIST = 'Неизвестный исполнитель'
+const UNKNOWN_ARTIST = t.unknown_artist
 
 // Декодирование вынесено в отдельную функцию, чтобы AudioBuffer не попал в замыкания
 // и освобождался сразу после использования: PCM весит ~10 МБ на минуту стерео.
@@ -59,11 +60,11 @@ export function useAudioEditor() {
     setUploadProgress(0)
 
     if (!file.name.toLowerCase().endsWith('.mp3')) {
-      setError('Поддерживается только формат MP3')
+      setError(t.err_only_mp3)
       return
     }
     if (file.size > 50 * 1024 * 1024) {
-      setError('Размер файла не должен превышать 50 МБ')
+      setError(t.err_file_too_large)
       return
     }
 
@@ -290,7 +291,7 @@ export function useAudioEditor() {
           .finally(() => setIsAnalyzingStructure(false))
       })()
     } catch (err) {
-      setError('Ошибка при загрузке файла. Убедитесь, что это корректный MP3 файл.')
+      setError(t.err_upload_failed)
       console.error('File upload error:', err)
       setUploadProgress(0)
     }
@@ -323,7 +324,7 @@ export function useAudioEditor() {
 
   const processAudio = useCallback(async () => {
     if (!audioFile || segments.length === 0) {
-      setError('Аудиоданные недоступны. Загрузите файл ещё раз.')
+      setError(t.err_audio_unavailable)
       return
     }
 
@@ -358,7 +359,7 @@ export function useAudioEditor() {
       setProcessedFiles(processed)
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err)
-      setError(`Ошибка при обработке аудио: ${detail}`)
+      setError(`${t.err_processing} ${detail}`)
     } finally {
       setIsProcessing(false)
     }

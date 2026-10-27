@@ -80,6 +80,19 @@ export const ru = {
   trim_end: 'Конец',
   trim_slice_label: 'Вариант',
   trim_remove_aria: 'Удалить вариант обрезки',
+  // Editor — ошибки и имена файлов
+  unknown_artist: 'Неизвестный исполнитель',
+  err_only_mp3: 'Поддерживается только формат MP3',
+  err_file_too_large: 'Размер файла не должен превышать 50 МБ',
+  err_upload_failed: 'Ошибка при загрузке файла. Убедитесь, что это корректный MP3 файл.',
+  err_audio_unavailable: 'Аудиоданные недоступны. Загрузите файл ещё раз.',
+  err_processing: 'Ошибка при обработке аудио:',
+  err_bad_range: 'Некорректный интервал обрезки',
+  err_time_negative: 'Время не может быть отрицательным',
+  err_start_after_end: 'Начало должно быть раньше конца',
+  err_end_after_duration: 'Конец не может превышать длительность трека',
+  fragment_file_suffix: 'фрагмент',
+  err_request: 'Ошибка запроса',
 
   // Editor — MultiTrimPanel
   add_slice: 'Выбрать ещё фрагмент',

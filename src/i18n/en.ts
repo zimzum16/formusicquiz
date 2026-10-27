@@ -82,6 +82,19 @@ export const en: Translations = {
   trim_end: 'End',
   trim_slice_label: 'Slice',
   trim_remove_aria: 'Remove slice',
+  // Editor — errors and file names
+  unknown_artist: 'Unknown artist',
+  err_only_mp3: 'Only MP3 files are supported',
+  err_file_too_large: 'The file must not exceed 50 MB',
+  err_upload_failed: 'Failed to load the file. Make sure it is a valid MP3.',
+  err_audio_unavailable: 'Audio data is unavailable. Please upload the file again.',
+  err_processing: 'Audio processing failed:',
+  err_bad_range: 'Invalid trim range',
+  err_time_negative: 'Time cannot be negative',
+  err_start_after_end: 'Start must be before end',
+  err_end_after_duration: 'End cannot exceed the track duration',
+  fragment_file_suffix: 'fragment',
+  err_request: 'Request failed',
 
   // Editor — MultiTrimPanel
   add_slice: 'Add another slice',

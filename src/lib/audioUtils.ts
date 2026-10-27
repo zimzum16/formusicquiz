@@ -1,4 +1,5 @@
 import type { TrimSegment, ProcessedAudioFile } from '../types/audio'
+import { t } from '../i18n'
 import { buildID3v2, type ID3WriteTags } from './id3Writer'
 import { cutMp3, framesForRange, nearestEncoderBitrate, sliceFrames, type Mp3FrameIndex } from './mp3Container'
 
@@ -38,7 +39,7 @@ export async function processAudioSegment(
 ): Promise<ProcessedAudioFile> {
   const duration = segment.endTime - segment.startTime
   if (!Number.isFinite(duration) || duration <= 0) {
-    throw new Error('Некорректный интервал обрезки')
+    throw new Error(t.err_bad_range)
   }
 
   const sr = audioBuffer.sampleRate
@@ -88,11 +89,11 @@ function toProcessedFile(id: string, mp3: Blob, duration: number, tags: ID3Write
 
   const sanitize = (s: string | undefined) => (s ?? '').split('\x00').join('').trim()
   const a = sanitize(tags.artist) || 'Unknown'
-  const t = sanitize(tags.title) || 'Track'
+  const title = sanitize(tags.title) || 'Track'
 
   return {
     id,
-    name: `${a} - ${t} (фрагмент ${index}).mp3`,
+    name: `${a} - ${title} (${t.fragment_file_suffix} ${index}).mp3`,
     blob,
     url: URL.createObjectURL(blob),
     duration,
@@ -145,13 +146,13 @@ export function formatTimeDetailedComma(sec: number): string {
 }
 
 export function parseFlexibleTime(value: string): number {
-  const t = value.trim()
-  if (!t) return 0
-  const dec = t.match(/^(\d+):(\d{1,2})\.(\d)$/)
+  const v = value.trim()
+  if (!v) return 0
+  const dec = v.match(/^(\d+):(\d{1,2})\.(\d)$/)
   if (dec) {
     return parseInt(dec[1], 10) * 60 + parseInt(dec[2], 10) + parseInt(dec[3], 10) / 10
   }
-  const parts = t.split(':')
+  const parts = v.split(':')
   if (parts.length === 2) {
     const mins = parseInt(parts[0], 10) || 0
     const secPart = parts[1]
@@ -161,14 +162,14 @@ export function parseFlexibleTime(value: string): number {
     }
     return mins * 60 + (parseInt(secPart, 10) || 0)
   }
-  const f = parseFloat(t)
+  const f = parseFloat(v)
   return Number.isFinite(f) ? f : 0
 }
 
 export function validateTimeRange(start: number, end: number, max: number): string | null {
-  if (start < 0 || end < 0) return 'Время не может быть отрицательным'
-  if (start >= end) return 'Начало должно быть раньше конца'
-  if (end > max) return 'Конец не может превышать длительность трека'
+  if (start < 0 || end < 0) return t.err_time_negative
+  if (start >= end) return t.err_start_after_end
+  if (end > max) return t.err_end_after_duration
   return null
 }
 
