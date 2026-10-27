@@ -5,8 +5,6 @@ import {
   type Localized, type CriticRating, type Single, type ChartPeak, type Certification, type PersonnelGroup,
 } from './wikitext.js';
 
-export type { Localized, CriticRating, Single, ChartPeak, Certification, PersonnelGroup };
-
 // Wikimedia без контакта (URL или email) в User-Agent даёт 10 запросов/мин вместо 200
 const UA = process.env.WIKI_USER_AGENT || 'SoundLens/1.0 (https://github.com/zimzum16/formusicquiz)';
 const WIKIMEDIA_CONCURRENCY = 3;  // рекомендация Wikimedia: не больше 3 параллельных запросов
@@ -19,7 +17,7 @@ const INFO_TTL_S = 14 * 24 * 60 * 60;
 const PARTIAL_TTL_S = 60 * 60;  // часть источников не ответила — перезапросим скоро
 const MISS_TTL_S = 24 * 60 * 60;
 
-export interface WikiPage {
+interface WikiPage {
   title: string;
   url: string;
   description: string | null;
@@ -27,7 +25,7 @@ export interface WikiPage {
   image: string | null;
 }
 
-export interface BandMember {
+interface BandMember {
   name: string;
   periods: { begin: string | null; end: string | null }[];
   roles: string[];

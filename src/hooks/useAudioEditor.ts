@@ -135,7 +135,6 @@ export function useAudioEditor() {
 
         try {
           const { tracks: results } = await tracksApi.search(title, searchArtist)
-          console.log('[upload] spotify results:', results.length, results[0])
 
           if (results.length) {
             // Сравниваем без учёта алфавита (Alisa ≈ Алиса — одинаковые символы после strip)
@@ -179,8 +178,6 @@ export function useAudioEditor() {
               if (byTitle) artistMatches = [byTitle]
             }
 
-            console.log('[upload] artistMatches:', artistMatches.length, artistMatches[0])
-
             if (artistMatches.length) {
               const COMPILATION_RE = /greatest hits|best of|collection|anthology|compilation|platinum|hits|essential|сборник/i
               let match = artistMatches[0]
@@ -208,8 +205,6 @@ export function useAudioEditor() {
                 return rn === tn || rn.includes(tn) || tn.includes(rn)
               })?.cover_url ?? itunesResults.find(r => r.cover_url)?.cover_url ?? null
 
-              console.log('[upload] spotifyCover:', spotifyCover, 'itunesCover:', itunesCover)
-
               setAudioFile(prev => prev ? {
                 ...prev,
                 coverArt: spotifyCover ?? itunesCover ?? prev.coverArt,
@@ -222,11 +217,10 @@ export function useAudioEditor() {
             }
           }
         } catch (e) {
-          console.log('[upload] spotify error:', e)
+          console.warn('[upload] spotify search failed, falling back to iTunes:', e)
           // Spotify/сервер недоступен — используем уже запущенный iTunes
           try {
             const itunesResults = await itunesPromise
-            console.log('[upload] itunes fallback results:', itunesResults.length)
             if (itunesResults.length) {
               const titleNorm = normalize(confirmedTitle)
               const artistNorm = confirmedArtist !== UNKNOWN_ARTIST ? normalize(confirmedArtist) : null

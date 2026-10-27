@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseTagsFromHtml } from './genius.js';
-import { extractLyricsText } from './lyricsCompare.js';
-import { parseGeniusLyrics } from '../routes/tracks.js';
+import { extractLyricsText, parseGeniusLyrics, parseTagsFromHtml } from './genius.js';
 
 describe('parseTagsFromHtml', () => {
   it('читает теги из ссылок и декодирует HTML-сущности', () => {

@@ -1,7 +1,7 @@
 import { ru } from './ru';
 import { en } from './en';
 
-export type Lang = 'ru' | 'en';
+type Lang = 'ru' | 'en';
 
 const lang: Lang = (import.meta.env.VITE_LANG as Lang) === 'en' ? 'en' : 'ru';
 

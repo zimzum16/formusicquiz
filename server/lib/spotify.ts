@@ -58,11 +58,6 @@ export interface SpotifyTrack {
   popularity: number | null;
 }
 
-export interface SpotifyArtist {
-  followers: number;
-  genres: string[];
-}
-
 export interface ArtistAlbum {
   id: string;
   title: string;

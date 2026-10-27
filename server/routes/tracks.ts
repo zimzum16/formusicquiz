@@ -1,10 +1,9 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { cacheGet, cacheSet } from '../lib/cache.js';
 import { searchTracks, getTrack, searchArtists, getArtistAlbums, getAlbumTracks, type SpotifyArtistResult, type ArtistAlbum } from '../lib/spotify.js';
-import { searchSong, parseTagsFromHtml } from '../lib/genius.js';
+import { searchSong, parseTagsFromHtml, parseGeniusLyrics, type GeniusLyricsSection } from '../lib/genius.js';
 import { fetchGeniusHtml } from '../lib/scrape.js';
 import { normKey, namesOverlap } from '../lib/text.js';
-import { extractLyricsText } from '../lib/lyricsCompare.js';
 import { getTrackInfo } from '../lib/lastfm.js';
 import { getTrackInfo as getYandexTrackInfo } from '../lib/yandex.js';
 import { getTrackStats } from '../lib/setlistfm.js';
@@ -125,76 +124,6 @@ const TrackInfoSchema = z.object({
 });
 
 const ErrorSchema = z.object({ error: z.string() });
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-type SectionType = 'intro' | 'verse' | 'pre-chorus' | 'chorus' | 'post-chorus' | 'bridge' | 'outro' | 'unknown';
-
-interface GeniusLyricsSection {
-  type: SectionType;
-  label: string;
-  lines: string[];
-}
-
-function mapSectionType(name: string): SectionType {
-  const lower = name.toLowerCase();
-  if (/verse|куплет/.test(lower)) return 'verse';
-  if (/bridge|бридж/.test(lower)) return 'bridge';
-  if (/intro|интро/.test(lower)) return 'intro';
-  if (/outro|аутро|coda/.test(lower)) return 'outro';
-  // pre/post-chorus checked before chorus to avoid partial match
-  if (/pre-chorus|pre chorus|пред.припев/.test(lower)) return 'pre-chorus';
-  if (/post-chorus|post chorus|пост.припев/.test(lower)) return 'post-chorus';
-  if (/chorus|припев|refrain|hook/.test(lower)) return 'chorus';
-  return 'unknown';
-}
-
-function formatSectionLabel(name: string): string {
-  // Strip artist attribution after colon: "Verse 1: Drake" → "Verse 1"
-  const clean = name.split(':')[0].trim();
-  return clean
-    // pre/post must come before chorus to avoid partial substitution
-    .replace(/\bpre-chorus\b/i, 'Пред-припев')
-    .replace(/\bpost-chorus\b/i, 'Пост-припев')
-    .replace(/\bpre chorus\b/i, 'Пред-припев')
-    .replace(/\bpost chorus\b/i, 'Пост-припев')
-    .replace(/\bverse\b/i, 'Куплет')
-    .replace(/\bchorus\b/i, 'Припев')
-    .replace(/\bbridge\b/i, 'Бридж')
-    .replace(/\bintro\b/i, 'Интро')
-    .replace(/\boutro\b/i, 'Аутро')
-    .replace(/\bhook\b/i, 'Хук')
-    .replace(/\brefrain\b/i, 'Припев');
-}
-
-export function parseGeniusLyrics(html: string): GeniusLyricsSection[] {
-  let text = extractLyricsText(html);
-  if (!text) return [];
-
-  // Если маркер секции приклеен к тексту ("Read More [Verse 1]") — выносим на отдельную строку
-  text = text.replace(/[^\n]*(\[[A-Z][^\]\n]{0,40}\])/g, (match, marker) => {
-    const before = match.slice(0, match.length - marker.length).trim();
-    return before ? `${before}\n${marker}` : marker;
-  });
-
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  const sections: GeniusLyricsSection[] = [];
-  let current: GeniusLyricsSection | null = null;
-
-  for (const line of lines) {
-    const sectionMatch = line.match(/^\[([^\]]+)\]$/);
-    if (sectionMatch) {
-      if (current && current.lines.length > 0) sections.push(current);
-      const name = sectionMatch[1];
-      current = { type: mapSectionType(name), label: formatSectionLabel(name), lines: [] };
-    } else if (current) {
-      current.lines.push(line);
-    }
-  }
-
-  if (current && current.lines.length > 0) sections.push(current);
-  return sections;
-}
 
 // ── Cache ─────────────────────────────────────────────────────────────────────
 
@@ -413,7 +342,6 @@ router.openapi(lyricsRoute, async (c) => {
     lyricsUrl = genius.lyrics_url;
     geniusTitle = genius.title;
     geniusArtist = genius.artist;
-    console.log('[lyrics] found url:', lyricsUrl);
   } else {
     return c.json({ sections: [] }, 200);
   }
@@ -424,9 +352,7 @@ router.openapi(lyricsRoute, async (c) => {
   try {
     const html = await fetchGeniusHtml(lyricsUrl);
     if (!html) return c.json({ sections: [] }, 200);
-    console.log('[lyrics] html length:', html.length, 'has container:', html.includes('data-lyrics-container'));
     const sections = parseGeniusLyrics(html);
-    console.log('[lyrics] parsed sections:', sections.length);
     const tags = parseTagsFromHtml(html);
     const isCover = tags.some(t => t.toLowerCase() === 'cover');
     const data = { sections, title: geniusTitle, artist: geniusArtist, url: lyricsUrl, isCover };

@@ -1,3 +1,4 @@
+import { load } from 'cheerio';
 import { fetchGeniusHtml } from './scrape.js';
 import { namesOverlap } from './text.js';
 
@@ -195,4 +196,85 @@ interface GeniusApiSong {
     relationship_type: string;
     songs: { title: string; primary_artist: { name: string }; url: string }[];
   }[];
+}
+
+// ── Текст песни со страницы ───────────────────────────────────────────────────
+
+export function extractLyricsText(html: string): string {
+  const $ = load(html);
+  const parts: string[] = [];
+  $('div[data-lyrics-container="true"]').each((_, el) => {
+    $(el).find('[data-exclude-from-selection="true"]').remove();
+    $(el).find('br').replaceWith('\n');
+    parts.push($(el).text());
+  });
+  return parts.join('\n').trim();
+}
+
+type SectionType = 'intro' | 'verse' | 'pre-chorus' | 'chorus' | 'post-chorus' | 'bridge' | 'outro' | 'unknown';
+
+export interface GeniusLyricsSection {
+  type: SectionType;
+  label: string;
+  lines: string[];
+}
+
+function mapSectionType(name: string): SectionType {
+  const lower = name.toLowerCase();
+  if (/verse|куплет/.test(lower)) return 'verse';
+  if (/bridge|бридж/.test(lower)) return 'bridge';
+  if (/intro|интро/.test(lower)) return 'intro';
+  if (/outro|аутро|coda/.test(lower)) return 'outro';
+  // pre/post-chorus checked before chorus to avoid partial match
+  if (/pre-chorus|pre chorus|пред.припев/.test(lower)) return 'pre-chorus';
+  if (/post-chorus|post chorus|пост.припев/.test(lower)) return 'post-chorus';
+  if (/chorus|припев|refrain|hook/.test(lower)) return 'chorus';
+  return 'unknown';
+}
+
+function formatSectionLabel(name: string): string {
+  // Strip artist attribution after colon: "Verse 1: Drake" → "Verse 1"
+  const clean = name.split(':')[0].trim();
+  return clean
+    // pre/post must come before chorus to avoid partial substitution
+    .replace(/\bpre-chorus\b/i, 'Пред-припев')
+    .replace(/\bpost-chorus\b/i, 'Пост-припев')
+    .replace(/\bpre chorus\b/i, 'Пред-припев')
+    .replace(/\bpost chorus\b/i, 'Пост-припев')
+    .replace(/\bverse\b/i, 'Куплет')
+    .replace(/\bchorus\b/i, 'Припев')
+    .replace(/\bbridge\b/i, 'Бридж')
+    .replace(/\bintro\b/i, 'Интро')
+    .replace(/\boutro\b/i, 'Аутро')
+    .replace(/\bhook\b/i, 'Хук')
+    .replace(/\brefrain\b/i, 'Припев');
+}
+
+export function parseGeniusLyrics(html: string): GeniusLyricsSection[] {
+  let text = extractLyricsText(html);
+  if (!text) return [];
+
+  // Если маркер секции приклеен к тексту ("Read More [Verse 1]") — выносим на отдельную строку
+  text = text.replace(/[^\n]*(\[[A-Z][^\]\n]{0,40}\])/g, (match, marker) => {
+    const before = match.slice(0, match.length - marker.length).trim();
+    return before ? `${before}\n${marker}` : marker;
+  });
+
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const sections: GeniusLyricsSection[] = [];
+  let current: GeniusLyricsSection | null = null;
+
+  for (const line of lines) {
+    const sectionMatch = line.match(/^\[([^\]]+)\]$/);
+    if (sectionMatch) {
+      if (current && current.lines.length > 0) sections.push(current);
+      const name = sectionMatch[1];
+      current = { type: mapSectionType(name), label: formatSectionLabel(name), lines: [] };
+    } else if (current) {
+      current.lines.push(line);
+    }
+  }
+
+  if (current && current.lines.length > 0) sections.push(current);
+  return sections;
 }
