@@ -8,7 +8,7 @@ let fetchMock: ReturnType<typeof vi.fn<(url: string, init?: RequestInit) => Prom
 
 beforeEach(() => {
   process.env.NTFY_TOPIC = 'test-topic';
-  fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response('ok'));
+  fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => new Response('ok'));
   vi.stubGlobal('fetch', fetchMock);
 });
 afterEach(() => {
