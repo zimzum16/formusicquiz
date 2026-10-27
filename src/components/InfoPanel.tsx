@@ -260,6 +260,20 @@ function ExpandableRows<T>({ label, items, rowKey, left, right, limit = LIST_LIM
   );
 }
 
+// Пиковые позиции в чартах — у альбома и у песни одинаково
+function ChartRows({ charts, limit }: { charts: AlbumInfo['charts']; limit?: number }) {
+  return (
+    <ExpandableRows
+      label={t.info_charts}
+      items={sortCharts(charts)}
+      rowKey={c => c.chart}
+      left={c => loc(c.name)}
+      right={c => `#${c.peak}`}
+      limit={limit}
+    />
+  );
+}
+
 // Главные чарты — Billboard 200 / Hot 100 и UK Albums / Singles, дальше по позиции
 const chartPriority = (chart: string) => {
   const key = chart.toLowerCase().replace(/[\s\d]/g, '');
@@ -424,13 +438,7 @@ function AlbumBody({ data, singles }: { data: AlbumInfo; singles: AlbumInfo['sin
         right={s => fmtDate(s.date)}
       />
       <Personnel groups={data.personnel} />
-      <ExpandableRows
-        label={t.info_charts}
-        items={sortCharts(data.charts)}
-        rowKey={c => c.chart}
-        left={c => loc(c.name)}
-        right={c => `#${c.peak}`}
-      />
+      <ChartRows charts={data.charts} />
       <ExpandableRows
         label={t.info_certifications}
         items={sortCertifications(data.certifications)}
@@ -529,14 +537,7 @@ export function TrackCharts({ track }: { track: { id: string; title: string; art
   if (!data?.charts.length) return null;
   return (
     <div className="flex-1 min-w-0">
-      <ExpandableRows
-        label={t.info_charts}
-        items={sortCharts(data.charts)}
-        rowKey={c => c.chart}
-        left={c => loc(c.name)}
-        right={c => `#${c.peak}`}
-        limit={5}
-      />
+      <ChartRows charts={data.charts} limit={5} />
     </div>
   );
 }

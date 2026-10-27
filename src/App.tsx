@@ -9,6 +9,20 @@ import FeedbackModal from './components/FeedbackModal';
 
 export type Page = 'home' | 'song-info' | 'editor' | 'pricing';
 
+// Флаг-ссылка на версию сайта; текущий язык — ярче
+function LangLink({ code, href, title }: { code: 'ru' | 'en'; href: string; title: string }) {
+  return (
+    <a
+      href={href}
+      title={title}
+      style={{ opacity: lang === code ? 1 : 0.35, lineHeight: 0, transition: 'opacity .2s', textDecoration: 'none' }}
+      className="hover:opacity-80"
+    >
+      <img src={`/flag-${code}.svg`} width={24} height={24} alt={code.toUpperCase()} />
+    </a>
+  );
+}
+
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -32,14 +46,7 @@ function App() {
       </div>
       <footer className="mt-auto pt-6 pb-4 flex flex-col items-center gap-2" style={{ color: 'rgba(255,255,255,.45)', fontSize: '12px', fontFamily: 'Montserrat, sans-serif' }}>
         <div className="flex items-center gap-5">
-          <a
-            href="https://trackslice.ru"
-            title="Русский"
-            style={{ opacity: lang === 'ru' ? 1 : 0.35, lineHeight: 0, transition: 'opacity .2s', textDecoration: 'none' }}
-            className="hover:opacity-80"
-          >
-            <img src="/flag-ru.svg" width={24} height={24} alt="RU" />
-          </a>
+          <LangLink code="ru" href="https://trackslice.ru" title="Русский" />
           <button
             onClick={() => setFeedbackOpen(true)}
             className="flex items-center transition-opacity hover:opacity-60"
@@ -49,14 +56,7 @@ function App() {
           >
             <img src="/tg-icon.png" width={36} height={36} alt="" aria-hidden />
           </button>
-          <a
-            href="https://en.trackslice.ru"
-            title="English"
-            style={{ opacity: lang === 'en' ? 1 : 0.35, lineHeight: 0, transition: 'opacity .2s', textDecoration: 'none' }}
-            className="hover:opacity-80"
-          >
-            <img src="/flag-en.svg" width={24} height={24} alt="EN" />
-          </a>
+          <LangLink code="en" href="https://en.trackslice.ru" title="English" />
         </div>
         <span>© {new Date().getFullYear()} ZimZum Production</span>
       </footer>
