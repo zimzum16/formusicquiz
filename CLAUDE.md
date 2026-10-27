@@ -29,7 +29,8 @@ npm test                          # vitest: src/**/*.test.ts и server/**/*.test
 
 # Бэкенд
 cd server && npm install && npm run dev   # http://localhost:3001
-cd server && npx tsc --noEmit            # проверка типов
+cd server && npx tsc --noEmit            # проверка типов (вместе с тестами)
+cd server && npm run build               # tsconfig.build.json — без *.test.ts: в Docker нет vitest
 ```
 
 ## Переменные окружения
