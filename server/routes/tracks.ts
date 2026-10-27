@@ -165,7 +165,7 @@ function formatSectionLabel(name: string): string {
     .replace(/\brefrain\b/i, 'Припев');
 }
 
-function parseGeniusLyrics(html: string): GeniusLyricsSection[] {
+export function parseGeniusLyrics(html: string): GeniusLyricsSection[] {
   let text = extractLyricsText(html);
   if (!text) return [];
 

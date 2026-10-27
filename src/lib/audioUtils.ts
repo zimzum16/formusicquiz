@@ -133,9 +133,10 @@ export async function exportMp3Segment(
 
 export function formatTimeDetailed(sec: number): string {
   if (!Number.isFinite(sec) || sec < 0) sec = 0
-  const m = Math.floor(sec / 60)
-  const s = sec - m * 60
-  const [whole, frac] = s.toFixed(1).split('.')
+  // Округляем до десятых до деления на минуты, иначе 59.96 → "00:60.0"
+  const tenths = Math.round(sec * 10)
+  const m = Math.floor(tenths / 600)
+  const [whole, frac] = ((tenths - m * 600) / 10).toFixed(1).split('.')
   return `${m.toString().padStart(2, '0')}:${whole.padStart(2, '0')}.${frac}`
 }
 

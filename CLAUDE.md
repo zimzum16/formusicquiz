@@ -25,6 +25,7 @@ MVP музыкального сервиса: поиск информации о 
 # Фронтенд
 npm install && npm run dev        # http://localhost:5173
 npm run typecheck && npm run lint
+npm test                          # vitest: src/**/*.test.ts и server/**/*.test.ts
 
 # Бэкенд
 cd server && npm install && npm run dev   # http://localhost:3001

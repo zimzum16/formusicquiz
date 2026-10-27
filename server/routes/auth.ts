@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import bcrypt from 'bcryptjs';
+import { randomUUID } from 'node:crypto';
 import { SignJWT } from 'jose';
 import db from '../db.js';
 import { requireAuth } from '../middleware/session.js';
@@ -14,8 +15,11 @@ const getSecret = () =>
 async function createSession(userId: number): Promise<string> {
   const expiresAt = Math.floor(Date.now() / 1000) + SESSION_TTL;
 
+  // jti делает токен уникальным: без него два входа за одну секунду дают одинаковый JWT
+  // и INSERT в sessions падает на PRIMARY KEY
   const token = await new SignJWT({ sub: String(userId) })
     .setProtectedHeader({ alg: 'HS256' })
+    .setJti(randomUUID())
     .setExpirationTime('7d')
     .sign(getSecret());
 
